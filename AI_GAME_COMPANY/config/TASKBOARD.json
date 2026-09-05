@@ -6,7 +6,7 @@
       "id": "CLAUDE-UI1",
       "title": "Casual/Korean UI layout in SceneGenerator",
       "owner": "claude",
-      "status": "review",
+      "status": "done",
       "goal": "Rebuild the title, HUD, game-over, pause and shop screens in SceneGenerator to match the approved casual direction: cream cards with a thick brown outline, Korean labels, one primary green button per screen.",
       "files": [
         "Assets/GameFactory/Editor/SceneGenerator.cs",
@@ -24,7 +24,8 @@
       "notes": [
         "Design reference: https://claude.ai/code/artifact/2c13a317-896d-45cc-98da-b01955e1bc92",
         "Compiles as of 2026-09-02 (build succeeded, APK produced). Still REVIEW and not done: the acceptance criteria are that every string is Korean and legible ON A DEVICE, and whether Font.CreateDynamicFontFromOSFont finds a Hangul face on Android is the one thing that cannot be checked from here. Install the APK and look.",
-        "Verified from the fork's committed reports 2026-09-02 20:25: generate/validate/build all exit 0, APK Builds/game01/APK/Game01_FactoryRunner_v1.0.apk 17.32 MB sha256:7F81E6F18E29EA94, and 0 compile errors / 0 obsolete-API warnings / 0 runtime exceptions / 0 build failures. Still REVIEW for one reason only: nobody has looked at the Korean text on a device yet."
+        "Verified from the fork's committed reports 2026-09-02 20:25: generate/validate/build all exit 0, APK Builds/game01/APK/Game01_FactoryRunner_v1.0.apk 17.32 MB sha256:7F81E6F18E29EA94, and 0 compile errors / 0 obsolete-API warnings / 0 runtime exceptions / 0 build failures. Still REVIEW for one reason only: nobody has looked at the Korean text on a device yet.",
+        "2026-09-05: User verified Korean text and colored buttons on Android APK SHA256 6B43C5A77974357C. Device acceptance passed."
       ],
       "changed_files": [],
       "last_run": "",
@@ -57,7 +58,7 @@
       "id": "CODEX-ART1",
       "title": "Map the four Kenney button colours",
       "owner": "codex",
-      "status": "review",
+      "status": "done",
       "goal": "The UI only has one button sprite (blue). The casual design needs green for the primary action, yellow for the shop, red for close and grey for secondary/disabled. Add the four colour variants from the already-approved kenney-ui-pack to the art mapping, and give each one its 9-slice border in SharedArtImporter so the outline keeps its thickness at any button size.",
       "files": [
         "AI_GAME_COMPANY/config/art-mapping.json",
@@ -77,7 +78,8 @@
         "Do not copy any image files. apply-art-mapping.ps1 does the copying on the PC, and it refuses any pack that is not APPROVED in LICENSE_REGISTRY.json.",
         "Ran 2026-09-02. Codex edited both allowlisted files correctly; the run was reported BLOCKED only because Unity rewrote Packages/packages-lock.json while it worked - see CODEX-BOARD1 defect 1. Committed by hand as 89514dc. Still needs apply-art-mapping.ps1 -Commit to copy the actual PNGs, and a build to compile SharedArtImporter.",
         "SharedArtImporter compiles as of 2026-09-02. Still REVIEW: the four button PNGs are not on disk yet, so every button in the current APK is still the blue fallback. Needs AI_GAME_COMPANY/tools/apply-art-mapping.ps1 -Commit.",
-        "Still REVIEW as of 2026-09-02 20:25: the fork has no Assets/Common/Art/UI/ directory at all, so the four button PNGs were never copied - apply-art-mapping.ps1 has not been run with -Commit. Every button in the 17.32 MB APK is therefore still the blue fallback that StyleButton falls back to."
+        "Still REVIEW as of 2026-09-02 20:25: the fork has no Assets/Common/Art/UI/ directory at all, so the four button PNGs were never copied - apply-art-mapping.ps1 has not been run with -Commit. Every button in the 17.32 MB APK is therefore still the blue fallback that StyleButton falls back to.",
+        "2026-09-05: User verified Korean text and colored buttons on Android APK SHA256 6B43C5A77974357C. Device acceptance passed."
       ],
       "changed_files": [
         "AI_GAME_COMPANY/config/art-mapping.json",
@@ -138,7 +140,8 @@
         "Sorting: a SpriteRenderer child needs a lower sortingOrder than the body to draw behind it.",
         "Keep it subtle. This is a 136x192 sprite on a phone; limbs that swing far read as broken, not lively.",
         "2026-09-03 00:47 UTC: Codex RAN THIS TASK and finished (Reports/runs/20260903T004724...txt). The run then died with UnicodeEncodeError: cp949 while PRINTING the summary - an em dash in Codex's message that the Korean Windows console cannot encode. run_task had already saved REVIEW, but Codex's edits from that run were then swept into the PC stash named 'codex RUNLOG1 attempt' on 2026-09-05 (git stash push -u before pulling upstream). That stash holds finished work from FOUR runs - do not drop it. Export with `git stash show -p > Reports/codex-attempts.diff`, commit, push, and Claude will review and merge what is good.",
-        "2026-09-05: Codex's finished ANIM1 code RECOVERED from the PC stash (Reports/codex-attempts.diff) and applied to this branch by Claude. Read against the acceptance criteria: four limb GameObjects created once in CreateLimbs from one shared 1x1 sprite (no art file); diagonal pairs share a phase (left arm with right leg); airborne holds a jump pose and the run cycle resumes on landing; sortingOrder = body - 1 so limbs draw behind; Update only sets four localRotations - no per-frame allocation; nothing touches PrefabGenerator or a collider. No UnityEditor reference, no obsolete API. REVIEW, not DONE: NOT compiled - the first `orchestrator build` after this lands is the check, and the 136x192 sprite must be looked at on a device for limb size (limbSwing 13 deg was Codex's choice of 'subtle')."
+        "2026-09-05: Codex's finished ANIM1 code RECOVERED from the PC stash (Reports/codex-attempts.diff) and applied to this branch by Claude. Read against the acceptance criteria: four limb GameObjects created once in CreateLimbs from one shared 1x1 sprite (no art file); diagonal pairs share a phase (left arm with right leg); airborne holds a jump pose and the run cycle resumes on landing; sortingOrder = body - 1 so limbs draw behind; Update only sets four localRotations - no per-frame allocation; nothing touches PrefabGenerator or a collider. No UnityEditor reference, no obsolete API. REVIEW, not DONE: NOT compiled - the first `orchestrator build` after this lands is the check, and the 136x192 sprite must be looked at on a device for limb size (limbSwing 13 deg was Codex's choice of 'subtle').",
+        "2026-09-05: Device acceptance FAILED: user sees a sliding still image, not limb motion. Replacing occluded procedural bars with local deformation of the existing illustrated paws. Review pending new build and device check."
       ],
       "changed_files": [
         "Assets/GameFactory/Gameplay/Runner/RunnerCharacterMotion.cs"
@@ -575,6 +578,28 @@
       "changed_files": [],
       "last_run": "",
       "title_ko": "배경 레이어 생성 + 씬에 연결"
+    },
+    {
+      "id": "CODEX-JUMPGAP1",
+      "title": "Match obstacle spacing to jump trajectory",
+      "title_ko": "점프 거리와 장애물 간격 조정",
+      "owner": "codex",
+      "status": "review",
+      "goal": "Derive minimum obstacle spacing from configured speed, jump impulse and gravity with landing/reaction clearance.",
+      "files": [
+        "Assets/GameFactory/Gameplay/Runner/ObstacleSpawner.cs",
+        "Assets/GameFactory/Gameplay/Runner/RunnerGameInitializer.cs"
+      ],
+      "acceptance": [
+        "Consecutive obstacles allow landing and the next jump at all difficulty settings.",
+        "Generated scene PlayMode tests pass; new APK is verified on device."
+      ],
+      "depends_on": [],
+      "notes": [
+        "2026-09-05: User reported jump and obstacle distances do not match. Existing 4-8 gap was independent of approximately 12.2 units of jump travel."
+      ],
+      "changed_files": [],
+      "last_run": ""
     }
   ]
 }
