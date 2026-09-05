@@ -1,11 +1,11 @@
 ﻿# Auto-sync status
 
-Generated: 2026-09-05 11:16:11
-Outcome: FAILED
-Reason: Merge of upstream/claude/delete-current-content-mgn4xm failed: git merge --no-edit upstream/claude/delete-current-content-mgn4xm failed (exit 1): | Auto-merging AI_GAME_COMPANY/config/TASKBOARD.json | CONFLICT (content): Merge conflict in AI_GAME_COMPANY/config/TASKBOARD.json | Automatic merge failed; fix conflicts and then commit the result.
+Generated: 2026-09-05 11:26:23
+Outcome: BLOCKED
+Reason: Uncommitted changes to tracked files: M AI_GAME_COMPANY/company/orchestrator/dashboard.py |  M AI_GAME_COMPANY/company/orchestrator/server.py |  M AI_GAME_COMPANY/tests/test_dashboard.py |  M AI_GAME_COMPANY/tests/test_server.py
 Last-Success: 2026-09-05 11:00:26
-Local-Head: acd421e
-Upstream-Head: 473d82e
+Local-Head: 4bddec3
+Upstream-Head: f09a4d8
 Branch: claude/delete-current-content-mgn4xm
 
 Written by scripts/desktop/sync-and-run.ps1 on every run. Outcome is one of
