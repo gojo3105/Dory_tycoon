@@ -1,10 +1,10 @@
 ﻿# Auto-sync status
 
-Generated: 2026-09-06 00:25:50
-Outcome: BLOCKED
-Reason: Uncommitted changes to tracked files: M AI_GAME_COMPANY/company/orchestrator/dashboard.py |  M AI_GAME_COMPANY/company/orchestrator/server.py |  M AI_GAME_COMPANY/tests/test_dashboard.py |  M AI_GAME_COMPANY/tests/test_server.py |  M Assets/GameFactory/Gameplay/Runner/ObstacleSpawner.cs |  M Assets/GameFactory/Gameplay/Runner/RunnerCharacterMotion.cs |  M Assets/GameFactory/Gameplay/Runner/RunnerGameInitializer.cs |  M GeneratedGames/game01.json |  M ProjectSettings/ProjectSettings.asset |  M Reports/dashboard.html
+Generated: 2026-09-06 00:40:54
+Outcome: FAILED
+Reason: Uncommitted changes to tracked files - stopping. Commit or stash them first: |  | M AI_GAME_COMPANY/company/orchestrator/dashboard.py |  M AI_GAME_COMPANY/company/orchestrator/server.py |  M AI_GAME_COMPANY/tests/test_dashboard.py |  M AI_GAME_COMPANY/tests/test_server.py |  M Assets/GameFactory/Gameplay/Runner/ObstacleSpawner.cs |  M Assets/GameFactory/Gameplay/Runner/RunnerCharacterMotion.cs |  M Assets/GameFactory/Gameplay/Runner/RunnerGameInitializer.cs |  M GeneratedGames/game01.json |  M ProjectSettings/ProjectSettings.asset |  M Reports/dashboard.html
 Last-Success: 2026-09-05 11:00:26
-Local-Head: bec7272
+Local-Head: 3d83884
 Upstream-Head: 931d29b
 Branch: claude/delete-current-content-mgn4xm
 
