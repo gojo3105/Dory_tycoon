@@ -1,11 +1,11 @@
 ﻿# Auto-sync status
 
-Generated: 2026-09-05 11:26:23
+Generated: 2026-09-05 11:40:51
 Outcome: BLOCKED
-Reason: Uncommitted changes to tracked files: M AI_GAME_COMPANY/company/orchestrator/dashboard.py |  M AI_GAME_COMPANY/company/orchestrator/server.py |  M AI_GAME_COMPANY/tests/test_dashboard.py |  M AI_GAME_COMPANY/tests/test_server.py
+Reason: Uncommitted changes to tracked files: M AI_GAME_COMPANY/company/orchestrator/dashboard.py |  M AI_GAME_COMPANY/company/orchestrator/server.py |  M AI_GAME_COMPANY/tests/test_dashboard.py |  M AI_GAME_COMPANY/tests/test_server.py |  M GeneratedGames/game01.json |  M ProjectSettings/ProjectSettings.asset |  M Reports/dashboard.html
 Last-Success: 2026-09-05 11:00:26
-Local-Head: 4bddec3
-Upstream-Head: f09a4d8
+Local-Head: 084e43b
+Upstream-Head: 931d29b
 Branch: claude/delete-current-content-mgn4xm
 
 Written by scripts/desktop/sync-and-run.ps1 on every run. Outcome is one of
