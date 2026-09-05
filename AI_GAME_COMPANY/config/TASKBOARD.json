@@ -552,7 +552,7 @@
       "id": "CODEX-BGWIRE1",
       "title": "Generate the parallax background layers and wire them into the scene",
       "owner": "codex",
-      "status": "todo",
+      "status": "blocked",
       "goal": "CODEX-BG1 delivered ParallaxBackground.cs and it is sound, but nothing calls SetLayers, so every generated scene still has an empty sky. Build the layer objects at generation time from the CC0 background art already staged and approved, and wire them to the component.",
       "files": [
         "Assets/GameFactory/Editor/SceneGenerator.cs",
@@ -573,16 +573,16 @@
         "Read Assets/GameFactory/Gameplay/Runner/ParallaxBackground.cs first - its SetLayers expects one Transform per layer, each with a SpriteRenderer somewhere beneath it that defines the repeat width.",
         "The camera is orthographic, size 5, and follows the player on X (CameraFollow2D). A layer must span more than the visible width at that size or the wrap shows.",
         "Two packs are approved and only ONE should be used: kenney-background-elements-remastered (162 images, the newer one) or kenney-backgroundElements (125, the spare). Mixing the two looks worse than either.",
-        "Do not change ParallaxBackground.cs. If it genuinely needs a change, stop and say so in your final message rather than editing outside this allowlist."
+        "Do not change ParallaxBackground.cs. If it genuinely needs a change, stop and say so in your final message rather than editing outside this allowlist.",
+        "BLOCKED: the run finished but changed no files."
       ],
       "changed_files": [],
-      "last_run": "",
+      "last_run": "C:\\Dory_tycoon\\AI_GAME_COMPANY\\logs\\codex-runs\\implement-20260906-085336-c42b67.txt",
       "title_ko": "배경 레이어 생성 + 씬에 연결"
     },
     {
       "id": "CODEX-JUMPGAP1",
       "title": "Match obstacle spacing to jump trajectory",
-      "title_ko": "점프 거리와 장애물 간격 조정",
       "owner": "codex",
       "status": "review",
       "goal": "Derive minimum obstacle spacing from configured speed, jump impulse and gravity with landing/reaction clearance.",
@@ -599,7 +599,8 @@
         "2026-09-05: User reported jump and obstacle distances do not match. Existing 4-8 gap was independent of approximately 12.2 units of jump travel."
       ],
       "changed_files": [],
-      "last_run": ""
+      "last_run": "",
+      "title_ko": "점프 거리와 장애물 간격 조정"
     }
   ]
 }
