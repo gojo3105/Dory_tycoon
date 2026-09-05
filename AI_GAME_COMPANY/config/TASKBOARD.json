@@ -57,7 +57,7 @@
       "id": "CODEX-ART1",
       "title": "Map the four Kenney button colours",
       "owner": "codex",
-      "status": "done",
+      "status": "review",
       "goal": "The UI only has one button sprite (blue). The casual design needs green for the primary action, yellow for the shop, red for close and grey for secondary/disabled. Add the four colour variants from the already-approved kenney-ui-pack to the art mapping, and give each one its 9-slice border in SharedArtImporter so the outline keeps its thickness at any button size.",
       "files": [
         "AI_GAME_COMPANY/config/art-mapping.json",
@@ -77,8 +77,7 @@
         "Do not copy any image files. apply-art-mapping.ps1 does the copying on the PC, and it refuses any pack that is not APPROVED in LICENSE_REGISTRY.json.",
         "Ran 2026-09-02. Codex edited both allowlisted files correctly; the run was reported BLOCKED only because Unity rewrote Packages/packages-lock.json while it worked - see CODEX-BOARD1 defect 1. Committed by hand as 89514dc. Still needs apply-art-mapping.ps1 -Commit to copy the actual PNGs, and a build to compile SharedArtImporter.",
         "SharedArtImporter compiles as of 2026-09-02. Still REVIEW: the four button PNGs are not on disk yet, so every button in the current APK is still the blue fallback. Needs AI_GAME_COMPANY/tools/apply-art-mapping.ps1 -Commit.",
-        "Still REVIEW as of 2026-09-02 20:25: the fork has no Assets/Common/Art/UI/ directory at all, so the four button PNGs were never copied - apply-art-mapping.ps1 has not been run with -Commit. Every button in the 17.32 MB APK is therefore still the blue fallback that StyleButton falls back to.",
-        "DONE 2026-09-05 11:21. apply-art-mapping.ps1 -Commit finally ran: Assets/Common/Art/UI/ now holds button_green, button_yellow, button_red, button_grey (plus the blue original), and Unity generated a .meta for each, which is the editor confirming it imported them. The reason this sat at review for three days was that one script run, not the mapping - the mapping was correct on 2026-09-02. Buttons stop being the blue fallback at the next build."
+        "Still REVIEW as of 2026-09-02 20:25: the fork has no Assets/Common/Art/UI/ directory at all, so the four button PNGs were never copied - apply-art-mapping.ps1 has not been run with -Commit. Every button in the 17.32 MB APK is therefore still the blue fallback that StyleButton falls back to."
       ],
       "changed_files": [
         "AI_GAME_COMPANY/config/art-mapping.json",
@@ -139,8 +138,7 @@
         "Sorting: a SpriteRenderer child needs a lower sortingOrder than the body to draw behind it.",
         "Keep it subtle. This is a 136x192 sprite on a phone; limbs that swing far read as broken, not lively.",
         "2026-09-03 00:47 UTC: Codex RAN THIS TASK and finished (Reports/runs/20260903T004724...txt). The run then died with UnicodeEncodeError: cp949 while PRINTING the summary - an em dash in Codex's message that the Korean Windows console cannot encode. run_task had already saved REVIEW, but Codex's edits from that run were then swept into the PC stash named 'codex RUNLOG1 attempt' on 2026-09-05 (git stash push -u before pulling upstream). That stash holds finished work from FOUR runs - do not drop it. Export with `git stash show -p > Reports/codex-attempts.diff`, commit, push, and Claude will review and merge what is good.",
-        "2026-09-05: Codex's finished ANIM1 code RECOVERED from the PC stash (Reports/codex-attempts.diff) and applied to this branch by Claude. Read against the acceptance criteria: four limb GameObjects created once in CreateLimbs from one shared 1x1 sprite (no art file); diagonal pairs share a phase (left arm with right leg); airborne holds a jump pose and the run cycle resumes on landing; sortingOrder = body - 1 so limbs draw behind; Update only sets four localRotations - no per-frame allocation; nothing touches PrefabGenerator or a collider. No UnityEditor reference, no obsolete API. REVIEW, not DONE: NOT compiled - the first `orchestrator build` after this lands is the check, and the 136x192 sprite must be looked at on a device for limb size (limbSwing 13 deg was Codex's choice of 'subtle').",
-        "2026-09-05 11:18: COMPILES. RunnerCharacterMotion.cs was on the build PC when `orchestrator test playmode` ran, and PlayMode cannot run without compiling the whole assembly - so the limb code has no compile errors and did not break the 11 existing tests. Still review for one reason only: nobody has watched the limbs move on a 136x192 sprite. limbSwing is 13 degrees; if it reads as broken rather than lively, that number is the one to change."
+        "2026-09-05: Codex's finished ANIM1 code RECOVERED from the PC stash (Reports/codex-attempts.diff) and applied to this branch by Claude. Read against the acceptance criteria: four limb GameObjects created once in CreateLimbs from one shared 1x1 sprite (no art file); diagonal pairs share a phase (left arm with right leg); airborne holds a jump pose and the run cycle resumes on landing; sortingOrder = body - 1 so limbs draw behind; Update only sets four localRotations - no per-frame allocation; nothing touches PrefabGenerator or a collider. No UnityEditor reference, no obsolete API. REVIEW, not DONE: NOT compiled - the first `orchestrator build` after this lands is the check, and the 136x192 sprite must be looked at on a device for limb size (limbSwing 13 deg was Codex's choice of 'subtle')."
       ],
       "changed_files": [
         "Assets/GameFactory/Gameplay/Runner/RunnerCharacterMotion.cs"
@@ -250,8 +248,7 @@
         "Read Assets/GameFactory/Gameplay/Runner/GroundSpawner.cs first - it already solves the recycle-when-passed problem for ground tiles and the same idiom should be used here rather than a new one.",
         "The camera is orthographic with orthographicSize 5 and follows the player on X only (CameraFollow2D).",
         "2026-09-05 REVIEWED BY CLAUDE, read line by line against the seven acceptance criteria - all seven met. SetLayers caches transforms, sprite widths and starting X at edit time; Configure takes only the numbers; Update allocates nothing and does no GetComponent; the wrap handles both scroll directions and is bounded because a layer with width <= 0 is skipped; with no layers assigned it returns silently and logs nothing; no UnityEditor reference; velocity is never touched. Two honest limits: NOT COMPILED here, and layerWidths are measured from lossyScale at edit time, so a layer whose parent is rescaled at runtime would wrap at the old width - fine for a fixed background, worth knowing.",
-        "STILL REVIEW because nothing uses it yet: SceneGenerator never calls SetLayers, so no generated scene has a background. That is correct for this task - its allowlist was the one .cs file - but the parallax is invisible in the game until CODEX-BGWIRE1 below builds the layer objects and wires them.",
-        "2026-09-05 11:18: COMPILES, same evidence as ANIM1 - it was in the assembly PlayMode compiled. Still invisible in game until CODEX-BGWIRE1 builds the layers and calls SetLayers."
+        "STILL REVIEW because nothing uses it yet: SceneGenerator never calls SetLayers, so no generated scene has a background. That is correct for this task - its allowlist was the one .cs file - but the parallax is invisible in the game until CODEX-BGWIRE1 below builds the layer objects and wires them."
       ],
       "changed_files": [
         "Assets/GameFactory/Gameplay/Runner/ParallaxBackground.cs"
@@ -298,7 +295,7 @@
       "id": "CODEX-TESTCMD1",
       "title": "orchestrator test - run the Unity test suites locally",
       "owner": "codex",
-      "status": "done",
+      "status": "review",
       "goal": "There is no way to run the Unity tests from the orchestrator. run_pipeline deliberately does generate/validate/build and leaves tests to the workflow, but the self-hosted runner is not always up, and a task like CODEX-TEST1 that WRITES tests cannot be verified without running them. PlayMode test assemblies are also excluded from a player build, so `orchestrator build` does not even compile them - a syntax error in a test file passes the build and is caught by nobody. Add the missing step.",
       "files": [
         "AI_GAME_COMPANY/company/orchestrator/unity_runner.py",
@@ -322,8 +319,7 @@
         "STILL REVIEW, and one thing is unverified for an honest reason: no run record exists for this task, so the run's own ending was never recorded - the code is complete but nobody has watched `orchestrator test` drive a real Unity. Running it once on the PC is the check, and it is also the first chance to see PlayMode results without the GitHub runner.",
         "2026-09-05 11:04 run record recovered: Codex reported the task complete and named all three files, then the orchestrator called it 'BLOCKED - the run changed nothing'. It was a RACE, not a failure: a `git add -A` commit landed at 11:08 while the run was still verifying, so Codex's edits left the working tree and after-minus-before came back empty. Codex even said so in its own summary ('a background repository process independently created commit d59282c while verification was running'). Fixed in this commit - run_task now remembers HEAD and reports work that was committed mid-run instead of denying it happened. The review above stands: the code is good and it is in d59282c.",
         "BLOCKED: the run finished but changed no files.",
-        "MERGE in_progress -> local 'review' kept, upstream said 'blocked'. Both sides changed this status; the side that ran the task won. Check which is right.",
-        "DONE 2026-09-05 11:18. Verified on the real machine, not argued: `orchestrator test --platform playmode` ran Unity 6000.5.9f1 for 2m53s, generate exit 0, test-playmode exit 0, and the NUnit XML reported passed=11 failed=0 skipped=0 - TESTS_PASSED. Record: Reports/runs/20260905-111849-test.txt. This is the first time this project has run its Unity tests without the GitHub runner."
+        "MERGE in_progress -> local 'review' kept, upstream said 'blocked'. Both sides changed this status; the side that ran the task won. Check which is right."
       ],
       "changed_files": [
         "AI_GAME_COMPANY/company/orchestrator/unity_runner.py",
@@ -410,7 +406,7 @@
       "id": "CODEX-AICTL1",
       "title": "A control per AI in the panel, and honest silence where there is none",
       "owner": "codex",
-      "status": "in_progress",
+      "status": "blocked",
       "goal": "The control panel can only drive Codex and Unity. Give each connected AI its own control - and give the ones with no adapter no control at all, stated as such, because a button that cannot work misrepresents what this project can do.",
       "files": [
         "AI_GAME_COMPANY/company/orchestrator/dashboard.py",
@@ -439,10 +435,23 @@
         "THE MACHINE HAS NO OLLAMA MODELS AT ALL, verified 2026-09-02: `ollama rm gemma4:26b` said \"model not found\" and `orchestrator ollama --list` printed \"no models installed\". So the only Ollama state you can build against today is the empty one, which is why it is an acceptance criterion above. Do NOT trust HARDWARE_PROFILE.json here - it still lists gemma4:26b 17.33 GB from a 2026-09-01 scan and is stale. Read the inventory from OllamaClient at render time, not from the profile; the profile is for RAM sizes.",
         "2026-09-02 23:46 UTC: Codex RAN THIS TASK and finished (Reports/runs/20260902T234645...txt), then the same cp949 UnicodeEncodeError killed the report while printing the summary. Codex's edits from that run were then swept into the PC stash named 'codex RUNLOG1 attempt' on 2026-09-05 (git stash push -u before pulling upstream). That stash holds finished work from FOUR runs - do not drop it. Export with `git stash show -p > Reports/codex-attempts.diff`, commit, push, and Claude will review and merge what is good.",
         "2026-09-05, from the recovered stash: Codex's 2026-09-02 run of this task was marked BLOCKED only because its OWN run-log files (Reports/runs/*.txt, written by a concurrent `dashboard` action) landed in the diff - the same class of false block as packages-lock.json. Reports/* are now TOOL_OWNED in teamwork.py. Codex's dashboard.py (+224) and server.py (+151) edits are in Reports/codex-attempts.diff, based on the pre-2026-09-03 dashboard.py; they need rebasing onto the current file and a security read of the server.py part before any of it lands. Not applied yet.",
-        "2026-09-05 11:00: run stopped by the user with Ctrl+C after 1분 35초 (Reports/runs/20260905-110050-team.txt, exit 130). The board was left saying in_progress because run_task caught Exception and KeyboardInterrupt is not one - fixed in this commit, and the status corrected here by hand. Check `git status` on the PC before re-running: Codex may have edited dashboard.py or server.py in that 95 seconds, and those edits would otherwise be swept into the next run's diff and blamed on it."
+        "2026-09-05 11:00: run stopped by the user with Ctrl+C after 1분 35초 (Reports/runs/20260905-110050-team.txt, exit 130). The board was left saying in_progress because run_task caught Exception and KeyboardInterrupt is not one - fixed in this commit, and the status corrected here by hand. Check `git status` on the PC before re-running: Codex may have edited dashboard.py or server.py in that 95 seconds, and those edits would otherwise be swept into the next run's diff and blamed on it.",
+        "BLOCKED: the run changed files outside the allowlist: Assets/Common/Art/UI/button.png.meta, Assets/Common/Art/UI/button_green.png.meta, Assets/Common/Art/UI/button_grey.png.meta, Assets/Common/Art/UI/button_red.png.meta, Assets/Common/Art/UI/button_yellow.png.meta, GeneratedGames/game01.json"
       ],
-      "changed_files": [],
-      "last_run": "",
+      "changed_files": [
+        "AI_GAME_COMPANY/company/orchestrator/dashboard.py",
+        "AI_GAME_COMPANY/company/orchestrator/server.py",
+        "AI_GAME_COMPANY/tests/test_dashboard.py",
+        "AI_GAME_COMPANY/tests/test_server.py",
+        "Assets/Common/Art/UI/button.png.meta",
+        "Assets/Common/Art/UI/button_green.png.meta",
+        "Assets/Common/Art/UI/button_grey.png.meta",
+        "Assets/Common/Art/UI/button_red.png.meta",
+        "Assets/Common/Art/UI/button_yellow.png.meta",
+        "GeneratedGames/game01.json",
+        "Reports/dashboard.html"
+      ],
+      "last_run": "C:\\Dory_tycoon\\AI_GAME_COMPANY\\logs\\codex-runs\\implement-20260905-111928-7a2e7d.txt",
       "title_ko": "AI별 제어 버튼, 없으면 정직하게 없음 표시"
     },
     {
