@@ -1,11 +1,11 @@
 ﻿# Auto-sync status
 
-Generated: 2026-09-07 07:55:49
-Outcome: FAILED
-Reason: Uncommitted changes to tracked files - stopping. Commit or stash them first: |  | M GeneratedGames/game01.json |  M ProjectSettings/ProjectSettings.asset
-Last-Success: 2026-09-06 10:49:57
-Local-Head: 09bd884
-Upstream-Head: c0575d8
+Generated: 2026-09-07 08:03:18
+Outcome: OK
+Reason: Merged upstream/claude/delete-current-content-mgn4xm and pushed to origin/claude/delete-current-content-mgn4xm
+Last-Success: 2026-09-07 08:03:18
+Local-Head: d88c915
+Upstream-Head: 106fc81
 Branch: claude/delete-current-content-mgn4xm
 
 Written by scripts/desktop/sync-and-run.ps1 on every run. Outcome is one of
