@@ -34,6 +34,20 @@ namespace GameFactory.Core.Spec
     {
         public float moveSpeed = 6f;
         public float jumpPower = 10f;
+
+        /// <summary>
+        /// Multiplier on Unity's -9.81 gravity for the player body.
+        ///
+        /// WHY THIS IS A SPEC FIELD. Nothing set it, so Unity's default of 1
+        /// applied and a jumpPower of 10 produced a 2.04 SECOND hang time, a
+        /// 5.1 unit arc height - the camera's half-height is 5, so the player
+        /// left the screen - and 12.2 units of forward travel, against an
+        /// obstacle spacing of 4 to 8. One jump sailed over two or three
+        /// obstacles and often landed on top of the next one. A runner's whole
+        /// feel lives in this number; it belongs in the spec next to jumpPower,
+        /// not in Unity's defaults.
+        /// </summary>
+        public float gravityScale = 3.5f;
     }
 
     [Serializable]
@@ -41,6 +55,19 @@ namespace GameFactory.Core.Spec
     {
         public bool jump = true;
         public bool doubleJump;
+
+        /// <summary>
+        /// Ducking under overhead obstacles - the runner genre's second verb.
+        ///
+        /// WHY IT MATTERS. With jump alone every obstacle asks the same
+        /// question, "press now?", and the level reads as one note repeated.
+        /// A duck makes the level a conversation: things to go over, things to
+        /// go under, and the player has to read which is coming. The overhead
+        /// obstacles that require it are only spawned when this is true, so an
+        /// older spec without the field still generates a playable game.
+        /// </summary>
+        public bool slide;
+
         public bool dash;
         public bool wallJump;
         public bool gravitySwitch;

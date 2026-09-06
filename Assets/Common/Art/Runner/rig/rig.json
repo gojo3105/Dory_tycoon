@@ -1,0 +1,63 @@
+{
+  "_comment": "Character rig for the Runner genre. 'source' says who drew these. joint is where the piece hinges, in fractions of body.png (x from the left, y from the TOP). anchor is where that same point falls inside the piece's own image, same convention. Unity's CharacterRigGenerator reads these - correct a number here and regenerate, do not edit the C#.",
+  "source": "local-slicer",
+  "generated": "2026-09-06 00:05:43",
+  "reference": "Assets/Common/Art/Runner/player.png",
+  "parts": [
+    {
+      "name": "body",
+      "joint": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    {
+      "name": "arm_l",
+      "joint": {
+        "x": 0.197,
+        "y": 0.612
+      },
+      "anchor": {
+        "x": 0.51537,
+        "y": 0.06421
+      }
+    },
+    {
+      "name": "arm_r",
+      "joint": {
+        "x": 0.797,
+        "y": 0.612
+      },
+      "anchor": {
+        "x": 0.49432,
+        "y": 0.06421
+      }
+    },
+    {
+      "name": "foot_l",
+      "joint": {
+        "x": 0.264,
+        "y": 0.795
+      },
+      "anchor": {
+        "x": 0.4968,
+        "y": -0.40571
+      }
+    },
+    {
+      "name": "foot_r",
+      "joint": {
+        "x": 0.722,
+        "y": 0.795
+      },
+      "anchor": {
+        "x": 0.5064,
+        "y": -0.40571
+      }
+    }
+  ]
+}

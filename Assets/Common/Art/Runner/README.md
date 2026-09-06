@@ -48,3 +48,53 @@ Inspector에서 개별 조정한 값을 재임포트 때마다 되돌리지 않�
    (`Assets/`는 건드리지 않는다)
 3. 라이선스 텍스트 검토 후 레지스트리를 `APPROVED`로 올리고, 인벤토리에서 고른 파일을
    위 표의 이름으로 여기에 복사한다
+
+## `rig/` — 움직이는 캐릭터
+
+`player.png` 한 장은 통짜 그림이라 **아무것도 움직일 수 없다.** 팔다리가 실루엣
+안에 그려져 있기 때문이다. `rig/`에는 같은 그림을 **분해한 것**이 들어간다.
+
+| 파일 | 내용 |
+|---|---|
+| `body.png` | 팔다리를 지우고 배를 메운 몸통. 캔버스 크기는 `player.png`와 동일 |
+| `arm_l.png` / `arm_r.png` | 앞발 하나씩 |
+| `foot_l.png` / `foot_r.png` | 발 하나씩 |
+| `rig.json` | 각 파츠가 **어디를 축으로 도는지**(`joint`)와 그 축이 **파츠 그림 안 어디에 있는지**(`anchor`) |
+
+- `joint` / `anchor`는 둘 다 비율이고, **y는 위에서부터** 잰다.
+  `anchor`는 0~1을 벗어날 수 있다 — 엉덩이 관절은 발 그림보다 위에 있다.
+- 숫자가 틀렸으면 **`rig.json`을 고치고 다시 생성한다. C#을 고치지 않는다.**
+- `Assets/GameFactory/Editor/CharacterRigGenerator.cs`가 이걸 읽어서 관절 계층 +
+  `AnimationClip`(Run/Air/Slide) + `AnimatorController`를 **에셋으로** 만든다.
+- 이 폴더가 없으면 예전처럼 `player.png` 한 장짜리 캐릭터가 나온다. 추가 기능일 뿐이다.
+
+### 누가 만드나
+
+**Unity가 직접 만든다.** `Assets/GameFactory/Editor/CharacterPartSlicer.cs`가
+`player.png`를 읽어서 파츠로 자르고 `rig.json`까지 쓴다. 키도, 외부 서비스도 필요 없다.
+
+- **빌드하면 자동으로** 만들어진다 (`PrefabGenerator`가 없으면 부른다).
+- 손으로 다시 만들려면: Unity 메뉴 **Game Factory > Character > Slice player.png into rig parts**
+
+자르는 위치 숫자는 `CharacterPartSlicer.cs`의 표 하나에 모여 있다. 다른 그림으로
+바꾸면 **그 표를 고치고 다시 자른다.**
+
+어려운 건 팔다리를 떼는 게 아니라 **뗀 자리를 메우는 것**이다. 그냥 지우면 배에
+사각형 구멍이 남고, 팔이 움직이는 순간 그게 보인다. 그래서 주변 털로 다시 칠한다
+(알파 가중 pull-push). 앞발은 실루엣 **안**에 있어서 색만 칠하면 되지만, 발은
+배 **아래**로 나와 있어서 윤곽선까지 다시 그려야 한다.
+
+### Gemini로 다시 그리기 (선택)
+
+더 나은 그림을 원하면 Gemini 무료 등급으로 다시 그릴 수 있다 (CLAUDE.md 규칙 2).
+키가 있어야 한다:
+
+```bash
+cd AI_GAME_COMPANY
+python -m company.orchestrator.main character --status    # 키 게이트 확인
+python -m company.orchestrator.main character --force     # 다시 그리기
+```
+
+`rig.json`의 `source`가 누가 만든 건지 알려준다 (`unity-slicer` / `gemini`).
+**Gemini나 사람이 만든 것은 자동으로 덮어쓰지 않는다.** 자동 재생성은
+`unity-slicer`가 만든 것에만 적용된다.

@@ -6,11 +6,13 @@
   },
   "player": {
     "moveSpeed": 6,
-    "jumpPower": 10
+    "jumpPower": 11,
+    "gravityScale": 3.5
   },
   "mechanics": {
     "jump": true,
-    "doubleJump": false,
+    "doubleJump": true,
+    "slide": true,
     "dash": false,
     "wallJump": false,
     "gravitySwitch": true,

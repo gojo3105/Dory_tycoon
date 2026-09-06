@@ -33,14 +33,30 @@ on:
           status = look only. sync = pull upstream into C:\Dory_tycoon via
           sync-and-run.ps1 (no pipeline run). dashboard = sync then regenerate
           Reports/dashboard.html. team-run = sync then hand `task` to Codex.
-          codex-doctor = sync then run the Codex self-check.
+          codex-doctor = sync then run the Codex self-check. test = sync then
+          generate the scene and run Unity tests. build = sync then generate,
+          validate and build the APK. character-status = report the Gemini key
+          gate and what rig art is on disk, touching nothing.
+          character-side = have Gemini redraw the character in PROFILE, which
+          is what a sideways-scrolling runner needs and what no image
+          processing can produce from a front view.
         type: choice
-        options: [status, sync, dashboard, team-run, codex-doctor]
+        options: [status, sync, dashboard, team-run, codex-doctor, test, build,
+                  character-status, character-side]
         default: status
       task:
         description: Task id for team-run (e.g. CODEX-ANIM1). Ignored otherwise.
         type: string
         default: ''
+      game:
+        description: Game id for test/build (e.g. game01). Ignored otherwise.
+        type: string
+        default: game01
+      platform:
+        description: Which Unity test platform to run. Only used by `test`.
+        type: choice
+        options: [playmode, editmode]
+        default: playmode
       stash_dirty:
         description: >-
           Stash uncommitted changes in C:\Dory_tycoon (tracked and untracked)
@@ -64,6 +80,8 @@ jobs:
     env:
       ACTION: ${{ inputs.action }}
       TASK: ${{ inputs.task }}
+      GAME: ${{ inputs.game }}
+      PLATFORM: ${{ inputs.platform }}
       STASH: ${{ inputs.stash_dirty }}
     steps:
       # The runner's own checkout is only used for scripts/ - it is the
@@ -145,6 +163,101 @@ jobs:
           }
           python -m company.orchestrator.main team run --task $env:TASK
           exit $LASTEXITCODE
+
+      # The key reaches the orchestrator from the repository's secret store
+      # and nowhere else. It is never in the repo, never in a chat message,
+      # and GitHub masks it in these logs, so the value stays unknown to
+      # everyone who reads a run - Claude included. An unset secret arrives
+      # as an empty string and the adapter reports ABSENT, which is the
+      # honest answer rather than a confusing failure.
+      - name: Gemini key gate and rig art on disk
+        if: inputs.action == 'character-status' || inputs.action == 'character-side'
+        shell: powershell
+        working-directory: C:\Dory_tycoon\AI_GAME_COMPANY
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          python -m company.orchestrator.main character --status
+          exit $LASTEXITCODE
+
+      - name: Have Gemini redraw the character in profile
+        if: inputs.action == 'character-side'
+        shell: powershell
+        working-directory: C:\Dory_tycoon\AI_GAME_COMPANY
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          # The whole character in profile, not the cut-up parts. Where the
+          # joints land is measured off the finished drawing afterwards.
+          python -m company.orchestrator.main character --side
+          exit $LASTEXITCODE
+
+      # Unity IS on this machine, and these two are the only reason the
+      # channel exists: without them Claude can queue work but can never see
+      # whether it compiles, runs or produces an APK.
+      - name: Unity tests
+        if: inputs.action == 'test'
+        shell: powershell
+        working-directory: C:\Dory_tycoon\AI_GAME_COMPANY
+        run: |
+          if ($env:GAME -notmatch '^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$') {
+            Write-Host "REFUSED: game id '$env:GAME' is not a valid id."
+            exit 2
+          }
+          # Validated here as well as by the choice list: a dispatch through
+          # the API is not bound to the options the UI shows.
+          if ($env:PLATFORM -ne 'playmode' -and $env:PLATFORM -ne 'editmode') {
+            Write-Host "REFUSED: platform '$env:PLATFORM' is not playmode or editmode."
+            exit 2
+          }
+          python -m company.orchestrator.main test --game $env:GAME --platform $env:PLATFORM
+          exit $LASTEXITCODE
+
+      - name: Unity build (generate, validate, APK)
+        if: inputs.action == 'build'
+        shell: powershell
+        working-directory: C:\Dory_tycoon\AI_GAME_COMPANY
+        run: |
+          if ($env:GAME -notmatch '^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$') {
+            Write-Host "REFUSED: game id '$env:GAME' is not a valid id."
+            exit 2
+          }
+          python -m company.orchestrator.main build --game $env:GAME
+          exit $LASTEXITCODE
+
+      - name: What is actually on disk after a build
+        if: always() && inputs.action == 'build'
+        shell: powershell
+        run: |
+          # Section 8, first principle: an APK is reported from the file on
+          # disk, never from an exit code. This step runs even when the build
+          # step failed, because "it failed AND left no APK" and "it failed
+          # but the old APK is still there" are different answers.
+          $status = Join-Path $env:CLONE "Reports\build-status\latest.txt"
+          if (Test-Path $status) {
+            Write-Host "== Reports/build-status/latest.txt:"; Get-Content $status
+          } else {
+            Write-Host "== no Reports/build-status/latest.txt on this machine"
+          }
+          $builds = Join-Path $env:CLONE "Builds"
+          if (Test-Path $builds) {
+            Write-Host "== Builds\ (apk/aab actually present):"
+            Get-ChildItem $builds -Recurse -Include *.apk,*.aab -ErrorAction SilentlyContinue |
+              ForEach-Object { "{0}  {1:N2} MB  {2}" -f $_.FullName, ($_.Length / 1MB), $_.LastWriteTime }
+          } else {
+            Write-Host "== no Builds folder"
+          }
+
+      - name: Compile errors, whatever happened
+        if: always() && (inputs.action == 'build' || inputs.action == 'test')
+        shell: powershell
+        run: |
+          $errors = Join-Path $env:CLONE "Reports\errors\latest.txt"
+          if (Test-Path $errors) {
+            Write-Host "== Reports/errors/latest.txt:"; Get-Content $errors
+          } else {
+            Write-Host "== no Reports/errors/latest.txt on this machine"
+          }
 
       - name: Final state (always)
         if: always()

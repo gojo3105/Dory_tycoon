@@ -362,8 +362,44 @@ try {
         $resolved = $false
         $boardRel = "AI_GAME_COMPANY/config/TASKBOARD.json"
         try {
-            $conflicts = (Invoke-Git @("diff", "--name-only", "--diff-filter=U")) -split "\r?\n" | Where-Object { $_ }
-            if ($conflicts.Count -eq 1 -and $conflicts[0] -eq $boardRel) {
+            # @(...) is load-bearing. Invoke-Git returns ONE string, and a
+            # pipeline that yields a single line comes back as a scalar, not
+            # an array - so $conflicts[0] would be the first CHARACTER of the
+            # path and the board test below could never match. That is why the
+            # board auto-merge, which has a passing test suite behind it, had
+            # never once fired on this machine.
+            $conflicts = @((Invoke-Git @("diff", "--name-only", "--diff-filter=U")) -split "\r?\n" | Where-Object { $_ })
+            Write-Log ("Merge conflicts: " + ($conflicts -join ", "))
+
+            # REPORTS ARE THIS MACHINE'S OWN RECORD, so on a conflict this
+            # machine's copy wins. They are regenerated on every run, both
+            # sides always differ, and there is nothing in the upstream copy
+            # worth keeping - it is a snapshot of what this same PC reported
+            # earlier. Leaving them to conflict is what turned "the board
+            # conflicts" into "nothing syncs at all": the board tool below
+            # only fires when the board is the ONLY conflict, and on
+            # 2026-09-06 Reports/runs/latest.txt sat next to it and blocked
+            # every attempt for a day.
+            $ours = @()
+            foreach ($path in $conflicts) {
+                if ($path -like "Reports/*") {
+                    Invoke-Git @("checkout", "--ours", "--", $path) | Out-Null
+                    Invoke-Git @("add", "--", $path) | Out-Null
+                    $ours += $path
+                }
+            }
+            if ($ours.Count -gt 0) {
+                Write-Log ("Kept this machine's copy of: " + ($ours -join ", "))
+                $conflicts = @((Invoke-Git @("diff", "--name-only", "--diff-filter=U")) -split "\r?\n" | Where-Object { $_ })
+                Write-Log ("Still conflicting: " + ($conflicts -join ", "))
+            }
+
+            if ($conflicts.Count -eq 0) {
+                Invoke-Git @("commit", "--no-edit") | Out-Null
+                Write-Log "Merge completed; only generated reports had conflicted."
+                $resolved = $true
+            }
+            elseif ($conflicts.Count -eq 1 -and $conflicts[0] -eq $boardRel) {
                 $tmp = Join-Path $env:TEMP "taskboard-merge-$PID"
                 New-Item -ItemType Directory -Path $tmp -Force | Out-Null
                 # :1 base, :2 ours (this clone), :3 theirs (upstream).

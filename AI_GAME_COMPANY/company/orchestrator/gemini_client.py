@@ -23,6 +23,13 @@ from company.orchestrator.policy import Policy, PolicyViolation
 
 DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+JPEG_SIGNATURE = b"\xff\xd8\xff"
+
+# A reference image is inlined as base64 in the request body, so its size is
+# spent on every retry. The character sheets this is for are a few KB; the
+# phone photos in SourceImage/ are 2-3 MB each. Refusing early beats sending
+# one and finding out through a quota that cannot be refunded.
+MAX_INPUT_IMAGE_BYTES = 4 * 1024 * 1024
 LIMIT_PATTERNS = (
     r"\b429\b",
     r"quota",
@@ -50,6 +57,24 @@ class GeminiLimited(RuntimeError):
 
 class GeminiResponseError(RuntimeError):
     """Gemini answered, but did not provide a valid requested generation."""
+
+
+class GeminiInputRejected(ValueError):
+    """A reference image was not something this adapter will upload."""
+
+
+def _image_mime(data: bytes) -> str:
+    """The mime type for a reference image, from its own bytes.
+
+    Deliberately not from the file extension: a .png that is really a 3 MB
+    JPEG would be declared wrongly to the API and rejected after the request
+    was already spent.
+    """
+    if data.startswith(PNG_SIGNATURE):
+        return "image/png"
+    if data.startswith(JPEG_SIGNATURE):
+        return "image/jpeg"
+    raise GeminiInputRejected("Reference images must be PNG or JPEG.")
 
 
 def _looks_limited(text: str) -> bool:
@@ -155,11 +180,32 @@ class GeminiClient:
             return 200, "application/json", result
         raise TypeError("unsupported Gemini runner result")
 
-    def _post(self, model: str, prompt: str, *, image: bool) -> dict[str, Any]:
+    @staticmethod
+    def _inline_parts(images: "list[bytes] | None") -> list[dict[str, Any]]:
+        parts: list[dict[str, Any]] = []
+        for data in images or []:
+            if not isinstance(data, (bytes, bytearray)) or not data:
+                raise GeminiInputRejected("Reference image data is empty.")
+            if len(data) > MAX_INPUT_IMAGE_BYTES:
+                raise GeminiInputRejected(
+                    f"Reference image is {len(data)} bytes; the limit is "
+                    f"{MAX_INPUT_IMAGE_BYTES}. Downscale it before sending."
+                )
+            parts.append({
+                "inlineData": {
+                    "mimeType": _image_mime(bytes(data)),
+                    "data": base64.b64encode(bytes(data)).decode("ascii"),
+                }
+            })
+        return parts
+
+    def _post(self, model: str, prompt: str, *, image: bool,
+              images: "list[bytes] | None" = None) -> dict[str, Any]:
         key = self._require_request_allowed(model)
-        payload: dict[str, Any] = {
-            "contents": [{"parts": [{"text": prompt}]}],
-        }
+        # Reference images first, instruction last: the model is being asked
+        # what to do WITH them, and the ordering is what says so.
+        parts = self._inline_parts(images) + [{"text": prompt}]
+        payload: dict[str, Any] = {"contents": [{"parts": parts}]}
         if image:
             payload["generationConfig"] = {"responseModalities": ["IMAGE"]}
 
@@ -235,8 +281,9 @@ class GeminiClient:
             raise GeminiResponseError("Gemini response contained malformed generation parts.")
         return [part for part in parts if isinstance(part, dict)]
 
-    def generate_text(self, model: str, prompt: str) -> str:
-        data = self._post(model, prompt, image=False)
+    def generate_text(self, model: str, prompt: str,
+                      images: "list[bytes] | None" = None) -> str:
+        data = self._post(model, prompt, image=False, images=images)
         text = "".join(
             part.get("text", "") for part in self._parts(data)
             if isinstance(part.get("text"), str)
@@ -245,8 +292,13 @@ class GeminiClient:
             raise GeminiResponseError("Gemini response contained no generated text.")
         return text
 
-    def generate_image(self, model: str, prompt: str) -> bytes:
-        data = self._post(model, prompt, image=True)
+    def generate_image(self, model: str, prompt: str,
+                       images: "list[bytes] | None" = None) -> bytes:
+        """A PNG from Gemini. With `images`, this is image-to-image: the
+        references go in the same request and the prompt says what to make
+        of them - which is how one character drawing becomes the separate
+        pieces a rig needs, rather than a new character that merely resembles it."""
+        data = self._post(model, prompt, image=True, images=images)
         for part in self._parts(data):
             inline = part.get("inlineData")
             if not isinstance(inline, dict):

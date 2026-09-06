@@ -1,0 +1,14 @@
+# Orchestrator run report
+
+Generated: 2026-09-06 01:46:12
+Command: character --status
+Outcome: OK
+Exit: 0
+Duration: 0초
+
+## Output (tail)
+
+=== CHARACTER RIG (Gemini) ===
+  Gemini GATED: GEMINI_API_KEY: ABSENT; HUMAN_GATE initial_gemini_login
+  on disk: 5 parts, drawn by local-slicer at 2026-09-06 00:05:43
+  side view: MISSING - the character still faces the camera

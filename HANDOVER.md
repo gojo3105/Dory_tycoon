@@ -51,9 +51,10 @@ GameSpec(JSON) -> Unity 에디터 생성기 -> Scene/Prefab/Level/UI
 ### 작업판 (`AI_GAME_COMPANY/config/TASKBOARD.json`)
 
 - **done 4개** — 경제 분리, PlayMode 테스트, 버튼 4색 아트, orchestrator test
-- **review 10개** — 코드는 있고 컴파일도 되지만, 눈으로 확인 안 된 것들
+- **review 11개** — 코드는 있고 컴파일도 되지만, 눈으로 확인 안 된 것들
+  (09-05 추가: CLAUDE-VERBS1 슬라이드/이단점프)
 - **blocked/in_progress 1개** — CODEX-AICTL1 (Ctrl+C로 중단됨, 파일 안 남김. 다시 돌리면 됨)
-- **todo 1개** — CODEX-BGWIRE1 (배경을 실제 씬에 연결)
+- **todo 2개** — CODEX-BGWIRE1 (배경을 씬에 연결), CODEX-ENERGY1 (에너지 게이지 + 코인 회복)
 
 `review`가 많은 건 나쁜 뜻이 아니다. 이 프로젝트에서 `done`은 **빌드를 통과하고 사람이
 눈으로 본 뒤**에만 붙인다. "컴파일된다"와 "화면에서 제대로 보인다"는 다른 얘기다.
@@ -62,6 +63,7 @@ GameSpec(JSON) -> Unity 에디터 생성기 -> Scene/Prefab/Level/UI
 
 - 배경 (`ParallaxBackground.cs`는 있는데 씬이 안 만들어줌 → BGWIRE1)
 - 팔다리 움직임 (컴파일됨, 실제로 어떻게 보이는지 미확인)
+- **슬라이드 / 이단 점프 / 머리 위 장애물** (09-05 추가, 아직 한 번도 안 돌려봄 → 다음 빌드에서 확인)
 - 컬러 버튼 (아트는 오늘 들어왔고, **다음 빌드부터** 보임)
 - 한국어 폰트 (안드로이드 기기에서 한글이 제대로 나오는지 미확인 — CLAUDE-UI1)
 
@@ -122,10 +124,14 @@ cd C:\Dory_tycoon\AI_GAME_COMPANY; python -m company.orchestrator.main team boar
    컬러 버튼이 처음으로 보인다.
    `python -m company.orchestrator.main build --game game01`
 2. **APK를 폰에 설치해서 눈으로 본다.** 한글이 깨지지 않는지(CLAUDE-UI1),
-   팔다리가 어색하지 않은지(CODEX-ANIM1). 이 두 개는 **기기에서만 확인 가능**하다.
+   팔다리가 어색하지 않은지(CODEX-ANIM1), **아래로 밀면 숙여지는지 / 머리 위 장애물을
+   지나갈 수 있는지 / 이단 점프가 화면 밖으로 안 나가는지**(CLAUDE-VERBS1).
+   전부 **기기에서만 확인 가능**하다.
 3. **CODEX-BGWIRE1을 Codex에게 넘긴다.** 배경이 화면에 나오게 하는 마지막 조각.
 4. **CODEX-AICTL1을 다시 돌린다.** 중단됐던 작업. 파일은 안 남겼으니 그냥 다시 돌리면 된다.
-5. 그 뒤 Game01을 마무리하고 **Game02(Idle Factory Tycoon)** 로 넘어간다.
+5. **CODEX-ENERGY1을 Codex에게 넘긴다.** 에너지 게이지가 들어가면 "부딪히지만 않으면
+   영원히 사는" 지금 구조가 실제 게임이 된다.
+6. 그 뒤 Game01을 마무리하고 **Game02(Idle Factory Tycoon)** 로 넘어간다.
    `GAME_10_MASTER_PLAN.md`에 10개 기획이 다 있다.
 
 ---

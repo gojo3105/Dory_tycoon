@@ -13,7 +13,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from company.orchestrator.gemini_client import (  # noqa: E402
+    MAX_INPUT_IMAGE_BYTES,
     GeminiClient,
+    GeminiInputRejected,
     GeminiKeyMissing,
     GeminiLimited,
     GeminiModelNotAllowed,
@@ -221,6 +223,66 @@ class GeminiClientTests(unittest.TestCase):
         with self.assertRaises(GeminiUnavailable) as ctx:
             client.generate_text(TEXT_MODEL, "prompt")
         self.assertNotIn(SECRET, str(ctx.exception))
+
+
+class ReferenceImageTests(unittest.TestCase):
+    """Image-to-image: the character drawing goes IN, so the pieces that come
+    back are the same character taken apart rather than a new one that merely
+    resembles it."""
+
+    JPEG = b"\xff\xd8\xff\xe0-not-really-a-jpeg"
+
+    def make(self, fake: FakeRunner) -> GeminiClient:
+        return GeminiClient(policy_with(), runner=fake,
+                            environ={"GEMINI_API_KEY": SECRET})
+
+    def body_of(self, fake: FakeRunner) -> dict:
+        request, _ = fake.calls[0]
+        return json.loads(request.data.decode("utf-8"))
+
+    def test_a_reference_image_is_inlined_before_the_instruction(self):
+        fake = FakeRunner(image_response())
+        self.make(fake).generate_image(IMAGE_MODEL, "cut this up", images=[PNG])
+
+        parts = self.body_of(fake)["contents"][0]["parts"]
+        self.assertEqual(2, len(parts))
+        self.assertEqual("image/png", parts[0]["inlineData"]["mimeType"])
+        self.assertEqual(PNG, base64.b64decode(parts[0]["inlineData"]["data"]))
+        # The instruction is last: it is about the image, so it follows it.
+        self.assertEqual("cut this up", parts[1]["text"])
+
+    def test_the_mime_type_comes_from_the_bytes_not_the_caller(self):
+        fake = FakeRunner(image_response())
+        self.make(fake).generate_image(IMAGE_MODEL, "p", images=[self.JPEG])
+        parts = self.body_of(fake)["contents"][0]["parts"]
+        self.assertEqual("image/jpeg", parts[0]["inlineData"]["mimeType"])
+
+    def test_a_file_that_is_not_an_image_is_refused_before_the_request(self):
+        fake = FakeRunner(image_response())
+        with self.assertRaises(GeminiInputRejected):
+            self.make(fake).generate_image(IMAGE_MODEL, "p", images=[b"GIF89a..."])
+        self.assertEqual([], fake.calls)
+
+    def test_an_oversized_reference_is_refused_before_the_request(self):
+        # The SourceImage/ photos are 2-3 MB each and inlining one spends
+        # quota that cannot be refunded, so the limit is checked locally.
+        fake = FakeRunner(image_response())
+        huge = PNG + b"\x00" * MAX_INPUT_IMAGE_BYTES
+        with self.assertRaises(GeminiInputRejected):
+            self.make(fake).generate_image(IMAGE_MODEL, "p", images=[huge])
+        self.assertEqual([], fake.calls)
+
+    def test_no_images_still_sends_exactly_one_text_part(self):
+        fake = FakeRunner(image_response())
+        self.make(fake).generate_image(IMAGE_MODEL, "just a prompt")
+        parts = self.body_of(fake)["contents"][0]["parts"]
+        self.assertEqual([{"text": "just a prompt"}], parts)
+
+    def test_the_key_still_never_appears_in_the_body(self):
+        fake = FakeRunner(image_response())
+        self.make(fake).generate_image(IMAGE_MODEL, "p", images=[PNG])
+        request, _ = fake.calls[0]
+        self.assertNotIn(SECRET, request.data.decode("utf-8"))
 
 
 if __name__ == "__main__":

@@ -18,6 +18,15 @@ namespace GameFactory.Editor
         public const string UiArtRoot = "Assets/Common/Art/UI/";
 
         /// <summary>
+        /// The character taken apart: a body with no limbs, and each limb on
+        /// its own. Every piece is cut from player.png, so every piece has to
+        /// import at player.png's scale and filtering - a paw at the folder
+        /// default of 64 would come back twice the size of the body it hangs
+        /// off, and the joint offsets in rig.json would all be wrong.
+        /// </summary>
+        public const string CharacterRigRoot = "Assets/Common/Art/Runner/rig/";
+
+        /// <summary>
         /// 9-slice borders for UI sprites, in pixels, as Unity orders them:
         /// (left, bottom, right, top). Measured from the actual files rather
         /// than guessed - button.png is Kenney's 192x64
@@ -46,10 +55,13 @@ namespace GameFactory.Editor
         /// is 1.06 x 1.50, a little wider than a 1.09-unit ground tile and half
         /// again as tall, which is the proportion the reference shows.
         /// </summary>
+        /// <summary>The character's scale, shared by player.png and every piece cut from it.</summary>
+        private const float CharacterPixelsPerUnit = 128f;
+
         private static readonly System.Collections.Generic.Dictionary<string, float> PixelsPerUnitOverrides =
             new System.Collections.Generic.Dictionary<string, float>
             {
-                { "player", 128f },
+                { "player", CharacterPixelsPerUnit },
             };
 
         /// <summary>
@@ -72,12 +84,24 @@ namespace GameFactory.Editor
 
             string fileName = System.IO.Path.GetFileNameWithoutExtension(assetPath);
 
+            bool isCharacterPart = assetPath.StartsWith(CharacterRigRoot);
+
+            float pixelsPerUnit = 64f;
+            if (isCharacterPart)
+            {
+                pixelsPerUnit = CharacterPixelsPerUnit;
+            }
+            else if (PixelsPerUnitOverrides.TryGetValue(fileName, out float ppu))
+            {
+                pixelsPerUnit = ppu;
+            }
+
             importer.textureType = TextureImporterType.Sprite;
             importer.spriteImportMode = SpriteImportMode.Single;
-            importer.spritePixelsPerUnit =
-                PixelsPerUnitOverrides.TryGetValue(fileName, out float ppu) ? ppu : 64f;
-            importer.filterMode =
-                BilinearFiles.Contains(fileName) ? FilterMode.Bilinear : FilterMode.Point;
+            importer.spritePixelsPerUnit = pixelsPerUnit;
+            importer.filterMode = isCharacterPart || BilinearFiles.Contains(fileName)
+                ? FilterMode.Bilinear
+                : FilterMode.Point;
             importer.mipmapEnabled = false;
             importer.alphaIsTransparency = true;
             importer.textureCompression = TextureImporterCompression.Uncompressed;

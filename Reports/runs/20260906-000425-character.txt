@@ -1,0 +1,13 @@
+# Orchestrator run report
+
+Generated: 2026-09-06 00:04:25
+Command: character --status
+Outcome: OK
+Exit: 0
+Duration: 0초
+
+## Output (tail)
+
+=== CHARACTER RIG (Gemini) ===
+  Gemini GATED: GEMINI_API_KEY: ABSENT; HUMAN_GATE initial_gemini_login
+  on disk: no rig yet

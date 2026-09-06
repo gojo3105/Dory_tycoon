@@ -37,6 +37,20 @@ namespace GameFactory.Editor
         private const float CoinY = 1f;
         private const float TileWidth = 10f;
 
+        /// <summary>Top surface of the ground: the tile is 1 unit tall and centred on GroundY.</summary>
+        private const float GroundSurfaceY = GroundY + 0.5f;
+
+        /// <summary>
+        /// Where the underside of a hanging bar sits, as a fraction of the
+        /// player's standing height. The slide halves the collider, so this
+        /// leaves a sixth of a body height to duck through - enough that the
+        /// visual squash, which eases in over about a tenth of a second, has
+        /// finished before it matters - while still being a third of a body
+        /// below a standing head. There is no walking under it upright.
+        /// Player art is 1.5 units tall, so the gap is 0.24 units.
+        /// </summary>
+        private const float OverheadClearanceFraction = 0.66f;
+
         /// <summary>One margin for the whole UI. The old HUD indented the score to x=180 with no matching margin anywhere else on screen.</summary>
         private const float Margin = 44f;
 
@@ -100,6 +114,11 @@ namespace GameFactory.Editor
             GameObject obstacleSpawnerGO = new GameObject("ObstacleSpawner");
             ObstacleSpawner obstacleSpawner = obstacleSpawnerGO.AddComponent<ObstacleSpawner>();
             obstacleSpawner.SetReferences(prefabs.Obstacle, playerInstance.transform, ObstacleY);
+            if (prefabs.ObstacleOverhead != null)
+            {
+                obstacleSpawner.SetOverheadReferences(
+                    prefabs.ObstacleOverhead, OverheadBarCentreY(prefabs.PlayerHeight));
+            }
 
             GameObject coinSpawnerGO = new GameObject("CoinSpawner");
             CoinSpawner coinSpawner = coinSpawnerGO.AddComponent<CoinSpawner>();
@@ -124,6 +143,18 @@ namespace GameFactory.Editor
             AddSceneToBuildSettings(sceneAssetPath);
 
             return sceneAssetPath;
+        }
+
+        /// <summary>
+        /// Centre of a hanging bar, from the player's standing height. The
+        /// spawner positions prefabs by their centre and the bar's collider is
+        /// centred on it, so the underside is half a bar-height lower - which
+        /// is the number that actually decides whether a duck fits.
+        /// </summary>
+        private static float OverheadBarCentreY(float playerHeight)
+        {
+            float underside = GroundSurfaceY + playerHeight * OverheadClearanceFraction;
+            return underside + PrefabGenerator.OverheadObstacleHeight * 0.5f;
         }
 
         /// <summary>
@@ -276,6 +307,22 @@ namespace GameFactory.Editor
             Text currencyText = CreatePill(titlePanel.transform, "TitleCoinPill", new Vector2(200f, 76f),
                 new Vector2(1f, 1f), new Vector2(-Margin, -56f), "0", 38, OrangeText);
 
+            // The controls, spelled out. A verb nobody knows about is a verb
+            // the game does not have: the slide is invisible until someone
+            // happens to drag downward, and nothing on screen would ever
+            // suggest doing that. Two short lines, above the best-score sign.
+            Text controlsTop = CreateText(titlePanel.transform, "ControlsHintTop",
+                "탭 = 점프 · 공중에서 한 번 더 = 이단 점프", 26, TextAnchor.MiddleCenter,
+                new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+                new Vector2(680f, 40f), new Vector2(0f, 484f));
+            AddOutline(controlsTop, 2f);
+
+            Text controlsBottom = CreateText(titlePanel.transform, "ControlsHintBottom",
+                "아래로 밀기 = 슬라이드", 26, TextAnchor.MiddleCenter,
+                new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+                new Vector2(680f, 40f), new Vector2(0f, 446f));
+            AddOutline(controlsBottom, 2f);
+
             // Best score on a sign rather than floating text.
             GameObject bestSign = CreatePanel(titlePanel.transform, "BestSign", UiSpriteGenerator.CreamPanelPath,
                 new Vector2(440f, 76f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 340f));
@@ -288,7 +335,8 @@ namespace GameFactory.Editor
             bestText.color = OrangeText;
 
             // Vertical budget measured from the bottom edge so nothing overlaps:
-            // shop 52..158 | play 176..318 | best sign 340..416.
+            // shop 52..158 | play 176..318 | best sign 340..416 |
+            // controls hint 426..504.
             (Button play, Text playLabel) = CreateButton(titlePanel.transform, "PlayButton", ButtonGreenPath,
                 new Vector2(ContentWidth, 142f), new Vector2(0.5f, 0f), new Vector2(0f, 176f),
                 "시작", 62);

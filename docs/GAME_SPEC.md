@@ -11,9 +11,9 @@
 ```json
 {
   "game": { "id": "game01", "title": "Factory Runner", "genre": "Runner" },
-  "player": { "moveSpeed": 6, "jumpPower": 10 },
+  "player": { "moveSpeed": 6, "jumpPower": 11, "gravityScale": 3.5 },
   "mechanics": {
-    "jump": true, "doubleJump": false, "dash": false, "wallJump": false,
+    "jump": true, "doubleJump": true, "slide": true, "dash": false, "wallJump": false,
     "gravitySwitch": true, "teleport": false, "timeSlow": false
   },
   "level": { "levelCount": 1, "difficulty": "Medium", "procedural": true, "length": 120 },
@@ -39,16 +39,20 @@
 |---|---|---|---|
 | `moveSpeed` | float | 자동 이동 속도 (world units/sec). | `> 0` |
 | `jumpPower` | float | 점프 시 부여되는 수직 속도. | `mechanics.jump`가 true면 `> 0` |
+| `gravityScale` | float | 플레이어에게 적용되는 중력 배율. 점프의 체공 시간과 도달 거리를 결정한다. 이 값이 없어서 Unity 기본값 1이 적용됐을 때 점프가 2초간 떠 있고 장애물 두세 개를 한 번에 넘어갔다. | `> 0` (0 이하면 0.1로 보정) |
 
 ### `mechanics`
 
-각 필드는 해당 기믹의 활성화 여부다. 대응하는 모듈이 `Assets/GameFactory/Modules/`에 없으면
-활성화해도 아무 효과가 없다 (지금 구현되어 있는 것은 `gravitySwitch` → `Modules/GravitySwitch`뿐).
+각 필드는 해당 기믹의 활성화 여부다. 대응하는 구현이 없으면 활성화해도 아무 효과가 없다.
+현재 실제로 동작하는 것은 `jump`, `doubleJump`, `slide`, `gravitySwitch` 네 개다
+(`gravitySwitch`만 `Modules/GravitySwitch`의 독립 모듈이고, 나머지는 `RunnerPlayerController` 안에 있다 -
+점프 횟수를 세는 일에 모듈 하나를 만들 이유가 없다).
 
 | 필드 | 타입 | 비고 |
 |---|---|---|
 | `jump` | bool | Runner의 기본 조작. |
-| `doubleJump` | bool | 모듈 미구현 (예약). |
+| `doubleJump` | bool | true면 공중에서 한 번 더 점프할 수 있다 (`RunnerPlayerController`). 두 번째 점프는 화면 밖으로 나가지 않도록 점프력의 85%만 쓴다. |
+| `slide` | bool | true면 아래로 스와이프해 슬라이드(숙이기)할 수 있고, **머리 위에 걸린 장애물**이 생성된다 (`PrefabGenerator`/`ObstacleSpawner`). 슬라이드가 꺼져 있으면 그 장애물은 아예 생성되지 않는다 - 넘을 수단이 없는 장애물은 난이도가 아니라 벽이기 때문이다. |
 | `dash` | bool | 모듈 미구현 (예약). |
 | `wallJump` | bool | 모듈 미구현 (예약). |
 | `gravitySwitch` | bool | true면 `LevelGenerator`가 `GravityZoneSpawner`를 배선한다. |

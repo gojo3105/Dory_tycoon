@@ -23,24 +23,43 @@ namespace GameFactory.Gameplay.Runner
     [DisallowMultipleComponent]
     public class RunnerCharacterMotion : MonoBehaviour
     {
+        // AMPLITUDES. These were four to five times smaller until 2026-09-05,
+        // because the task that added them said "keep it subtle - limbs that
+        // swing far read as broken". That was my note and it was wrong for the
+        // screen this runs on: the player reported "the image just slides
+        // sideways", meaning none of it registered at all. On a phone, at this
+        // sprite size, subtle IS invisible. A runner has to read as running
+        // from a glance at arm's length.
         [Header("Run")]
         [Tooltip("Bounces per second while grounded.")]
         [SerializeField] private float bobFrequency = 4.5f;
         [Tooltip("Vertical travel of the bob, in world units.")]
-        [SerializeField] private float bobHeight = 0.045f;
+        [SerializeField] private float bobHeight = 0.16f;
         [Tooltip("How much the body squashes at the bottom of each bob, 0-1.")]
-        [SerializeField] private float bobSquash = 0.055f;
+        [SerializeField] private float bobSquash = 0.12f;
         [Tooltip("Forward lean while running, in degrees.")]
-        [SerializeField] private float runLean = 5f;
+        [SerializeField] private float runLean = 8f;
 
         [Header("Limbs")]
         [Tooltip("Maximum limb rotation during the grounded run cycle, in degrees.")]
-        [SerializeField] private float limbSwing = 13f;
+        [SerializeField] private float limbSwing = 34f;
         [Tooltip("Arm angle held while airborne, in degrees.")]
-        [SerializeField] private float jumpArmAngle = 18f;
+        [SerializeField] private float jumpArmAngle = 40f;
         [Tooltip("Leg angle held while airborne, in degrees.")]
-        [SerializeField] private float jumpLegAngle = 11f;
+        [SerializeField] private float jumpLegAngle = 26f;
         [SerializeField] private Color limbColor = new Color(0.95f, 0.87f, 0.75f, 1f);
+
+        [Header("Slide")]
+        // The squash itself is NOT tuned here - it is read from the controller,
+        // because the visible height and the hitbox height have to be the same
+        // number. A character drawn standing over a ducked hitbox slips under
+        // an overhead bar looking like it clipped straight through it.
+        [Tooltip("Forward lean while sliding, in degrees.")]
+        [SerializeField] private float slideLean = 26f;
+        [Tooltip("How far the legs are thrown forward during a slide, in degrees.")]
+        [SerializeField] private float slideLegAngle = 74f;
+        [Tooltip("How far the arms tuck back during a slide, in degrees.")]
+        [SerializeField] private float slideArmAngle = 46f;
 
         [Header("Air")]
         [Tooltip("Vertical speed that produces the full stretch or squash.")]
@@ -52,7 +71,7 @@ namespace GameFactory.Gameplay.Runner
 
         [Header("Landing")]
         [Tooltip("Squash applied the instant the feet touch down, 0-1.")]
-        [SerializeField] private float landSquash = 0.22f;
+        [SerializeField] private float landSquash = 0.28f;
         [Tooltip("Seconds for the landing squash to spring back.")]
         [SerializeField] private float landRecovery = 0.18f;
 
@@ -61,7 +80,17 @@ namespace GameFactory.Gameplay.Runner
         [SerializeField] private float scaleSmoothing = 0.045f;
         [SerializeField] private float rotationSmoothing = 0.08f;
 
+        [Header("Rig")]
+        [Tooltip("Speed the run clip was authored at. The cycle is scaled against this, not against a number the GameSpec owns.")]
+        [SerializeField] private float referenceRunSpeed = 6f;
+
         private RunnerPlayerController controller;
+        private Animator animator;
+        private SpriteRenderer bodyRenderer;
+        private static readonly int GroundedParameter = Animator.StringToHash("Grounded");
+        private static readonly int SlidingParameter = Animator.StringToHash("Sliding");
+        private static readonly int RunSpeedParameter = Animator.StringToHash("RunSpeed");
+
         private Vector3 baseScale;
         private Vector3 baseLocalPosition;
         // Half the sprite's height in world units. The pivot is Center, so a
@@ -90,18 +119,43 @@ namespace GameFactory.Gameplay.Runner
             controller = owner;
         }
 
+        /// <summary>
+        /// The renderer that carries the character's body. Passed in rather
+        /// than searched for, because with a rig the body sprite is two levels
+        /// down and this component sits on a transform with no renderer of its
+        /// own. Structural wiring, edit time.
+        /// </summary>
+        public void SetBody(SpriteRenderer body)
+        {
+            bodyRenderer = body;
+        }
+
+        /// <summary>
+        /// The rig's Animator. Its presence switches off the procedural limbs
+        /// entirely: real clips and four rectangles rotated from LateUpdate
+        /// would be two things animating the same character, and they would
+        /// disagree. Structural wiring, edit time.
+        /// </summary>
+        public void SetAnimator(Animator rigAnimator)
+        {
+            animator = rigAnimator;
+        }
+
         private void Awake()
         {
             baseScale = transform.localScale;
             baseLocalPosition = transform.localPosition;
             if (controller == null) controller = GetComponentInParent<RunnerPlayerController>();
+            if (bodyRenderer == null) bodyRenderer = GetComponent<SpriteRenderer>();
+            if (animator == null) animator = GetComponentInChildren<Animator>();
 
-            SpriteRenderer renderer = GetComponent<SpriteRenderer>();
-            spriteHalfHeight = renderer != null && renderer.sprite != null
-                ? renderer.sprite.bounds.extents.y * baseScale.y
+            spriteHalfHeight = bodyRenderer != null && bodyRenderer.sprite != null
+                ? bodyRenderer.sprite.bounds.extents.y * baseScale.y
                 : 0.5f;
 
-            CreateLimbs(renderer);
+            // Only when there is no rig. With one, the limbs are real art on
+            // real joints and these grey rectangles would sit on top of them.
+            if (animator == null) CreateLimbs(bodyRenderer);
         }
 
         private void OnDisable()
@@ -124,6 +178,8 @@ namespace GameFactory.Gameplay.Runner
             bool grounded = controller.IsGrounded;
             bool dead = controller.IsDead;
 
+            DriveAnimator(grounded, dead);
+
             if (grounded && !wasGrounded) landTimer = landRecovery;
             wasGrounded = grounded;
             if (landTimer > 0f) landTimer = Mathf.Max(0f, landTimer - dt);
@@ -142,6 +198,23 @@ namespace GameFactory.Gameplay.Runner
                 // than paused.
                 targetScale = new Vector2(1f + landSquash, 1f - landSquash);
                 targetAngle = -25f;
+            }
+            else if (controller.IsSliding)
+            {
+                // Squashed to exactly the height the collider shrank to, and
+                // widened by part of what it lost, so the duck reads as a body
+                // compressing rather than a sprite scaled down.
+                float squash = 1f - Mathf.Clamp(controller.SlideHeightFraction, 0.2f, 0.95f);
+                targetScale = new Vector2(1f + squash * 0.55f, 1f - squash);
+                targetAngle = -slideLean;
+                bobPhase = 0f;
+
+                // Legs out front, arms swept back - the shape of someone
+                // sliding feet-first, and unmistakable against the run cycle.
+                leftLegAngle = -slideLegAngle;
+                rightLegAngle = -slideLegAngle * 0.82f;
+                leftArmAngle = slideArmAngle;
+                rightArmAngle = slideArmAngle * 0.82f;
             }
             else if (grounded)
             {
@@ -205,6 +278,28 @@ namespace GameFactory.Gameplay.Runner
             SetLimbAngles(leftArmAngle, rightArmAngle, leftLegAngle, rightLegAngle);
         }
 
+        /// <summary>
+        /// Hands the rig the three facts its clips branch on. Everything else
+        /// this component does - squash, lean, the bob, keeping the feet on
+        /// the ground - stays here, on the parent transform, so the two never
+        /// write to the same thing.
+        /// </summary>
+        private void DriveAnimator(bool grounded, bool dead)
+        {
+            if (animator == null) return;
+
+            animator.SetBool(GroundedParameter, grounded);
+            animator.SetBool(SlidingParameter, controller.IsSliding);
+
+            // Cycle speed from how fast the character is really travelling, so
+            // a spec that doubles moveSpeed does not leave the legs ambling
+            // under a sprinting body. Dead or standing on the title screen,
+            // the legs stop rather than running on the spot.
+            float speed = dead ? 0f
+                : Mathf.Abs(controller.HorizontalVelocity) / Mathf.Max(0.01f, referenceRunSpeed);
+            animator.SetFloat(RunSpeedParameter, Mathf.Clamp(speed, 0f, 2.5f));
+        }
+
         private void CreateLimbs(SpriteRenderer bodyRenderer)
         {
             if (bodyRenderer == null || bodyRenderer.sprite == null) return;
@@ -226,9 +321,9 @@ namespace GameFactory.Gameplay.Runner
 
             Vector2 bodySize = bodyRenderer.sprite.bounds.size;
             float armWidth = bodySize.x * 0.075f;
-            float armLength = bodySize.y * 0.25f;
+            float armLength = bodySize.y * 0.30f;
             float legWidth = bodySize.x * 0.09f;
-            float legLength = bodySize.y * 0.23f;
+            float legLength = bodySize.y * 0.30f;
 
             leftArm = CreateLimb(
                 "Left Arm", new Vector2(-bodySize.x * 0.31f, bodySize.y * 0.19f),
@@ -236,11 +331,14 @@ namespace GameFactory.Gameplay.Runner
             rightArm = CreateLimb(
                 "Right Arm", new Vector2(bodySize.x * 0.31f, bodySize.y * 0.19f),
                 new Vector2(armWidth, armLength), bodyRenderer);
+            // Joints pushed to the lower edge so the legs extend BELOW the
+            // silhouette. Tucked inside it they are covered by the body even
+            // when drawn in front, which is half of why nothing was visible.
             leftLeg = CreateLimb(
-                "Left Leg", new Vector2(-bodySize.x * 0.14f, -bodySize.y * 0.26f),
+                "Left Leg", new Vector2(-bodySize.x * 0.16f, -bodySize.y * 0.34f),
                 new Vector2(legWidth, legLength), bodyRenderer);
             rightLeg = CreateLimb(
-                "Right Leg", new Vector2(bodySize.x * 0.14f, -bodySize.y * 0.26f),
+                "Right Leg", new Vector2(bodySize.x * 0.16f, -bodySize.y * 0.34f),
                 new Vector2(legWidth, legLength), bodyRenderer);
         }
 
@@ -257,7 +355,11 @@ namespace GameFactory.Gameplay.Runner
             limbRenderer.sprite = limbSprite;
             limbRenderer.color = limbColor;
             limbRenderer.sortingLayerID = bodyRenderer.sortingLayerID;
-            limbRenderer.sortingOrder = bodyRenderer.sortingOrder - 1;
+            // IN FRONT of the body, not behind it. 도리 is an opaque cut-out
+            // PNG and the limb joints sit inside its silhouette, so drawing
+            // them behind hid every one of them completely - which is why the
+            // character read as a sliding decal with no animation at all.
+            limbRenderer.sortingOrder = bodyRenderer.sortingOrder + 1;
             return limbTransform;
         }
 

@@ -114,6 +114,11 @@ namespace GameFactory.Editor
                 AssetDatabase.GetAssetPath(prefabs.Coin),
             };
 
+            if (prefabs.ObstacleOverhead != null)
+            {
+                paths.Add(AssetDatabase.GetAssetPath(prefabs.ObstacleOverhead));
+            }
+
             if (prefabs.GravityZone != null)
             {
                 paths.Add(AssetDatabase.GetAssetPath(prefabs.GravityZone));

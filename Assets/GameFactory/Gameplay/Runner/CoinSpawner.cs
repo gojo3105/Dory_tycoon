@@ -47,8 +47,26 @@ namespace GameFactory.Gameplay.Runner
             }
         }
 
+        /// <summary>
+        /// How much clear space a coin needs around it. Wide, so one never
+        /// sits flush against the edge of a hanging bar - close enough to
+        /// touch and impossible to take. Deliberately SHORT: a coin floating
+        /// just above a ground obstacle is good design, the reward for the
+        /// jump you already had to make, and a taller probe would delete it.
+        /// </summary>
+        private static readonly Vector2 ClearanceProbe = new Vector2(1.4f, 0.7f);
+
         private void SpawnAt(float x)
         {
+            // Overhead bars are tall, and the coin line runs straight through
+            // where they hang. A coin drawn inside one reads as a reward and
+            // is really a kill box: the player jumps for it and dies. The
+            // obstacle spawner deliberately runs further ahead than this one,
+            // so by the time a coin is placed the bar at that x already exists
+            // and this query can see it.
+            Collider2D blocking = Physics2D.OverlapBox(new Vector2(x, coinY), ClearanceProbe, 0f);
+            if (blocking != null && blocking.CompareTag("Obstacle")) return;
+
             GameObject instance = pool.Get(new Vector3(x, coinY, 0f), Quaternion.identity);
 
             RecycleWhenPassed recycle = instance.GetComponent<RecycleWhenPassed>();
