@@ -1,10 +1,10 @@
 ﻿# Auto-sync status
 
-Generated: 2026-09-06 10:49:57
-Outcome: OK
-Reason: Merged upstream/claude/delete-current-content-mgn4xm and pushed to origin/claude/delete-current-content-mgn4xm
+Generated: 2026-09-06 10:55:51
+Outcome: BLOCKED
+Reason: Uncommitted changes to tracked files: M Assets/Common/Art/Runner/rig/arm_l.png |  M Assets/Common/Art/Runner/rig/arm_r.png |  M Assets/Common/Art/Runner/rig/body.png |  M Assets/Common/Art/Runner/rig/foot_l.png |  M Assets/Common/Art/Runner/rig/foot_r.png |  M Assets/Common/Art/Runner/rig/rig.json |  M GeneratedGames/game01.json |  M ProjectSettings/ProjectSettings.asset
 Last-Success: 2026-09-06 10:49:57
-Local-Head: 8e9288b
+Local-Head: aa32742
 Upstream-Head: c0575d8
 Branch: claude/delete-current-content-mgn4xm
 
