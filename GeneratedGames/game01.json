@@ -2,7 +2,7 @@
     "gameId": "game01",
     "title": "Factory Runner",
     "genre": "Runner",
-    "generatedAtUtc": "2026-09-06T01:51:10.3018503Z",
+    "generatedAtUtc": "2026-09-06T23:04:24.1717154Z",
     "scenePath": "Assets/GeneratedGames/game01/Scenes/game01.unity",
     "prefabPaths": [
         "Assets/GeneratedGames/game01/Prefabs/Player.prefab",
