@@ -239,8 +239,41 @@ namespace GameFactory.Editor
             File.WriteAllText(EditorPaths.ToAbsolutePath(ManifestPath),
                               BuildManifest(entries.ToString(), sourcePath, view), new UTF8Encoding(false));
 
+            RemoveStalePartsFromTheOtherView(cuts);
+
             AssetDatabase.Refresh();
             return true;
+        }
+
+        /// <summary>
+        /// Deletes parts left over from the other view. Switching from the
+        /// front drawing to the profile leaves arm_l and friends on disk
+        /// referenced by nothing, and dead art in a source folder is how the
+        /// next person ends up wondering which of two arms is the real one.
+        ///
+        /// Deliberately narrow: only names this tool itself writes, and only
+        /// those belonging to the table that is NOT in use. Nothing else in
+        /// the folder is ever touched - a hand-drawn part sitting alongside
+        /// stays exactly where it is.
+        /// </summary>
+        private static void RemoveStalePartsFromTheOtherView(PartCut[] active)
+        {
+            var keep = new HashSet<string>();
+            foreach (PartCut cut in active) keep.Add(cut.Name);
+
+            foreach (PartCut[] table in new[] { FrontCuts, SideCuts })
+            {
+                foreach (PartCut cut in table)
+                {
+                    if (keep.Contains(cut.Name)) continue;
+
+                    string path = $"{RigFolder}/{cut.Name}.png";
+                    if (File.Exists(EditorPaths.ToAbsolutePath(path)))
+                    {
+                        AssetDatabase.DeleteAsset(path);
+                    }
+                }
+            }
         }
 
         // ---- preparing a drawing that arrived on paper ------------------------
