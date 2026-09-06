@@ -68,7 +68,51 @@ namespace GameFactory.Editor
         {
             public string source;
             public string generated;
+            /// <summary>"side" or "front". Decides what a run cycle even means - see BuildRunClip.</summary>
+            public string view;
             public RigPartEntry[] parts;
+        }
+
+        /// <summary>
+        /// Which four limbs a rig has, and whether the character is seen from
+        /// the side. A side view has a near arm and a far one; a front view
+        /// has a left and a right, and they are not the same thing to animate.
+        /// </summary>
+        private readonly struct RigLayout
+        {
+            public readonly bool IsSide;
+            public readonly string ArmLead;
+            public readonly string ArmTrail;
+            public readonly string LegLead;
+            public readonly string LegTrail;
+
+            public RigLayout(bool isSide, string armLead, string armTrail, string legLead, string legTrail)
+            {
+                IsSide = isSide;
+                ArmLead = armLead;
+                ArmTrail = armTrail;
+                LegLead = legLead;
+                LegTrail = legTrail;
+            }
+
+            /// <summary>
+            /// Reads the layout off the part names actually present, so a rig
+            /// cut from side-view art animates as a stride and one cut from
+            /// the front keeps the bounce it had. Missing parts are simply
+            /// never keyed - a side view usually hides the far arm entirely,
+            /// and that is correct rather than something to work around.
+            /// </summary>
+            public static RigLayout Resolve(HashSet<string> present, string view)
+            {
+                bool isSide = string.Equals(view, "side", StringComparison.OrdinalIgnoreCase)
+                              || present.Contains("arm_near") || present.Contains("foot_near");
+
+                if (isSide)
+                {
+                    return new RigLayout(true, "arm_near", "arm_far", "foot_near", "foot_far");
+                }
+                return new RigLayout(false, "arm_l", "arm_r", "foot_l", "foot_r");
+            }
         }
 
         /// <summary>What the caller needs to wire the character up afterwards.</summary>
@@ -155,7 +199,9 @@ namespace GameFactory.Editor
                     (entry.anchor.y - 0.5f) * partSize.y,
                     0f);
                 limb.sprite = sprite;
-                limb.sortingOrder = LimbSortingOrder;
+                limb.sortingOrder = IsFarSide(entry.name)
+                    ? BodySortingOrder - 1
+                    : LimbSortingOrder;
 
                 joints[entry.name] = joint.transform;
             }
@@ -168,7 +214,8 @@ namespace GameFactory.Editor
             }
 
             Animator animator = rigRoot.AddComponent<Animator>();
-            animator.runtimeAnimatorController = BuildController(assetFolder, joints.Keys);
+            animator.runtimeAnimatorController =
+                BuildController(assetFolder, joints.Keys, manifest.view);
             animator.applyRootMotion = false;
             // The clips only move children of this object; culling by a
             // renderer Unity cannot find on the Animator itself would stop
@@ -186,8 +233,24 @@ namespace GameFactory.Editor
                 case "arm_r": return "ArmRight";
                 case "foot_l": return "FootLeft";
                 case "foot_r": return "FootRight";
+                case "arm_near": return "ArmNear";
+                case "arm_far": return "ArmFar";
+                case "foot_near": return "FootNear";
+                case "foot_far": return "FootFar";
                 default: return partName;
             }
+        }
+
+        /// <summary>
+        /// A limb on the far side of a character seen in profile. It draws
+        /// BEHIND the body, which is the whole reason it reads as depth - the
+        /// part of it that shows past the silhouette is the part that sells
+        /// the stride. In a front view nothing is far, and everything stays in
+        /// front, where the earlier attempt got this exactly wrong.
+        /// </summary>
+        private static bool IsFarSide(string partName)
+        {
+            return partName.EndsWith("_far", StringComparison.Ordinal);
         }
 
         private static Sprite LoadPart(string partName)
@@ -214,7 +277,7 @@ namespace GameFactory.Editor
         // ---- animation -------------------------------------------------------
 
         private static RuntimeAnimatorController BuildController(
-            string assetFolder, IEnumerable<string> partNames)
+            string assetFolder, IEnumerable<string> partNames, string view)
         {
             string folder = $"{assetFolder}/Animation";
             if (!AssetDatabase.IsValidFolder(folder))
@@ -227,10 +290,12 @@ namespace GameFactory.Editor
             }
 
             var present = new HashSet<string>(partNames);
-            AnimationClip run = BuildRunClip(folder, present);
-            AnimationClip air = BuildPoseClip(folder, "Character_Air", present,
+            RigLayout layout = RigLayout.Resolve(present, view);
+
+            AnimationClip run = BuildRunClip(folder, present, layout);
+            AnimationClip air = BuildPoseClip(folder, "Character_Air", present, layout,
                 armDegrees: -34f, legDegrees: -20f, legLift: 0.05f);
-            AnimationClip slide = BuildPoseClip(folder, "Character_Slide", present,
+            AnimationClip slide = BuildPoseClip(folder, "Character_Slide", present, layout,
                 armDegrees: 46f, legDegrees: 62f, legLift: 0f);
 
             // Deleted first, or a second generation pass leaves
@@ -290,55 +355,109 @@ namespace GameFactory.Editor
 
         private const string RotationProperty = "localEulerAnglesRaw.z";
         private const string LiftProperty = "m_LocalPosition.y";
+        /// <summary>Forward and back travel. In profile this carries the stride, not the rotation.</summary>
+        private const string StrideProperty = "m_LocalPosition.x";
 
-        private static AnimationClip BuildRunClip(string folder, HashSet<string> present)
+        private static AnimationClip BuildRunClip(string folder, HashSet<string> present,
+                                                  RigLayout layout)
         {
             AnimationClip clip = new AnimationClip { name = "Character_Run" };
 
-            // A front-facing character does not stride: seen from the front, a
-            // run is a bounce with the feet alternating up and down. Swinging
-            // them sideways - which a side-view cycle would do - reads as
-            // splaying the legs apart, not as running.
-            const float ArmSwing = 24f;
-            const float FootTilt = 11f;
-            const float LegLift = 0.055f;
+            if (layout.IsSide)
+            {
+                // A PROFILE CAN ACTUALLY RUN, but this drawing has no legs -
+                // the body meets the feet directly. Pivoting from a hip up
+                // inside the belly swung the feet clear of the body and they
+                // read as detached, so the stride is carried by TRAVEL and
+                // LIFT, with rotation only tilting the foot as it leaves the
+                // ground. Verified by rendering the cycle over the real art
+                // before any of it was written here.
+                const float ArmSwing = 30f;
+                const float FootTilt = 14f;
+                // World units. The character is 1.5 tall over 192 px, so these
+                // are the 4.5 px of travel and 5 px of lift that were checked.
+                const float Stride = 0.0352f;
+                const float LegLift = 0.0391f;
 
-            // Arms mirror: the left arm's forward is +Z and the right arm's is
-            // -Z, so opposite signs at the same phase IS the alternation.
-            AddSwing(clip, "arm_l", present, RotationProperty, ArmSwing, 0f);
-            AddSwing(clip, "arm_r", present, RotationProperty, -ArmSwing, 0f);
+                AddSwing(clip, layout.ArmLead, present, RotationProperty, ArmSwing, 0.5f);
+                // Behind the body and opposite the near one, so the two never
+                // overlap into a single shape. Usually absent in profile art.
+                AddSwing(clip, layout.ArmTrail, present, RotationProperty, ArmSwing, 0f);
 
-            // Feet are half-waves, not sine waves, and both tilt the same way:
-            // a foot tilts while it is off the ground and sits flat while it
-            // carries weight. A planted foot that rolls is the tell that a
-            // cycle was written as maths rather than watched.
-            AddHalfWave(clip, "foot_l", present, RotationProperty, FootTilt, 0f);
-            AddHalfWave(clip, "foot_r", present, RotationProperty, FootTilt, 0.5f);
-            AddHalfWave(clip, "foot_l", present, LiftProperty, LegLift, 0f);
-            AddHalfWave(clip, "foot_r", present, LiftProperty, LegLift, 0.5f);
+                AddSideLeg(clip, layout.LegTrail, present, FootTilt, Stride, LegLift, 0f);
+                AddSideLeg(clip, layout.LegLead, present, FootTilt, Stride, LegLift, 0.5f);
+            }
+            else
+            {
+                // A front-facing character does not stride: seen from the
+                // front, a run is a bounce with the feet alternating up and
+                // down. Swinging them sideways reads as splaying the legs
+                // apart, not as running.
+                const float ArmSwing = 24f;
+                const float FootTilt = 11f;
+                const float LegLift = 0.055f;
+
+                // Arms mirror: the left arm's forward is +Z and the right
+                // arm's is -Z, so opposite signs at the same phase IS the
+                // alternation.
+                AddSwing(clip, layout.ArmLead, present, RotationProperty, ArmSwing, 0f);
+                AddSwing(clip, layout.ArmTrail, present, RotationProperty, -ArmSwing, 0f);
+
+                // Half-waves, and both tilt the same way: a foot tilts while
+                // it is off the ground and sits flat while it carries weight.
+                // A planted foot that rolls is the tell that a cycle was
+                // written as maths rather than watched.
+                AddHalfWave(clip, layout.LegLead, present, RotationProperty, FootTilt, 0f);
+                AddHalfWave(clip, layout.LegTrail, present, RotationProperty, FootTilt, 0.5f);
+                AddHalfWave(clip, layout.LegLead, present, LiftProperty, LegLift, 0f);
+                AddHalfWave(clip, layout.LegTrail, present, LiftProperty, LegLift, 0.5f);
+                AddConstant(clip, layout.LegLead, present, StrideProperty, 0f);
+                AddConstant(clip, layout.LegTrail, present, StrideProperty, 0f);
+            }
 
             SetLooping(clip, true);
             return SaveClip(clip, folder);
         }
 
         private static AnimationClip BuildPoseClip(string folder, string clipName,
-            HashSet<string> present, float armDegrees, float legDegrees, float legLift)
+            HashSet<string> present, RigLayout layout,
+            float armDegrees, float legDegrees, float legLift)
         {
             AnimationClip clip = new AnimationClip { name = clipName };
 
-            AddConstant(clip, "arm_l", present, RotationProperty, armDegrees);
-            AddConstant(clip, "arm_r", present, RotationProperty, -armDegrees);
-            AddConstant(clip, "foot_l", present, RotationProperty, legDegrees);
-            AddConstant(clip, "foot_r", present, RotationProperty, -legDegrees);
+            // In profile both arms and both legs are on the same axis, so a
+            // pose points them the same way. Mirrored, they would splay.
+            float trailArm = layout.IsSide ? armDegrees * 0.6f : -armDegrees;
+            float trailLeg = layout.IsSide ? legDegrees * 0.6f : -legDegrees;
+
+            AddConstant(clip, layout.ArmLead, present, RotationProperty, armDegrees);
+            AddConstant(clip, layout.ArmTrail, present, RotationProperty, trailArm);
+            AddConstant(clip, layout.LegLead, present, RotationProperty, legDegrees);
+            AddConstant(clip, layout.LegTrail, present, RotationProperty, trailLeg);
 
             // Written even when it is zero. A property this clip leaves alone
             // keeps whatever the previous state last animated it to, so a
             // slide entered mid-stride would hold one foot in the air.
-            AddConstant(clip, "foot_l", present, LiftProperty, legLift);
-            AddConstant(clip, "foot_r", present, LiftProperty, legLift);
+            AddConstant(clip, layout.LegLead, present, LiftProperty, legLift);
+            AddConstant(clip, layout.LegTrail, present, LiftProperty, legLift);
+            AddConstant(clip, layout.LegLead, present, StrideProperty, 0f);
+            AddConstant(clip, layout.LegTrail, present, StrideProperty, 0f);
 
             SetLooping(clip, true);
             return SaveClip(clip, folder);
+        }
+
+        /// <summary>
+        /// One leg of a profile stride: it travels forward and back, lifts
+        /// while it is forward, and tilts as it leaves the ground. The tilt
+        /// opposes the travel - a foot swinging forward rolls its toe up.
+        /// </summary>
+        private static void AddSideLeg(AnimationClip clip, string part, HashSet<string> present,
+            float tiltDegrees, float stride, float lift, float phase)
+        {
+            AddSwing(clip, part, present, RotationProperty, -tiltDegrees, phase);
+            AddSwing(clip, part, present, StrideProperty, stride, phase);
+            AddHalfWave(clip, part, present, LiftProperty, lift, phase);
         }
 
         /// <summary>A full sine over the cycle, offset by <paramref name="phase"/> of it.</summary>

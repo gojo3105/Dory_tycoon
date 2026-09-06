@@ -54,11 +54,15 @@ Inspector에서 개별 조정한 값을 재임포트 때마다 되돌리지 않�
 `player.png` 한 장은 통짜 그림이라 **아무것도 움직일 수 없다.** 팔다리가 실루엣
 안에 그려져 있기 때문이다. `rig/`에는 같은 그림을 **분해한 것**이 들어간다.
 
+**옆모습(`player_side.png`)이 있으면 그걸 우선 쓴다.** 옆으로 스크롤하는 게임이라
+정면 그림은 제자리 뛰기밖에 안 되기 때문이다.
+
 | 파일 | 내용 |
 |---|---|
-| `body.png` | 팔다리를 지우고 배를 메운 몸통. 캔버스 크기는 `player.png`와 동일 |
-| `arm_l.png` / `arm_r.png` | 앞발 하나씩 |
-| `foot_l.png` / `foot_r.png` | 발 하나씩 |
+| `body.png` | 팔다리를 지우고 배를 메운 몸통 |
+| `arm_near.png` (옆모습) | 보이는 쪽 앞발 하나. 반대쪽은 몸에 가려 아예 없다 |
+| `foot_near.png` / `foot_far.png` (옆모습) | 앞발/뒷발. `_far`는 **몸 뒤에** 그린다 |
+| `arm_l/r.png`, `foot_l/r.png` (정면) | 정면 그림일 때의 팔·발 |
 | `rig.json` | 각 파츠가 **어디를 축으로 도는지**(`joint`)와 그 축이 **파츠 그림 안 어디에 있는지**(`anchor`) |
 
 - `joint` / `anchor`는 둘 다 비율이고, **y는 위에서부터** 잰다.
@@ -66,6 +70,8 @@ Inspector에서 개별 조정한 값을 재임포트 때마다 되돌리지 않�
 - 숫자가 틀렸으면 **`rig.json`을 고치고 다시 생성한다. C#을 고치지 않는다.**
 - `Assets/GameFactory/Editor/CharacterRigGenerator.cs`가 이걸 읽어서 관절 계층 +
   `AnimationClip`(Run/Air/Slide) + `AnimatorController`를 **에셋으로** 만든다.
+- `rig.json`의 `view`가 `side`면 걸음(앞뒤 이동 + 들어올림), `front`면 제자리 뛰기.
+- 흰 배경 위에 그려진 그림은 배경·그림자를 자동으로 따내고 크기를 맞춘 뒤 자른다.
 - 이 폴더가 없으면 예전처럼 `player.png` 한 장짜리 캐릭터가 나온다. 추가 기능일 뿐이다.
 
 ### 누가 만드나

@@ -245,20 +245,41 @@ try {
         }
     }
 
-    # Tracked files that TOOLS rewrite, not people. Unity re-resolves packages
-    # whenever the Editor is open and rewrites packages-lock.json as a side
-    # effect. Left as a hard stop, that one file silently froze every
-    # scheduled sync from the moment the Editor was opened - the same file
-    # that once made the board runner report correct work as BLOCKED. It is
-    # Unity's to write (CLAUDE.md: never hand-edit it), so its churn is
-    # committed as housekeeping, the same treatment ProjectVersion.txt gets.
-    $toolOwned = @("Packages/packages-lock.json")
-    foreach ($toolFile in $toolOwned) {
-        $state = Invoke-Git @("status", "--porcelain", "--untracked-files=no", "--", $toolFile)
-        if ($state -match '^\s*M\s') {
-            Write-Log "$toolFile was rewritten by a tool, not a person - committing it as housekeeping."
-            Invoke-Git @("add", "--", $toolFile) | Out-Null
-            Invoke-Git @("commit", "-m", "chore: tool-regenerated $toolFile") | Out-Null
+    # EVERYTHING A TOOL WRITES, IN ONE LIST.
+    #
+    # These paths are rewritten by Unity or by the generator every time the
+    # pipeline runs. None of them is a person's edit, and all of them belong
+    # in the repository. Left dirty they are a hard stop, and this sync has now
+    # been frozen three separate times by three different files on this list -
+    # packages-lock.json when the Editor was open, the rig art and .meta files
+    # after the slicer landed, then game01.json and ProjectSettings.asset after
+    # a generate. Chasing them one at a time is how a day went missing, so they
+    # are enumerated together and committed as housekeeping.
+    #
+    # A path may be a file or a folder. Untracked entries count too: a .meta
+    # carries an asset's GUID, so a missing one breaks references in every
+    # other checkout.
+    $toolOwned = @(
+        "Packages/packages-lock.json",          # Unity re-resolves packages
+        "ProjectSettings/ProjectSettings.asset", # generator sets product name and bundle id
+        "GeneratedGames",                        # the generate step's own manifests
+        "Assets/Common/Art/Runner/rig"           # cut from the character art on each generate
+    )
+
+    $toAdd = @()
+    foreach ($owned in $toolOwned) {
+        $state = @((Invoke-Git @("status", "--porcelain", "--untracked-files=all", "--", $owned)) -split "\r?\n" | Where-Object { $_ })
+        if ($state.Count -gt 0) { $toAdd += $owned }
+    }
+    $toAdd += @((Invoke-Git @("ls-files", "--others", "--exclude-standard", "--", "*.meta")) -split "\r?\n" | Where-Object { $_ })
+
+    if ($toAdd.Count -gt 0) {
+        Write-Log ("Tool-written files to commit: " + ($toAdd -join ", "))
+        Invoke-Git (@("add", "--") + $toAdd) | Out-Null
+        $staged = Invoke-Git @("diff", "--cached", "--name-only")
+        if ($staged) {
+            Invoke-Git @("commit", "-m", "chore: tool-regenerated files") | Out-Null
+            Write-Log "Committed as housekeeping."
         }
     }
 

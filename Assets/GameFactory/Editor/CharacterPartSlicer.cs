@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Text;
@@ -28,17 +29,34 @@ namespace GameFactory.Editor
     /// itself has to be rebuilt or the body ends in a ragged fade where the
     /// legs used to be.
     ///
-    /// THE NUMBERS ARE MEASURED, NOT GUESSED. They were read off player.png
-    /// (136x192): the paws sit at 62-78% of the height, the feet below 87%,
-    /// and the hips are placed at 79.5% - up inside the belly, so a leg swings
-    /// on an arc instead of pivoting on its own ankle. Different art means
-    /// different numbers, and this table is where they change.
+    /// A DRAWING ON PAPER IS PREPARED FIRST. player_side.png arrived flattened
+    /// onto a white sheet with a shadow under the feet. It is cut off that
+    /// background, trimmed, and scaled to the height the rest of the pipeline
+    /// expects, because every fraction in the tables below refers to the
+    /// animal and not to the paper around it.
+    ///
+    /// THE NUMBERS ARE MEASURED, NOT GUESSED, and each view has its own table.
+    /// A profile is preferred whenever one exists: the game scrolls sideways,
+    /// and a character facing the camera can only bounce on the spot.
+    /// Different art means different numbers, and those tables are where they
+    /// change - not the code around them.
     /// </summary>
     public static class CharacterPartSlicer
     {
         public const string SourceSpritePath = "Assets/Common/Art/Runner/player.png";
+
+        /// <summary>
+        /// The character in profile. Preferred over the front view whenever it
+        /// exists, because the game scrolls sideways: a character facing the
+        /// camera can only bounce on the spot, while a profile has a stride.
+        /// </summary>
+        public const string SideSpritePath = "Assets/Common/Art/Runner/player_side.png";
+
         public const string RigFolder = "Assets/Common/Art/Runner/rig";
         public const string ManifestPath = RigFolder + "/rig.json";
+
+        /// <summary>Character height in pixels after preparation, matching player.png at 128 PPU - 1.5 world units.</summary>
+        private const int TargetHeight = 192;
 
         /// <summary>Written into rig.json so it is always clear who drew what is on disk.</summary>
         public const string SourceName = "unity-slicer";
@@ -54,6 +72,10 @@ namespace GameFactory.Editor
         private const int InpaintIterations = 90;
         /// <summary>Alpha above which a rebuilt outline counts as solid, 0-255.</summary>
         private const float SilhouetteThreshold = 110f;
+        /// <summary>Red-to-blue spread below which a pixel counts as grey rather than fur, 0-255.</summary>
+        private const float NeutralSaturation = 14f;
+        /// <summary>Brightness above which a grey pixel is paper rather than an eye or a nose, 0-255.</summary>
+        private const float NeutralBrightness = 140f;
         /// <summary>Transparent margin kept around a cut piece so its soft edge is not clipped.</summary>
         private const int CropPadding = 3;
 
@@ -87,7 +109,8 @@ namespace GameFactory.Editor
             }
         }
 
-        private static readonly PartCut[] Cuts =
+        /// <summary>Measured off player.png (136x192), the character facing the camera.</summary>
+        private static readonly PartCut[] FrontCuts =
         {
             new PartCut("arm_l", 0.152f, 0.618f, 0.242f, 0.782f, false, 0.197f, 0.612f),
             new PartCut("arm_r", 0.752f, 0.618f, 0.842f, 0.782f, false, 0.797f, 0.612f),
@@ -95,12 +118,33 @@ namespace GameFactory.Editor
             new PartCut("foot_r", 0.636f, 0.872f, 0.808f, 1.000f, true, 0.722f, 0.795f),
         };
 
-        [MenuItem("Game Factory/Character/Slice player.png into rig parts")]
+        /// <summary>
+        /// Measured off player_side.png once prepared (137x192), the character
+        /// in profile facing right. Only ONE arm is cut: in profile the far one
+        /// is behind the body and simply not drawn, which is what almost every
+        /// 2D runner ships.
+        ///
+        /// The joints sit at each foot's own ankle rather than up inside the
+        /// belly. There is no leg in this drawing - the body meets the feet
+        /// directly - so pivoting from a hip swung the feet away from the body
+        /// and they read as detached. From the ankle, with the stride carried
+        /// mostly by travel and lift rather than rotation, they stay attached.
+        /// </summary>
+        private static readonly PartCut[] SideCuts =
+        {
+            new PartCut("arm_near", 0.695f, 0.625f, 0.828f, 0.762f, false, 0.760f, 0.618f),
+            new PartCut("foot_near", 0.575f, 0.878f, 0.792f, 1.000f, true, 0.665f, 0.880f),
+            new PartCut("foot_far", 0.415f, 0.893f, 0.628f, 0.978f, true, 0.520f, 0.895f),
+        };
+
+        [MenuItem("Game Factory/Character/Slice the character into rig parts")]
         private static void SliceFromMenu()
         {
+            ResolveSource(out string sourcePath, out string view, out PartCut[] cuts);
             if (Slice(force: true))
             {
-                Debug.Log($"[CharacterPartSlicer] Wrote {Cuts.Length + 1} parts to {RigFolder}.");
+                Debug.Log($"[CharacterPartSlicer] Cut {sourcePath} ({view}) into "
+                          + $"{cuts.Length + 1} parts in {RigFolder}.");
             }
         }
 
@@ -115,26 +159,41 @@ namespace GameFactory.Editor
             return Slice(force: false);
         }
 
+        /// <summary>The drawing to cut, and what view it is. Profile wins when it exists.</summary>
+        private static bool ResolveSource(out string assetPath, out string view, out PartCut[] cuts)
+        {
+            if (File.Exists(EditorPaths.ToAbsolutePath(SideSpritePath)))
+            {
+                assetPath = SideSpritePath;
+                view = "side";
+                cuts = SideCuts;
+                return true;
+            }
+            assetPath = SourceSpritePath;
+            view = "front";
+            cuts = FrontCuts;
+            return File.Exists(EditorPaths.ToAbsolutePath(assetPath));
+        }
+
         public static bool Slice(bool force)
         {
-            if (!force && !ShouldReplaceExisting()) return File.Exists(EditorPaths.ToAbsolutePath(ManifestPath));
-
-            string absoluteSource = EditorPaths.ToAbsolutePath(SourceSpritePath);
-            if (!File.Exists(absoluteSource))
+            if (!ResolveSource(out string sourcePath, out string view, out PartCut[] cuts))
             {
                 // Not an error: a project with no character art keeps the
                 // single-sprite player it always had.
                 return false;
             }
 
+            if (!force && !ShouldReplaceExisting(view)) return File.Exists(EditorPaths.ToAbsolutePath(ManifestPath));
+
             // Loaded from the file rather than through the imported Sprite, so
             // the texture is readable whatever Read/Write Enabled is set to on
             // the asset - flipping that flag would be a side effect on a file
             // this generator does not own.
             Texture2D source = new Texture2D(2, 2, TextureFormat.RGBA32, false);
-            if (!source.LoadImage(File.ReadAllBytes(absoluteSource)))
+            if (!source.LoadImage(File.ReadAllBytes(EditorPaths.ToAbsolutePath(sourcePath))))
             {
-                Debug.LogWarning($"[CharacterPartSlicer] {SourceSpritePath} could not be decoded.");
+                Debug.LogWarning($"[CharacterPartSlicer] {sourcePath} could not be decoded.");
                 Object.DestroyImmediate(source);
                 return false;
             }
@@ -144,17 +203,22 @@ namespace GameFactory.Editor
             Pixels image = Pixels.FromTexture(source);
             Object.DestroyImmediate(source);
 
+            // A drawing that arrives on a white sheet has to be cut out and
+            // scaled before anything is measured against it, or every fraction
+            // in the tables above refers to the paper as well as the animal.
+            image = Prepare(image, ref width, ref height);
+
             float[] combined = new float[width * height];
             float[] rebuildMask = new float[width * height];
-            float[][] masks = new float[Cuts.Length][];
+            float[][] masks = new float[cuts.Length][];
 
-            for (int i = 0; i < Cuts.Length; i++)
+            for (int i = 0; i < cuts.Length; i++)
             {
-                masks[i] = BuildSoftMask(Cuts[i], width, height);
+                masks[i] = BuildSoftMask(cuts[i], width, height);
                 for (int p = 0; p < combined.Length; p++)
                 {
                     combined[p] = Mathf.Min(1f, combined[p] + masks[i][p]);
-                    if (Cuts[i].RebuildSilhouette)
+                    if (cuts[i].RebuildSilhouette)
                     {
                         rebuildMask[p] = Mathf.Min(1f, rebuildMask[p] + masks[i][p]);
                     }
@@ -167,16 +231,194 @@ namespace GameFactory.Editor
             var entries = new StringBuilder();
             AppendEntry(entries, "body", 0.5f, 0.5f, 0.5f, 0.5f, first: true);
 
-            for (int i = 0; i < Cuts.Length; i++)
+            for (int i = 0; i < cuts.Length; i++)
             {
-                WritePiece(image, masks[i], Cuts[i], width, height, entries);
+                WritePiece(image, masks[i], cuts[i], width, height, entries);
             }
 
             File.WriteAllText(EditorPaths.ToAbsolutePath(ManifestPath),
-                              BuildManifest(entries.ToString()), new UTF8Encoding(false));
+                              BuildManifest(entries.ToString(), sourcePath, view), new UTF8Encoding(false));
 
             AssetDatabase.Refresh();
             return true;
+        }
+
+        // ---- preparing a drawing that arrived on paper ------------------------
+
+        /// <summary>
+        /// Cuts the character off its background, trims to what is left, and
+        /// scales it to the height the rest of the pipeline expects. An image
+        /// that already has transparency is passed straight through - this is
+        /// only for a drawing delivered flattened onto a sheet.
+        /// </summary>
+        private static Pixels Prepare(Pixels image, ref int width, ref int height)
+        {
+            bool hasTransparency = false;
+            for (int p = 0; p < image.A.Length; p++)
+            {
+                if (image.A[p] < 250f) { hasTransparency = true; break; }
+            }
+            if (hasTransparency) return image;
+
+            RemoveNeutralBackground(image, width, height);
+            image = TrimToContent(image, ref width, ref height);
+            return ScaleToHeight(image, ref width, ref height, TargetHeight);
+        }
+
+        /// <summary>
+        /// Sets alpha to zero on the paper and on the drop shadow, and leaves
+        /// everything else alone.
+        ///
+        /// Neutral AND bright is the test, not "close to white". The character
+        /// is warm - every fur and spine pixel has a red-blue spread - while
+        /// the sheet and the soft shadow under the feet are both grey. Matching
+        /// on colour distance alone kept the shadow, which the game would then
+        /// have drawn on top of its own ground. Brightness is what spares the
+        /// eye and the nose, which are neutral too but dark.
+        ///
+        /// Only background CONNECTED TO THE BORDER is removed, so a pale
+        /// highlight inside the character is never punched out.
+        /// </summary>
+        private static void RemoveNeutralBackground(Pixels image, int width, int height)
+        {
+            int count = width * height;
+            bool[] neutral = new bool[count];
+            for (int p = 0; p < count; p++)
+            {
+                float max = Mathf.Max(image.R[p], Mathf.Max(image.G[p], image.B[p]));
+                float min = Mathf.Min(image.R[p], Mathf.Min(image.G[p], image.B[p]));
+                neutral[p] = (max - min) < NeutralSaturation && max > NeutralBrightness;
+            }
+
+            bool[] background = new bool[count];
+            var stack = new Stack<int>();
+            for (int x = 0; x < width; x++)
+            {
+                Seed(stack, background, neutral, x);
+                Seed(stack, background, neutral, (height - 1) * width + x);
+            }
+            for (int y = 0; y < height; y++)
+            {
+                Seed(stack, background, neutral, y * width);
+                Seed(stack, background, neutral, y * width + width - 1);
+            }
+
+            while (stack.Count > 0)
+            {
+                int p = stack.Pop();
+                int x = p % width;
+                int y = p / width;
+                if (x > 0) Seed(stack, background, neutral, p - 1);
+                if (x < width - 1) Seed(stack, background, neutral, p + 1);
+                if (y > 0) Seed(stack, background, neutral, p - width);
+                if (y < height - 1) Seed(stack, background, neutral, p + width);
+            }
+
+            float[] inside = new float[count];
+            for (int p = 0; p < count; p++) inside[p] = background[p] ? 0f : 1f;
+
+            // Two box blurs stand in for a one-pixel gaussian, then a steep
+            // ramp: the edge gets a pixel of softness without the outline
+            // turning to mush.
+            float[] soft = Blur(Blur(inside, width, height), width, height);
+            for (int p = 0; p < count; p++)
+            {
+                image.A[p] = Mathf.Clamp01((soft[p] - 0.35f) / 0.45f) * 255f;
+            }
+        }
+
+        private static void Seed(Stack<int> stack, bool[] background, bool[] neutral, int index)
+        {
+            if (background[index] || !neutral[index]) return;
+            background[index] = true;
+            stack.Push(index);
+        }
+
+        private static Pixels TrimToContent(Pixels image, ref int width, ref int height)
+        {
+            int minX = width, minY = height, maxX = -1, maxY = -1;
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    if (image.A[y * width + x] <= 0f) continue;
+                    if (x < minX) minX = x;
+                    if (x > maxX) maxX = x;
+                    if (y < minY) minY = y;
+                    if (y > maxY) maxY = y;
+                }
+            }
+            if (maxX < minX || maxY < minY) return image;
+
+            int newWidth = maxX - minX + 1;
+            int newHeight = maxY - minY + 1;
+            Pixels trimmed = Pixels.Empty(newWidth * newHeight);
+            for (int y = 0; y < newHeight; y++)
+            {
+                for (int x = 0; x < newWidth; x++)
+                {
+                    int s = (minY + y) * width + (minX + x);
+                    int t = y * newWidth + x;
+                    trimmed.R[t] = image.R[s];
+                    trimmed.G[t] = image.G[s];
+                    trimmed.B[t] = image.B[s];
+                    trimmed.A[t] = image.A[s];
+                }
+            }
+            width = newWidth;
+            height = newHeight;
+            return trimmed;
+        }
+
+        /// <summary>
+        /// Area-averaged downscale, weighted by alpha. Averaging raw colour
+        /// would pull the transparent pixels just outside the outline into
+        /// every edge pixel and leave a pale fringe all the way round.
+        /// </summary>
+        private static Pixels ScaleToHeight(Pixels image, ref int width, ref int height, int targetHeight)
+        {
+            if (height == targetHeight) return image;
+
+            int targetWidth = Mathf.Max(1, Mathf.RoundToInt(width * (float)targetHeight / height));
+            Pixels scaled = Pixels.Empty(targetWidth * targetHeight);
+
+            for (int y = 0; y < targetHeight; y++)
+            {
+                int y0 = y * height / targetHeight;
+                int y1 = Mathf.Max(y0 + 1, (y + 1) * height / targetHeight);
+                for (int x = 0; x < targetWidth; x++)
+                {
+                    int x0 = x * width / targetWidth;
+                    int x1 = Mathf.Max(x0 + 1, (x + 1) * width / targetWidth);
+
+                    float weight = 0f, r = 0f, g = 0f, b = 0f, a = 0f, samples = 0f;
+                    for (int sy = y0; sy < y1; sy++)
+                    {
+                        for (int sx = x0; sx < x1; sx++)
+                        {
+                            int s = sy * width + sx;
+                            float w = image.A[s] / 255f;
+                            r += image.R[s] * w;
+                            g += image.G[s] * w;
+                            b += image.B[s] * w;
+                            a += image.A[s];
+                            weight += w;
+                            samples += 1f;
+                        }
+                    }
+
+                    int t = y * targetWidth + x;
+                    float divisor = Mathf.Max(weight, 1e-6f);
+                    scaled.R[t] = r / divisor;
+                    scaled.G[t] = g / divisor;
+                    scaled.B[t] = b / divisor;
+                    scaled.A[t] = a / Mathf.Max(samples, 1f);
+                }
+            }
+
+            width = targetWidth;
+            height = targetHeight;
+            return scaled;
         }
 
         /// <summary>
@@ -184,14 +426,20 @@ namespace GameFactory.Editor
         /// tool and can safely be cut again. Art from another source is never
         /// overwritten by an automatic run.
         /// </summary>
-        private static bool ShouldReplaceExisting()
+        private static bool ShouldReplaceExisting(string view)
         {
             string absolute = EditorPaths.ToAbsolutePath(ManifestPath);
             if (!File.Exists(absolute)) return true;
 
             string text = File.ReadAllText(absolute);
-            return text.Contains($"\"source\": \"{SourceName}\"")
-                   || text.Contains($"\"source\": \"{ReplaceableSource}\"");
+            bool ours = text.Contains($"\"source\": \"{SourceName}\"")
+                        || text.Contains($"\"source\": \"{ReplaceableSource}\"");
+            if (!ours) return false;
+
+            // Art from the same tool but of the OTHER view is stale the moment
+            // a profile drawing appears next to the front one: its joints refer
+            // to a body that is no longer the one being drawn.
+            return !text.Contains($"\"view\": \"{view}\"");
         }
 
         // ---- the cut ---------------------------------------------------------
@@ -414,6 +662,11 @@ namespace GameFactory.Editor
                 A = a;
             }
 
+            public static Pixels Empty(int count)
+            {
+                return new Pixels(new float[count], new float[count], new float[count], new float[count]);
+            }
+
             public static Pixels FromTexture(Texture2D texture)
             {
                 int width = texture.width;
@@ -495,16 +748,17 @@ namespace GameFactory.Editor
             return value.ToString("0.#####", CultureInfo.InvariantCulture);
         }
 
-        private static string BuildManifest(string entries)
+        private static string BuildManifest(string entries, string sourcePath, string view)
         {
             var builder = new StringBuilder();
             builder.Append("{\n");
             builder.Append("  \"_comment\": \"Character rig for the Runner genre. Cut from ");
-            builder.Append(SourceSpritePath);
+            builder.Append(sourcePath);
             builder.Append(" by Assets/GameFactory/Editor/CharacterPartSlicer.cs. joint is where the piece hinges, in fractions of body.png (x from the left, y from the TOP). anchor is where that same point falls inside the piece's own image, same convention, and may sit outside 0-1. Correct a number in the slicer's table and re-slice; do not hand-edit this file.\",\n");
             builder.Append($"  \"source\": \"{SourceName}\",\n");
+            builder.Append($"  \"view\": \"{view}\",\n");
             builder.Append($"  \"generated\": \"{System.DateTime.Now:yyyy-MM-dd HH:mm:ss}\",\n");
-            builder.Append($"  \"reference\": \"{SourceSpritePath}\",\n");
+            builder.Append($"  \"reference\": \"{sourcePath}\",\n");
             builder.Append("  \"parts\": [\n");
             builder.Append(entries);
             builder.Append("\n  ]\n}\n");
