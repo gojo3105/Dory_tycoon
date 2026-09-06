@@ -1,11 +1,11 @@
 ﻿# Auto-sync status
 
-Generated: 2026-09-06 10:44:49
-Outcome: FAILED
-Reason: Merge failed - stopping (tried to restore the original state). This needs a human: |  | git merge --no-edit upstream/claude/delete-current-content-mgn4xm failed (exit 1): | Auto-merging AI_GAME_COMPANY/config/TASKBOARD.json | CONFLICT (content): Merge conflict in AI_GAME_COMPANY/config/TASKBOARD.json | Auto-merging Reports/runs/latest.txt | CONFLICT (content): Merge conflict in Reports/runs/latest.txt | Automatic merge failed; fix conflicts and then commit the result.
-Last-Success: 2026-09-05 11:00:26
-Local-Head: 7d5b618
-Upstream-Head: 92d6837
+Generated: 2026-09-06 10:49:57
+Outcome: OK
+Reason: Merged upstream/claude/delete-current-content-mgn4xm and pushed to origin/claude/delete-current-content-mgn4xm
+Last-Success: 2026-09-06 10:49:57
+Local-Head: 8e9288b
+Upstream-Head: c0575d8
 Branch: claude/delete-current-content-mgn4xm
 
 Written by scripts/desktop/sync-and-run.ps1 on every run. Outcome is one of
