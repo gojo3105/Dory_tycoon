@@ -1,10 +1,10 @@
 ﻿# Auto-sync status
 
-Generated: 2026-09-06 12:25:48
-Outcome: BLOCKED
-Reason: Uncommitted changes to tracked files: M GeneratedGames/game01.json |  M ProjectSettings/ProjectSettings.asset
+Generated: 2026-09-06 12:40:49
+Outcome: FAILED
+Reason: Uncommitted changes to tracked files - stopping. Commit or stash them first: |  | M GeneratedGames/game01.json |  M ProjectSettings/ProjectSettings.asset
 Last-Success: 2026-09-06 10:49:57
-Local-Head: 8a4b409
+Local-Head: f36b0c5
 Upstream-Head: c0575d8
 Branch: claude/delete-current-content-mgn4xm
 
