@@ -2,13 +2,14 @@
     "gameId": "game01",
     "title": "Factory Runner",
     "genre": "Runner",
-    "generatedAtUtc": "2026-09-05T02:19:30.8524877Z",
+    "generatedAtUtc": "2026-09-06T01:51:10.3018503Z",
     "scenePath": "Assets/GeneratedGames/game01/Scenes/game01.unity",
     "prefabPaths": [
         "Assets/GeneratedGames/game01/Prefabs/Player.prefab",
         "Assets/GeneratedGames/game01/Prefabs/GroundTile.prefab",
         "Assets/GeneratedGames/game01/Prefabs/Obstacle.prefab",
         "Assets/GeneratedGames/game01/Prefabs/Coin.prefab",
+        "Assets/GeneratedGames/game01/Prefabs/ObstacleOverhead.prefab",
         "Assets/GeneratedGames/game01/Prefabs/GravityZone.prefab"
     ],
     "bundleId": ""
