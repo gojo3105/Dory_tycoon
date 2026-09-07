@@ -14,6 +14,7 @@ namespace GameFactory.Core.Spec
         public PlayerConfig player = new PlayerConfig();
         public MechanicsConfig mechanics = new MechanicsConfig();
         public LevelConfig level = new LevelConfig();
+        public EnergyConfig energy = new EnergyConfig();
         public EnemyConfig enemy = new EnemyConfig();
         public SpecialConfig special = new SpecialConfig();
         public ThemeConfig theme = new ThemeConfig();
@@ -84,6 +85,14 @@ namespace GameFactory.Core.Spec
         public bool procedural = true;
         /// <summary>Approximate level length in world units (Runner) or cells (Puzzle).</summary>
         public float length = 60f;
+    }
+
+    [Serializable]
+    public class EnergyConfig
+    {
+        public bool enabled;
+        public float drainPerSecond = 0.075f;
+        public float refillPerPickup = 0.12f;
     }
 
     [Serializable]

@@ -64,6 +64,7 @@ namespace GameFactory.Editor
         private static readonly Color MutedText = new Color32(0x8A, 0x6A, 0x4A, 0xFF);
         private static readonly Color OrangeText = new Color32(0xE0, 0x82, 0x1C, 0xFF);
         private static readonly Color BrownText = new Color32(0x6B, 0x4A, 0x2F, 0xFF);
+        private static readonly Color Gold = new Color32(0xFF, 0xC5, 0x31, 0xFF);
         private static readonly Color SkyMid = new Color32(0xA8, 0xE4, 0xFA, 0xFF);
         private static readonly Color Scrim = new Color(0.149f, 0.086f, 0.039f, 0.45f);
 
@@ -128,13 +129,20 @@ namespace GameFactory.Editor
             RunnerDistanceTracker distanceTracker = distanceGO.AddComponent<RunnerDistanceTracker>();
             distanceTracker.SetTarget(playerInstance.transform);
 
+            RunnerEnergy runnerEnergy = null;
+            if (spec.energy != null && spec.energy.enabled)
+            {
+                GameObject energyGO = new GameObject("RunnerEnergy");
+                runnerEnergy = energyGO.AddComponent<RunnerEnergy>();
+            }
+
             GameObject initializerGO = new GameObject("RunnerGameInitializer");
             RunnerGameInitializer initializer = initializerGO.AddComponent<RunnerGameInitializer>();
-            initializer.SetTargets(playerController, obstacleSpawner, coinSpawner);
+            initializer.SetTargets(playerController, obstacleSpawner, coinSpawner, runnerEnergy);
 
             LevelGenerator.ConfigureRunnerLevel(spec, playerInstance.transform, prefabs.GravityZone);
 
-            BuildUI(spec.game.title);
+            BuildUI(spec.game.title, runnerEnergy);
             EnsureEventSystem(scene);
 
             Directory.CreateDirectory(EditorPaths.ToAbsolutePath(sceneFolder));
@@ -181,7 +189,7 @@ namespace GameFactory.Editor
             renderer.sortingOrder = -100;
         }
 
-        private static void BuildUI(string gameTitle)
+        private static void BuildUI(string gameTitle, RunnerEnergy runnerEnergy)
         {
             GameObject canvasGO = new GameObject("Canvas");
             Canvas canvas = canvasGO.AddComponent<Canvas>();
@@ -211,7 +219,8 @@ namespace GameFactory.Editor
 
             Transform root = safeAreaGO.transform;
 
-            (GameObject hudRoot, Text scoreText, Text hudCoinText, Button pauseButton) = BuildHud(root);
+            (GameObject hudRoot, Text scoreText, Text hudCoinText, Button pauseButton, Image energyFill)
+                = BuildHud(root, runnerEnergy != null);
             (GameObject gameOverPanel, Text finalScoreText, Text bestScoreText, Text runCoinsText,
                 GameObject newBestBadge, Button restartButton, Button homeButton, Button gameOverShopButton)
                 = BuildGameOverUI(root);
@@ -231,7 +240,7 @@ namespace GameFactory.Editor
             // would silently produce dead buttons.
             GameObject controllerGO = new GameObject("GameUIController");
             GameUIController controller = controllerGO.AddComponent<GameUIController>();
-            controller.SetHudReferences(hudRoot, scoreText, hudCoinText, pauseButton);
+            controller.SetHudReferences(hudRoot, scoreText, hudCoinText, pauseButton, energyFill, runnerEnergy);
             controller.SetGameOverReferences(gameOverPanel, finalScoreText, bestScoreText,
                 runCoinsText, newBestBadge, restartButton, homeButton);
             controller.SetPauseReferences(pausePanel, resumeButton, pauseHomeButton);
@@ -246,7 +255,8 @@ namespace GameFactory.Editor
         /// panel, so the pickup the whole economy rests on gave no feedback
         /// while playing.
         /// </summary>
-        private static (GameObject root, Text score, Text coins, Button pause) BuildHud(Transform parent)
+        private static (GameObject root, Text score, Text coins, Button pause, Image energyFill)
+            BuildHud(Transform parent, bool includeEnergy)
         {
             GameObject hud = CreateRect(parent, "HUD", Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f),
                 Vector2.zero, Vector2.zero);
@@ -272,7 +282,27 @@ namespace GameFactory.Editor
             Text coins = CreatePill(hud.transform, "HudCoinPill", new Vector2(180f, 76f),
                 new Vector2(1f, 1f), new Vector2(-(Margin + 82f + 14f), -56f), "0", 36, OrangeText);
 
-            return (hud, score, coins, pause);
+            Image energyFill = includeEnergy ? CreateEnergyGauge(hud.transform) : null;
+
+            return (hud, score, coins, pause, energyFill);
+        }
+
+        private static Image CreateEnergyGauge(Transform parent)
+        {
+            GameObject track = CreatePanel(parent, "EnergyGauge", UiSpriteGenerator.CreamPanelPath,
+                new Vector2(ContentWidth, 54f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(0f, -214f));
+
+            GameObject fillGO = CreateRect(track.transform, "Fill", Vector2.zero, Vector2.one,
+                new Vector2(0.5f, 0.5f), new Vector2(-16f, -16f), Vector2.zero);
+            Image fill = fillGO.AddComponent<Image>();
+            fill.sprite = AssetDatabase.LoadAssetAtPath<Sprite>(UiSpriteGenerator.GoldPanelPath);
+            fill.color = fill.sprite != null ? Color.white : Gold;
+            fill.type = Image.Type.Filled;
+            fill.fillMethod = Image.FillMethod.Horizontal;
+            fill.fillOrigin = (int)Image.OriginHorizontal.Left;
+            fill.raycastTarget = false;
+            return fill;
         }
 
         // ---- title -----------------------------------------------------------

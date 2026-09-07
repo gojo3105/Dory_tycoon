@@ -17,6 +17,7 @@
     "gravitySwitch": true, "teleport": false, "timeSlow": false
   },
   "level": { "levelCount": 1, "difficulty": "Medium", "procedural": true, "length": 120 },
+  "energy": { "enabled": true, "drainPerSecond": 0.075, "refillPerPickup": 0.12 },
   "enemy": { "enabled": false, "types": 0 },
   "special": { "mechanic": "GravitySwitch" },
   "theme": { "environment": "Factory", "character": "Slime" }
@@ -67,6 +68,16 @@
 | `difficulty` | string | 장애물 간격 스케일에 영향 (`ObstacleSpawner.Configure`). | `Easy`/`Medium`/`Hard` |
 | `procedural` | bool | 절차적 생성 여부 (정보성 필드, Runner는 항상 절차적). | - |
 | `length` | float | 코인 간격, 중력 반전 구간 길이 등 절차적 생성의 기준 스케일. | `> 0` |
+
+### `energy`
+
+Runner의 시간 압박을 설정한다. `enabled`가 false이거나 생략된 기존 스펙은 에너지 컴포넌트와 HUD 게이지를 생성하지 않는다.
+
+| 필드 | 타입 | 설명 | 검증 규칙 |
+|---|---|---|---|
+| `enabled` | bool | true면 플레이 중 에너지가 감소하고 0에서 게임 오버된다. 코인을 획득하면 같은 픽업이 화폐와 에너지를 모두 지급한다. | - |
+| `drainPerSecond` | float | 초당 감소하는 정규화 에너지(게이지 전체가 1). 일시정지 중에는 감소하지 않는다. | `enabled`가 true면 `> 0` |
+| `refillPerPickup` | float | 코인 하나를 획득할 때 회복하는 정규화 에너지. 결과는 1로 제한된다. | `enabled`가 true면 `> 0` |
 
 ### `enemy`
 

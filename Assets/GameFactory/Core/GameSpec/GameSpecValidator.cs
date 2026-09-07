@@ -51,6 +51,7 @@ namespace GameFactory.Core.Spec
             ValidateGame(spec.game, errors);
             ValidatePlayer(spec.player, spec.mechanics, errors);
             ValidateLevel(spec.level, errors);
+            ValidateEnergy(spec.energy, errors);
             ValidateEnemy(spec.enemy, errors);
             ValidateSpecial(spec.special, errors);
 
@@ -135,6 +136,27 @@ namespace GameFactory.Core.Spec
             if (enemy.enabled && enemy.types < 1)
             {
                 errors.Add("enemy.types must be >= 1 when enemy.enabled is true.");
+            }
+        }
+
+        private static void ValidateEnergy(EnergyConfig energy, List<string> errors)
+        {
+            if (energy == null)
+            {
+                errors.Add("energy: section is missing.");
+                return;
+            }
+
+            if (!energy.enabled) return;
+
+            if (energy.drainPerSecond <= 0f)
+            {
+                errors.Add($"energy.drainPerSecond must be > 0 when energy.enabled is true (got {energy.drainPerSecond}).");
+            }
+
+            if (energy.refillPerPickup <= 0f)
+            {
+                errors.Add($"energy.refillPerPickup must be > 0 when energy.enabled is true (got {energy.refillPerPickup}).");
             }
         }
 

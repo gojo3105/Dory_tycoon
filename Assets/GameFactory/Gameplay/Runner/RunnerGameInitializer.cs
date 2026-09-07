@@ -14,13 +14,16 @@ namespace GameFactory.Gameplay.Runner
         [SerializeField] private RunnerPlayerController player;
         [SerializeField] private ObstacleSpawner obstacleSpawner;
         [SerializeField] private CoinSpawner coinSpawner;
+        [SerializeField] private RunnerEnergy energy;
 
         /// <summary>Wires structural references. Called at edit time by SceneGenerator.</summary>
-        public void SetTargets(RunnerPlayerController playerController, ObstacleSpawner obstacles, CoinSpawner coins)
+        public void SetTargets(RunnerPlayerController playerController, ObstacleSpawner obstacles, CoinSpawner coins,
+            RunnerEnergy runnerEnergy)
         {
             player = playerController;
             obstacleSpawner = obstacles;
             coinSpawner = coins;
+            energy = runnerEnergy;
         }
 
         private void Start()
@@ -67,6 +70,11 @@ namespace GameFactory.Gameplay.Runner
             if (coinSpawner != null)
             {
                 coinSpawner.Configure(spec.level.length);
+            }
+
+            if (energy != null)
+            {
+                energy.Configure(spec.energy.drainPerSecond, spec.energy.refillPerPickup);
             }
         }
     }

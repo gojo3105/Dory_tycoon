@@ -31,6 +31,7 @@ namespace GameFactory.Gameplay.Runner
 
             collected = true;
             GameManager.Instance.AddCoins(coinValue);
+            RunnerEnergy.Instance?.RefillFromPickup();
 
             if (collectClip == null) collectClip = ProceduralTone.Sine("SFX_Coin", 1200f, 0.1f);
             AudioManager.Instance?.PlaySfx(collectClip);
