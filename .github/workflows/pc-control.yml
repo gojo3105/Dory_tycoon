@@ -248,6 +248,31 @@ jobs:
             Write-Host "== no Builds folder"
           }
 
+      # WHY THIS EXISTS. The sync step runs BEFORE Unity, so it commits the
+      # state Unity is about to overwrite. Everything the Editor then writes -
+      # rig parts, rig.json, GeneratedGames, ProjectSettings - sat uncommitted
+      # in C:\Dory_tycoon until somebody happened to dispatch another run, so
+      # "did the cut actually happen" could not be answered from the
+      # repository without a second round trip. Syncing again afterwards
+      # publishes what Unity produced.
+      #
+      # always(): a failed run's output is the interesting output. Nothing
+      # half-written escapes - the slicer writes its manifest last, so a cut
+      # that died leaves no manifest and the next run cuts again.
+      - name: Publish what Unity wrote
+        if: always() && (inputs.action == 'build' || inputs.action == 'test')
+        shell: powershell
+        run: |
+          & .\scripts\desktop\sync-and-run.ps1 -RepoPath $env:CLONE -NoTrigger -Silent
+          $sync = Join-Path $env:CLONE "Reports\sync-status\latest.txt"
+          if (Test-Path $sync) { Write-Host "== sync-status:"; Get-Content $sync }
+          Write-Host "== clone head now:"; git -C $env:CLONE log -1 --oneline
+          $rig = Join-Path $env:CLONE "Assets\Common\Art\Runner\rig\rig.json"
+          if (Test-Path $rig) { Write-Host "== rig.json:"; Get-Content $rig } else { Write-Host "== no rig.json" }
+          # Deliberately not the job's verdict: the Unity result above is.
+          # A sync that cannot push must not turn a passing test red.
+          exit 0
+
       - name: Compile errors, whatever happened
         if: always() && (inputs.action == 'build' || inputs.action == 'test')
         shell: powershell
