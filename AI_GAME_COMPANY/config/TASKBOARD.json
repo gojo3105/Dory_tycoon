@@ -623,7 +623,7 @@
       "id": "CODEX-ENERGY1",
       "title": "Energy gauge and jelly pickups - the endless runner's second half",
       "owner": "codex",
-      "status": "todo",
+      "status": "in_progress",
       "goal": "The run currently ends only on contact with an obstacle, so a careful player runs forever and the coin has no urgency. Add a draining energy gauge that ends the run at zero and pickups that refill it, so distance becomes something the player has to earn rather than merely survive.",
       "files": [
         "Assets/GameFactory/Gameplay/Runner/RunnerEnergy.cs",
