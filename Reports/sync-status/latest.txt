@@ -1,11 +1,11 @@
 ﻿# Auto-sync status
 
-Generated: 2026-09-08 02:09:47
-Outcome: OK
-Reason: Merged upstream/claude/delete-current-content-mgn4xm and pushed to origin/claude/delete-current-content-mgn4xm
+Generated: 2026-09-08 02:55:54
+Outcome: BLOCKED
+Reason: Uncommitted changes to tracked files: M Assets/GameFactory/Core/GameSpec/GameSpecData.cs |  M Assets/GameFactory/Core/GameSpec/GameSpecValidator.cs |  M Assets/GameFactory/Editor/SceneGenerator.cs |  M Assets/GameFactory/Gameplay/Runner/Coin.cs |  M Assets/GameFactory/Gameplay/Runner/RunnerGameInitializer.cs |  M Assets/GameFactory/UI/GameUIController.cs |  M docs/GAME_SPEC.md
 Last-Success: 2026-09-08 02:09:47
-Local-Head: 8b18402
-Upstream-Head: 256aab2
+Local-Head: 512192e
+Upstream-Head: f22634b
 Branch: claude/delete-current-content-mgn4xm
 
 Written by scripts/desktop/sync-and-run.ps1 on every run. Outcome is one of
