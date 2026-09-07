@@ -1,10 +1,10 @@
 ﻿# Auto-sync status
 
-Generated: 2026-09-08 02:55:54
-Outcome: BLOCKED
-Reason: Uncommitted changes to tracked files: M Assets/GameFactory/Core/GameSpec/GameSpecData.cs |  M Assets/GameFactory/Core/GameSpec/GameSpecValidator.cs |  M Assets/GameFactory/Editor/SceneGenerator.cs |  M Assets/GameFactory/Gameplay/Runner/Coin.cs |  M Assets/GameFactory/Gameplay/Runner/RunnerGameInitializer.cs |  M Assets/GameFactory/UI/GameUIController.cs |  M docs/GAME_SPEC.md
+Generated: 2026-09-08 03:10:51
+Outcome: FAILED
+Reason: Uncommitted changes to tracked files - stopping. Commit or stash them first: |  | M Assets/GameFactory/Core/GameSpec/GameSpecData.cs |  M Assets/GameFactory/Core/GameSpec/GameSpecValidator.cs |  M Assets/GameFactory/Editor/SceneGenerator.cs |  M Assets/GameFactory/Gameplay/Runner/Coin.cs |  M Assets/GameFactory/Gameplay/Runner/RunnerGameInitializer.cs |  M Assets/GameFactory/UI/GameUIController.cs |  M docs/GAME_SPEC.md
 Last-Success: 2026-09-08 02:09:47
-Local-Head: 512192e
+Local-Head: 17f4d55
 Upstream-Head: f22634b
 Branch: claude/delete-current-content-mgn4xm
 
