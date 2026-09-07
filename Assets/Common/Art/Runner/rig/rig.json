@@ -1,9 +1,10 @@
 {
-  "_comment": "Character rig for the Runner genre. Cut from Assets/Common/Art/Runner/player_side.png by Assets/GameFactory/Editor/CharacterPartSlicer.cs. joint is where the piece hinges, in fractions of body.png (x from the left, y from the TOP). anchor is where that same point falls inside the piece's own image, same convention, and may sit outside 0-1. Correct a number in the slicer's table and re-slice; do not hand-edit this file.",
+  "_comment": "Character rig for the Runner genre. Cut from Assets/Common/Art/Runner/player_side.png by Assets/GameFactory/Editor/CharacterPartSlicer.cs. joint is where the piece hinges, in fractions of body.png (x from the left, y from the TOP). anchor is where that same point falls inside the piece's own image, same convention, and may sit outside 0-1. Correct a number in the slicer's table and re-slice; do not hand-edit this file. reference_hash is the fingerprint of the drawing these parts were cut from: replace the drawing and the next run re-cuts, keep it and the run is skipped.",
   "source": "unity-slicer",
   "view": "side",
-  "generated": "2026-09-07 08:04:23",
+  "generated": "2026-09-08 02:25:08",
   "reference": "Assets/Common/Art/Runner/player_side.png",
+  "reference_hash": "7315b5113edcc2e9",
   "parts": [
     {
       "name": "body",
@@ -12,18 +13,18 @@
     },
     {
       "name": "arm_near",
-      "joint": { "x": 0.76, "y": 0.618 },
-      "anchor": { "x": 0.4848, "y": 0.05018 }
-    },
-    {
-      "name": "foot_near",
-      "joint": { "x": 0.665, "y": 0.88 },
-      "anchor": { "x": 0.43527, "y": 0.14667 }
+      "joint": { "x": 0.585, "y": 0.578 },
+      "anchor": { "x": 0.54744, "y": 0.12715 }
     },
     {
       "name": "foot_far",
-      "joint": { "x": 0.52, "y": 0.895 },
-      "anchor": { "x": 0.49297, "y": 0.16696 }
+      "joint": { "x": 0.62, "y": 0.903 },
+      "anchor": { "x": 0.35349, "y": 0.33662 }
+    },
+    {
+      "name": "foot_near",
+      "joint": { "x": 0.55, "y": 0.927 },
+      "anchor": { "x": 0.41525, "y": 0.22133 }
     }
   ]
 }
