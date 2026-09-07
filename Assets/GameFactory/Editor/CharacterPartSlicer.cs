@@ -109,7 +109,13 @@ namespace GameFactory.Editor
             }
         }
 
-        /// <summary>Measured off player.png (136x192), the character facing the camera.</summary>
+        /// <summary>
+        /// The character facing the camera. Measured against the 136x192 3D
+        /// render that used to be player.png; the file is now a 2D drawing of
+        /// different proportions, so these numbers are STALE. Unused while a
+        /// profile exists, and WarnIfNotWhatWasMeasured says so loudly if the
+        /// profile is ever removed. Re-measure before relying on them.
+        /// </summary>
         private static readonly PartCut[] FrontCuts =
         {
             new PartCut("arm_l", 0.152f, 0.618f, 0.242f, 0.782f, false, 0.197f, 0.612f),
@@ -119,7 +125,7 @@ namespace GameFactory.Editor
         };
 
         /// <summary>
-        /// Measured off player_side.png once prepared (137x192), the character
+        /// Measured off player_side.png once prepared (110x192), the character
         /// in profile facing right. Only ONE arm is cut: in profile the far one
         /// is behind the body and simply not drawn, which is what almost every
         /// 2D runner ships.
@@ -132,9 +138,13 @@ namespace GameFactory.Editor
         /// </summary>
         private static readonly PartCut[] SideCuts =
         {
-            new PartCut("arm_near", 0.695f, 0.625f, 0.828f, 0.762f, false, 0.760f, 0.618f),
-            new PartCut("foot_near", 0.575f, 0.878f, 0.792f, 1.000f, true, 0.665f, 0.880f),
-            new PartCut("foot_far", 0.415f, 0.893f, 0.628f, 0.978f, true, 0.520f, 0.895f),
+            new PartCut("arm_near", 0.425f, 0.565f, 0.715f, 0.775f, false, 0.585f, 0.578f),
+            // The far foot is a narrow band ABOVE the near one, not beside it,
+            // so the two are split by a horizontal line at 92% of the height
+            // rather than side by side. Cutting them as neighbours took half
+            // of each into both pieces and gave the character four toes twice.
+            new PartCut("foot_far", 0.515f, 0.898f, 0.845f, 0.932f, true, 0.620f, 0.903f),
+            new PartCut("foot_near", 0.355f, 0.922f, 0.830f, 0.985f, true, 0.550f, 0.927f),
         };
 
         [MenuItem("Game Factory/Character/Slice the character into rig parts")]
@@ -159,6 +169,16 @@ namespace GameFactory.Editor
             return Slice(force: false);
         }
 
+        /// <summary>
+        /// The size each table was measured against, once the drawing has been
+        /// prepared. A different size means a different drawing, and the
+        /// fractions above no longer point at the same paws and feet - see
+        /// WarnIfNotWhatWasMeasured.
+        /// </summary>
+        private const int FrontMeasuredWidth = 136;
+        private const int SideMeasuredWidth = 110;
+        private const int MeasuredHeight = 192;
+
         /// <summary>The drawing to cut, and what view it is. Profile wins when it exists.</summary>
         private static bool ResolveSource(out string assetPath, out string view, out PartCut[] cuts)
         {
@@ -173,6 +193,30 @@ namespace GameFactory.Editor
             view = "front";
             cuts = FrontCuts;
             return File.Exists(EditorPaths.ToAbsolutePath(assetPath));
+        }
+
+        /// <summary>
+        /// Says so, loudly, when the drawing is not the one the cut table was
+        /// measured against.
+        ///
+        /// WHY THIS IS WORTH A WARNING. Replacing the art while keeping the
+        /// filename is the obvious thing to do, and the tables are fractions -
+        /// so a new drawing of a different shape gets cut at the old
+        /// proportions and produces a body with a bite out of its face and a
+        /// paw made of belly. Nothing errors. The build passes. It is only
+        /// visible on a phone, which is the slowest possible place to find out.
+        /// </summary>
+        private static void WarnIfNotWhatWasMeasured(string sourcePath, string view, int width, int height)
+        {
+            int expectedWidth = view == "side" ? SideMeasuredWidth : FrontMeasuredWidth;
+            if (width == expectedWidth && height == MeasuredHeight) return;
+
+            Debug.LogWarning(
+                $"[CharacterPartSlicer] {sourcePath} prepares to {width}x{height}, but the {view} "
+                + $"cut table was measured against {expectedWidth}x{MeasuredHeight}. The parts will "
+                + "be cut at the old proportions. Re-measure the rectangles and joints in "
+                + "CharacterPartSlicer.cs against the new drawing, and update the sizes next to "
+                + "them - a wrong cut here is only visible on a device.");
         }
 
         public static bool Slice(bool force)
@@ -207,6 +251,7 @@ namespace GameFactory.Editor
             // scaled before anything is measured against it, or every fraction
             // in the tables above refers to the paper as well as the animal.
             image = Prepare(image, ref width, ref height);
+            WarnIfNotWhatWasMeasured(sourcePath, view, width, height);
 
             float[] combined = new float[width * height];
             float[] rebuildMask = new float[width * height];
@@ -291,9 +336,14 @@ namespace GameFactory.Editor
             {
                 if (image.A[p] < 250f) { hasTransparency = true; break; }
             }
-            if (hasTransparency) return image;
 
-            RemoveNeutralBackground(image, width, height);
+            // Only the background removal is skipped for a drawing that
+            // already has alpha. Trimming and scaling still have to happen:
+            // the 2D art arrived at 941x1672 with transparency, and skipping
+            // this left it at 128 pixels per unit - a character thirteen world
+            // units tall in a camera ten units high.
+            if (!hasTransparency) RemoveNeutralBackground(image, width, height);
+
             image = TrimToContent(image, ref width, ref height);
             return ScaleToHeight(image, ref width, ref height, TargetHeight);
         }
@@ -546,8 +596,8 @@ namespace GameFactory.Editor
             {
                 hardened[p] = alphaFill[p] > SilhouetteThreshold ? 255f : 0f;
             }
-            // Twice, for two pixels of anti-aliasing back onto a hard edge.
-            hardened = Blur(hardened, width, height);
+            // ONE blur: a single pixel of anti-aliasing. Two left the new edge
+            // softer than every other edge in a drawing that has outlines.
             hardened = Blur(hardened, width, height);
 
             for (int p = 0; p < hole.Length; p++)
@@ -555,9 +605,87 @@ namespace GameFactory.Editor
                 filledA[p] = rebuild[p] > 0.02f ? Mathf.Clamp(hardened[p], 0f, 255f) : image.A[p];
             }
 
+            StrokeRebuiltEdge(filledR, filledG, filledB, filledA, rebuild,
+                              SampleOutlineColour(image, width, height), width, height);
+
             WritePng($"{RigFolder}/body.png",
                      new Pixels(filledR, filledG, filledB, filledA), width, height,
                      0, 0, width, height);
+        }
+
+        /// <summary>
+        /// The drawing's own outline colour: the darkest pixels sitting just
+        /// inside its silhouette.
+        ///
+        /// Sampled rather than hardcoded, so a redraw in a different palette
+        /// gets its own stroke. A drawing with no outline at all - a 3D render
+        /// - returns whatever its darkest rim happens to be, and the stroke
+        /// laid down with it is invisible against the fur, which is the right
+        /// outcome for art that has no outlines to match.
+        /// </summary>
+        private static Color SampleOutlineColour(Pixels image, int width, int height)
+        {
+            int count = width * height;
+            float[] solid = new float[count];
+            for (int p = 0; p < count; p++) solid[p] = image.A[p] > 200f ? 1f : 0f;
+            float[] neighbours = Blur(solid, width, height);
+
+            var luminance = new List<float>();
+            var band = new List<int>();
+            for (int p = 0; p < count; p++)
+            {
+                if (solid[p] < 0.5f || neighbours[p] >= 0.98f) continue;
+                band.Add(p);
+                luminance.Add((image.R[p] + image.G[p] + image.B[p]) / 3f);
+            }
+            if (band.Count == 0) return new Color(0.16f, 0.04f, 0.004f);
+
+            var sorted = new List<float>(luminance);
+            sorted.Sort();
+            float threshold = sorted[Mathf.Clamp(Mathf.RoundToInt(sorted.Count * 0.12f), 0, sorted.Count - 1)];
+
+            float r = 0f, g = 0f, b = 0f, n = 0f;
+            for (int i = 0; i < band.Count; i++)
+            {
+                if (luminance[i] > threshold) continue;
+                r += image.R[band[i]];
+                g += image.G[band[i]];
+                b += image.B[band[i]];
+                n += 1f;
+            }
+            if (n < 1f) return new Color(0.16f, 0.04f, 0.004f);
+            return new Color(r / n / 255f, g / n / 255f, b / n / 255f);
+        }
+
+        /// <summary>
+        /// Draws the art's outline along the edge the rebuild created.
+        ///
+        /// In a drawing with outlines, every edge carries one - so a rebuilt
+        /// belly bottom without it is the single smudged edge on the character,
+        /// and it is exactly the edge a swinging foot uncovers. Only the
+        /// rebuilt region is touched; the drawing's own edges already have
+        /// their stroke.
+        /// </summary>
+        private static void StrokeRebuiltEdge(float[] r, float[] g, float[] b, float[] alpha,
+                                              float[] rebuild, Color outline, int width, int height)
+        {
+            int count = width * height;
+            float[] inside = new float[count];
+            for (int p = 0; p < count; p++) inside[p] = alpha[p] / 255f;
+
+            float[] neighbours = Blur(inside, width, height);
+            for (int p = 0; p < count; p++)
+            {
+                if (rebuild[p] <= 0.02f) continue;
+
+                float strength = Mathf.Clamp01((0.995f - neighbours[p]) / 0.22f) * inside[p] * 1.35f;
+                strength = Mathf.Clamp01(strength);
+                if (strength <= 0f) continue;
+
+                r[p] = Mathf.Lerp(r[p], outline.r * 255f, strength);
+                g[p] = Mathf.Lerp(g[p], outline.g * 255f, strength);
+                b[p] = Mathf.Lerp(b[p], outline.b * 255f, strength);
+            }
         }
 
         private static void WritePiece(Pixels image, float[] mask, PartCut cut,
