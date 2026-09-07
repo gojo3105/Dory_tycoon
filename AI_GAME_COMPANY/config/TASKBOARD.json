@@ -623,7 +623,7 @@
       "id": "CODEX-ENERGY1",
       "title": "Energy gauge and jelly pickups - the endless runner's second half",
       "owner": "codex",
-      "status": "in_progress",
+      "status": "review",
       "goal": "The run currently ends only on contact with an obstacle, so a careful player runs forever and the coin has no urgency. Add a draining energy gauge that ends the run at zero and pickups that refill it, so distance becomes something the player has to earn rather than merely survive.",
       "files": [
         "Assets/GameFactory/Gameplay/Runner/RunnerEnergy.cs",
@@ -652,8 +652,17 @@
         "Do not rename or repurpose the coin. The economy, the shop and the save file all depend on it as currency; energy is a second thing the same pickup gives.",
         "Balance suggestion, not a requirement: a full gauge should last roughly 12-15 seconds, and coins spawn every 3 units at speed 6, so a refill near 0.12 keeps a clean run alive without making the gauge decorative."
       ],
-      "changed_files": [],
-      "last_run": "",
+      "changed_files": [
+        "Assets/GameFactory/Core/GameSpec/GameSpecData.cs",
+        "Assets/GameFactory/Core/GameSpec/GameSpecValidator.cs",
+        "Assets/GameFactory/Editor/SceneGenerator.cs",
+        "Assets/GameFactory/Gameplay/Runner/Coin.cs",
+        "Assets/GameFactory/Gameplay/Runner/RunnerEnergy.cs",
+        "Assets/GameFactory/Gameplay/Runner/RunnerGameInitializer.cs",
+        "Assets/GameFactory/UI/GameUIController.cs",
+        "docs/GAME_SPEC.md"
+      ],
+      "last_run": "C:\\Dory_tycoon\\AI_GAME_COMPANY\\logs\\codex-runs\\implement-20260908-023750-b54e72.txt",
       "title_ko": "에너지 게이지 + 젤리(코인) 회복"
     },
     {
