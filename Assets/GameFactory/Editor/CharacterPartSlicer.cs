@@ -159,10 +159,11 @@ namespace GameFactory.Editor
         }
 
         /// <summary>
-        /// Makes the rig art if it is missing, or if what is there was cut by
-        /// an earlier version of this. Called by the prefab generator, so a
-        /// plain build produces a character that can move without anyone
-        /// running a menu item first. Returns true when parts are on disk.
+        /// Makes the rig art if it is missing, if what is there was cut by an
+        /// earlier version of this, or if the DRAWING has been replaced under
+        /// the same filename. Called by the prefab generator, so a plain build
+        /// produces a character that can move without anyone running a menu
+        /// item first. Returns true when parts are on disk.
         /// </summary>
         public static bool EnsureRigParts()
         {
@@ -228,7 +229,7 @@ namespace GameFactory.Editor
                 return false;
             }
 
-            if (!force && !ShouldReplaceExisting(view)) return File.Exists(EditorPaths.ToAbsolutePath(ManifestPath));
+            if (!force && !ShouldReplaceExisting(sourcePath, view)) return File.Exists(EditorPaths.ToAbsolutePath(ManifestPath));
 
             // Loaded from the file rather than through the imported Sprite, so
             // the texture is readable whatever Read/Write Enabled is set to on
@@ -509,7 +510,7 @@ namespace GameFactory.Editor
         /// tool and can safely be cut again. Art from another source is never
         /// overwritten by an automatic run.
         /// </summary>
-        private static bool ShouldReplaceExisting(string view)
+        private static bool ShouldReplaceExisting(string sourcePath, string view)
         {
             string absolute = EditorPaths.ToAbsolutePath(ManifestPath);
             if (!File.Exists(absolute)) return true;
@@ -522,7 +523,63 @@ namespace GameFactory.Editor
             // Art from the same tool but of the OTHER view is stale the moment
             // a profile drawing appears next to the front one: its joints refer
             // to a body that is no longer the one being drawn.
-            return !text.Contains($"\"view\": \"{view}\"");
+            if (!text.Contains($"\"view\": \"{view}\"")) return true;
+
+            // THE ONE THAT COST A DAY. Replacing the drawing and keeping the
+            // filename is the natural thing to do, and until this check the
+            // manifest still said "same tool, same view", so the slicer refused
+            // to run and the build cheerfully shipped parts cut from a picture
+            // that no longer existed. The path is not identity - the bytes are.
+            string recorded = ReadManifestString(text, "reference_hash");
+            if (recorded.Length == 0) return true;   // cut before we recorded it: unknowable, so re-cut
+            return recorded != Fingerprint(EditorPaths.ToAbsolutePath(sourcePath));
+        }
+
+        /// <summary>
+        /// Pulls one string field out of a manifest this tool wrote. Not a JSON
+        /// parser: BuildManifest below fixes the format, and pulling in a parser
+        /// to read a field we emit ourselves would be the larger risk.
+        /// Returns "" when the field is absent.
+        /// </summary>
+        private static string ReadManifestString(string manifest, string field)
+        {
+            string needle = $"\"{field}\": \"";
+            int start = manifest.IndexOf(needle, System.StringComparison.Ordinal);
+            if (start < 0) return string.Empty;
+            start += needle.Length;
+            int end = manifest.IndexOf('"', start);
+            return end < 0 ? string.Empty : manifest.Substring(start, end - start);
+        }
+
+        /// <summary>
+        /// FNV-1a over the file's bytes, as 16 hex digits.
+        ///
+        /// Deliberately not a cryptographic hash: nobody is attacking this, and
+        /// the only question being asked is "are these the same bytes I cut last
+        /// time". A timestamp would not do - the PC's clone is written by
+        /// checkout and sync, which move mtimes around without changing a pixel,
+        /// and the file length alone collides between two exports of the same
+        /// drawing at different qualities.
+        /// </summary>
+        private static string Fingerprint(string absolutePath)
+        {
+            if (!File.Exists(absolutePath)) return string.Empty;
+
+            byte[] bytes = File.ReadAllBytes(absolutePath);
+            ulong hash = 14695981039346656037UL;
+
+            // Explicit: wrapping IS the algorithm. Unity does not compile
+            // checked, but saying so here means a project setting can never
+            // turn a hash into an OverflowException mid-build.
+            unchecked
+            {
+                for (int i = 0; i < bytes.Length; i++)
+                {
+                    hash ^= bytes[i];
+                    hash *= 1099511628211UL;
+                }
+            }
+            return hash.ToString("x16", CultureInfo.InvariantCulture);
         }
 
         // ---- the cut ---------------------------------------------------------
@@ -915,11 +972,12 @@ namespace GameFactory.Editor
             builder.Append("{\n");
             builder.Append("  \"_comment\": \"Character rig for the Runner genre. Cut from ");
             builder.Append(sourcePath);
-            builder.Append(" by Assets/GameFactory/Editor/CharacterPartSlicer.cs. joint is where the piece hinges, in fractions of body.png (x from the left, y from the TOP). anchor is where that same point falls inside the piece's own image, same convention, and may sit outside 0-1. Correct a number in the slicer's table and re-slice; do not hand-edit this file.\",\n");
+            builder.Append(" by Assets/GameFactory/Editor/CharacterPartSlicer.cs. joint is where the piece hinges, in fractions of body.png (x from the left, y from the TOP). anchor is where that same point falls inside the piece's own image, same convention, and may sit outside 0-1. Correct a number in the slicer's table and re-slice; do not hand-edit this file. reference_hash is the fingerprint of the drawing these parts were cut from: replace the drawing and the next run re-cuts, keep it and the run is skipped.\",\n");
             builder.Append($"  \"source\": \"{SourceName}\",\n");
             builder.Append($"  \"view\": \"{view}\",\n");
             builder.Append($"  \"generated\": \"{System.DateTime.Now:yyyy-MM-dd HH:mm:ss}\",\n");
             builder.Append($"  \"reference\": \"{sourcePath}\",\n");
+            builder.Append($"  \"reference_hash\": \"{Fingerprint(EditorPaths.ToAbsolutePath(sourcePath))}\",\n");
             builder.Append("  \"parts\": [\n");
             builder.Append(entries);
             builder.Append("\n  ]\n}\n");
