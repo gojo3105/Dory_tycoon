@@ -34,6 +34,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from company.orchestrator import orders
 from company.orchestrator import progress as progress_mod
 from company.orchestrator.hardware import HardwareProfile
 from company.orchestrator.ollama_client import OllamaClient, OllamaUnavailable
@@ -549,15 +550,27 @@ def _data_uri(path: Path) -> tuple[str, str]:
 
     try:
         with Image.open(io.BytesIO(raw)) as image:
-            image = image.convert("RGB")
+            # A cut-out with transparency must stay PNG. JPEG has no alpha, so
+            # thumbnailing one flattens it onto black - and the biggest images
+            # in this gallery are exactly the character drawings, which is how
+            # player.png came to render as a hedgehog in a black box. Scaled
+            # down to 240px a PNG is a few KB anyway, so nothing is saved by
+            # the flatten.
+            transparent = (image.mode in ("RGBA", "LA")
+                           or (image.mode == "P" and "transparency" in image.info))
+            image = image.convert("RGBA" if transparent else "RGB")
             image.thumbnail((THUMB_EDGE, THUMB_EDGE), Image.LANCZOS)
             buffer = io.BytesIO()
-            image.save(buffer, format="JPEG", quality=74, optimize=True)
+            if transparent:
+                image.save(buffer, format="PNG", optimize=True)
+            else:
+                image.save(buffer, format="JPEG", quality=74, optimize=True)
     except OSError as exc:
         return "", f"읽을 수 없음 ({exc})"
 
     encoded = base64.b64encode(buffer.getvalue()).decode()
-    return f"data:image/jpeg;base64,{encoded}", "축소본"
+    mime = "image/png" if transparent else "image/jpeg"
+    return f"data:{mime};base64,{encoded}", "축소본"
 
 
 def _short_name(name: str, keep: int = 17) -> str:
@@ -870,50 +883,81 @@ section{margin-top:44px;}
 .office-agent--working{--st:var(--accent); border-style:solid;}
 .office-character{display:block; width:100%; max-width:112px; height:auto; margin:0 auto;
   overflow:visible;}
-.office-desk{fill:var(--sunk); stroke:var(--line);}
-.office-chair{fill:var(--surface); stroke:var(--ink-2);}
-.office-person{fill:var(--ink-2); stroke:var(--ink);}
-.office-face{fill:var(--surface); stroke:var(--ink);}
-.office-limb{fill:none; stroke:var(--ink-2); stroke-width:7; stroke-linecap:round;}
-.office-agent--dev .office-person{fill:var(--accent);}
-.office-agent--dev .office-limb{stroke:var(--accent);}
-.office-agent--design .office-person{fill:var(--gate);}
-.office-agent--design .office-limb{stroke:var(--gate);}
-.office-agent--lab .office-person{fill:var(--ok);}
-.office-agent--lab .office-limb{stroke:var(--ok);}
-.office-agent--modeling .office-person{fill:var(--blocked);}
-.office-agent--modeling .office-limb{stroke:var(--blocked);}
-.office-agent--outsource .office-person{fill:var(--unknown);}
-.office-agent--outsource .office-limb{stroke:var(--unknown);}
-.office-screen{fill:var(--surface); stroke:var(--ink-2);}
+/* --st is the state colour the seat already sets; --skin is the department's,
+   so a room reads as one team before any label is read. */
+.office-desk{fill:var(--sunk); stroke:var(--line); stroke-width:1.5;}
+.office-desk-leg{fill:none; stroke:var(--line); stroke-width:3; stroke-linecap:round;}
+.office-person{fill:var(--skin,var(--ink-2)); stroke:var(--ink); stroke-width:1.5;}
+.office-face{fill:var(--surface); stroke:var(--ink); stroke-width:1.5;}
+.office-hair{fill:var(--skin,var(--ink-2)); stroke:var(--ink); stroke-width:1.5;
+  stroke-linejoin:round;}
+.office-eye{fill:var(--ink);}
+.office-eye-line{fill:none; stroke:var(--ink); stroke-width:2.4; stroke-linecap:round;}
+.office-mouth{fill:none; stroke:var(--ink); stroke-width:2; stroke-linecap:round;}
+.office-cheek{fill:var(--skin,var(--ink-2)); opacity:.32;}
+.office-limb{fill:none; stroke:var(--skin,var(--ink-2)); stroke-width:6;
+  stroke-linecap:round;}
+.office-fist{fill:var(--face-fill,var(--surface)); stroke:var(--ink); stroke-width:1.5;}
+.office-agent--dev{--skin:var(--accent);}
+.office-agent--design{--skin:var(--gate);}
+.office-agent--lab{--skin:var(--ok);}
+.office-agent--modeling{--skin:var(--blocked);}
+.office-agent--outsource{--skin:var(--unknown);}
+.office-agent--etc{--skin:var(--ink-2);}
+.office-screen{fill:var(--surface); stroke:var(--ink-2); stroke-width:1.5;}
 .office-screen--on{fill:var(--ok-soft); stroke:var(--ok);}
 .office-screen--wait{fill:var(--gate-soft); stroke:var(--gate);}
+.office-stand{fill:none; stroke:var(--ink-2); stroke-width:2.5; stroke-linecap:round;}
+.office-code{fill:none; stroke:var(--ok); stroke-width:2; stroke-linecap:round;
+  opacity:.55;}
 .office-cursor{fill:var(--ok); animation:office-cursor 1s steps(1,end) infinite;}
-.office-agent--ready .office-body{transform-origin:56px 57px;
-  animation:office-work 1.1s ease-in-out infinite;}
-.office-agent--ready .office-arm-left{transform-origin:45px 59px;
-  animation:office-type-left .55s ease-in-out infinite alternate;}
-.office-agent--ready .office-arm-right{transform-origin:67px 59px;
-  animation:office-type-right .55s ease-in-out infinite alternate;}
-.office-alert{transform-origin:83px 19px; animation:office-alert 1.8s ease-in-out infinite;}
-.office-alert-bubble{fill:var(--gate-soft); stroke:var(--gate);}
+
+/* Working. The amplitudes are deliberately large: at 112px wide a 2px arm
+   swing is invisible, and an office that never appears to move is the same
+   picture as an office that is idle. */
+.office-agent--ready .office-body{transform-origin:42px 48px;
+  animation:office-breathe 2.6s ease-in-out infinite;}
+.office-agent--ready .office-eyes{transform-origin:42px 31px;
+  animation:office-blink 4.4s ease-in-out infinite;}
+.office-agent--ready .office-hand--l{transform-origin:17px 61px;
+  animation:office-type .6s ease-in-out infinite alternate;}
+.office-agent--ready .office-hand--r{transform-origin:67px 61px;
+  animation:office-type .6s ease-in-out .3s infinite alternate;}
+/* A live job is the one thing on this page that is certainly happening right
+   now, so its character types visibly faster than the merely-available ones. */
+.office-agent--working .office-hand--l,
+.office-agent--working .office-hand--r{animation-duration:.3s;}
+.office-agent--working .office-body{animation-duration:1.3s;}
+
+.office-body--waiting{transform-origin:42px 48px;
+  animation:office-waiting 3s ease-in-out infinite;}
+.office-alert{transform-origin:66px 16px; animation:office-alert 1.8s ease-in-out infinite;}
+.office-alert-bubble{fill:var(--gate-soft); stroke:var(--gate); stroke-width:1.5;}
 .office-alert-mark{fill:var(--gate);}
-.office-agent--blocked .office-person,.office-agent--blocked .office-limb{
-  fill:var(--unknown); stroke:var(--unknown);}
-.office-agent--blocked .office-limb{fill:none;}
-.office-chair--pushed{transform:translate(25px,8px);}
+
+/* Blocked: no motion at all, and the colour goes out of the character too -
+   a greyed-out desk should not still be wearing the team's colour. */
+.office-agent--blocked{--skin:var(--unknown);}
+.office-agent--blocked .office-face,.office-agent--blocked .office-fist{
+  fill:var(--surface-2);}
+.office-agent--blocked .office-eye-line,.office-agent--blocked .office-mouth{
+  stroke:var(--unknown);}
+.office-body--slumped{transform:translate(3px,5px) rotate(4deg);
+  transform-origin:42px 48px;}
+
 .office-agent--unknown .office-silhouette{fill:none; stroke:var(--unknown);
-  stroke-width:3; stroke-dasharray:4 4; opacity:.55;
+  stroke-width:2.5; stroke-dasharray:4 4; opacity:.55;
   animation:office-unknown 4s ease-in-out infinite;}
 .office-agent-name{display:block; overflow-wrap:anywhere; font-size:11.5px;
   font-weight:600; line-height:1.35;}
 .office-agent-state{display:block; margin-top:3px; color:var(--st);
   font-size:11px; line-height:1.3;}
-@keyframes office-work{50%{transform:translateY(-1px);}}
-@keyframes office-type-left{to{transform:rotate(9deg) translateY(2px);}}
-@keyframes office-type-right{to{transform:rotate(-9deg) translateY(-2px);}}
+@keyframes office-breathe{50%{transform:translateY(-2px) scale(1.015);}}
+@keyframes office-type{to{transform:translateY(-5px) rotate(-6deg);}}
+@keyframes office-blink{0%,92%,100%{transform:scaleY(1);}96%{transform:scaleY(.1);}}
 @keyframes office-cursor{50%{opacity:0;}}
-@keyframes office-alert{50%{transform:scale(1.12);}}
+@keyframes office-alert{50%{transform:scale(1.14) translateY(-2px);}}
+@keyframes office-waiting{50%{transform:translateY(-3px);}}
 @keyframes office-unknown{50%{opacity:.25;}}
 
 /* ---- queue ----
@@ -1097,6 +1141,25 @@ section{margin-top:44px;}
   border-right:0; border-radius:2px 0 0 2px; max-width:230px;}
 .combo .btn{border-radius:0 2px 2px 0;}
 @media(max-width:620px){.control-row{grid-template-columns:1fr; gap:7px;}}
+
+/* ---- order box ---- */
+.order{display:grid; gap:11px;}
+.order-row{display:flex; flex-wrap:wrap; gap:10px; align-items:center;}
+.order-row .btn{margin-left:auto;}
+.order select{font-family:'Archivo','Noto Sans KR',sans-serif; font-size:13px;
+  padding:9px 11px; background:var(--surface-2); color:var(--ink);
+  border:1px solid var(--line); border-radius:2px; max-width:100%;}
+.order textarea{font-family:'Noto Sans KR',sans-serif; font-size:14px; line-height:1.7;
+  padding:12px 14px; background:var(--surface-2); color:var(--ink);
+  border:1px solid var(--line); border-radius:2px; resize:vertical; min-height:96px;
+  width:100%; box-sizing:border-box;}
+.order textarea:focus-visible{outline:2px solid var(--accent); outline-offset:1px;}
+.order-scope{font-size:11.5px; color:var(--muted); min-width:0; word-break:break-word;}
+.order-check{display:flex; gap:7px; align-items:center; font-size:12.5px; color:var(--ink-2);}
+.order-how{font-size:12px; line-height:1.75; color:var(--muted);
+  padding:10px 12px; background:var(--sunk); border-radius:2px;}
+.order-how b{color:var(--ink);}
+.order-closed{font-size:11.5px; color:var(--gate);}
 .term{margin-top:14px; background:var(--sunk); border:1px solid var(--line); border-radius:2px;
       padding:12px 14px; font-family:'JetBrains Mono',monospace; font-size:12px;
       line-height:1.65; white-space:pre-wrap; word-break:break-word;
@@ -1171,35 +1234,107 @@ def _department_for_agent(name: str) -> str:
 
 
 def _character_svg(department: str, state: str) -> str:
-    """Procedural v1 character art, kept in one place for later replacement."""
-    desk = ('<rect class="office-desk" x="12" y="27" width="88" height="16" rx="2"/>'
-            '<path class="office-desk" d="M20 43v38M92 43v38"/>')
-    chair = '<path class="office-chair" d="M36 66h40v12H36zM43 78v7M69 78v7"/>'
-    head = '<circle class="office-face" cx="56" cy="52" r="10"/>'
-    torso = '<path class="office-person" d="M42 66q14-10 28 0v15H42z"/>'
+    """The desk characters, in one place so real art can replace them later.
+
+    COMPOSITION. Front view: the character sits BEHIND the desk, so the desk
+    band crosses its middle and only head, shoulders and hands show - which is
+    what a desk looks like and also what lets the face be big. Draw order is
+    character, then desk, then monitor, so the desk really does occlude.
+
+    WHY THE PROPORTIONS ARE LIKE THIS. A big head on a small body is what
+    reads as friendly at 112 pixels wide; a correctly proportioned figure at
+    this size is a grey smudge. The face is the only part with detail, because
+    it is the part a person looks at.
+
+    THE MOVEMENT HAS TO BE BIG ENOUGH TO SEE. The first version moved arms by
+    one or two pixels, which is invisible at this size - the office looked
+    frozen even while everything was working. Hands now travel about a sixth
+    of the head's width, which reads as typing across the room.
+
+    Motion is never the ONLY signal, per the spec: colour, posture, the
+    screen and the eyes each carry the state on their own, so the office is
+    still readable with prefers-reduced-motion on.
+    """
+    # Drawn first, so the desk covers the character's waist.
+    desk = ('<rect class="office-desk" x="3" y="60" width="106" height="8" rx="2.5"/>'
+            '<path class="office-desk-leg" d="M13 68v22M99 68v22"/>')
+
+    def face(eyes: str, mouth: str) -> str:
+        return (f'<circle class="office-face" cx="42" cy="31" r="16.5"/>'
+                f'<path class="office-hair" d="M27 25q3-16 15-16t15 16q-6-8-15-8t-15 8z"/>'
+                f'<g class="office-eyes">{eyes}</g>{mouth}')
+
+    # Named rather than inlined into the f-strings below: an f-string
+    # expression may not contain a backslash before Python 3.12, and these
+    # all carry escaped quotes.
+    smile = '<path class="office-mouth" d="M38 38.5q4 4.5 8 0"/>'
+    straight = '<path class="office-mouth" d="M38 39h8"/>'
+    frown = '<path class="office-mouth" d="M38 40q4-3.5 8 0"/>'
+    blink = ('<circle class="office-eye" cx="36" cy="31" r="2.4"/>'
+             '<circle class="office-eye" cx="48" cy="31" r="2.4"/>')
+    flat_eyes = '<path class="office-eye-line" d="M33 31h6M45 31h6"/>'
+    cheeks = ('<circle class="office-cheek" cx="30" cy="36" r="3"/>'
+              '<circle class="office-cheek" cx="54" cy="36" r="3"/>')
+    # Shoulders only: everything below y=60 is behind the desk anyway.
+    torso = '<path class="office-person" d="M22 64V56q0-12 20-12t20 12v8z"/>'
 
     if state == READY:
-        return (f'<svg class="office-character" viewBox="0 0 112 90" aria-hidden="true">'
-                f'{desk}<rect class="office-screen office-screen--on" x="39" y="9" width="34" height="22" rx="2"/>'
-                '<rect class="office-cursor" x="55" y="16" width="2" height="8"/>'
-                f'{chair}<g class="office-body">{head}{torso}'
-                '<path class="office-limb office-arm-left" d="M45 66l-9 9"/>'
-                '<path class="office-limb office-arm-right" d="M67 66l9 9"/></g></svg>')
+        return (
+            '<svg class="office-character" viewBox="0 0 112 96" aria-hidden="true">'
+            f'<g class="office-body">{torso}{face(blink, smile)}{cheeks}</g>'
+            # Hands sit on the desk surface and alternate - the typing.
+            '<g class="office-hand office-hand--l">'
+            '<path class="office-limb" d="M25 55l-7 6"/>'
+            '<circle class="office-fist" cx="17" cy="61" r="4"/></g>'
+            '<g class="office-hand office-hand--r">'
+            '<path class="office-limb" d="M59 55l7 6"/>'
+            '<circle class="office-fist" cx="67" cy="61" r="4"/></g>'
+            f'{desk}'
+            '<g class="office-monitor"><rect class="office-screen office-screen--on"'
+            ' x="72" y="30" width="33" height="24" rx="2.5"/>'
+            '<rect class="office-cursor" x="77" y="36" width="2.5" height="9"/>'
+            '<path class="office-code" d="M83 39h14M83 43h9M83 47h12"/>'
+            '<path class="office-stand" d="M88.5 54v6M81 60h15"/></g></svg>')
+
     if state == GATED:
-        return (f'<svg class="office-character" viewBox="0 0 112 90" aria-hidden="true">'
-                f'{desk}<rect class="office-screen office-screen--wait" x="39" y="9" width="34" height="22" rx="2"/>'
-                '<g class="office-alert"><circle class="office-alert-bubble" cx="86" cy="17" r="10"/>'
-                '<path class="office-alert-mark" d="M84 11h4l-1 8h-2zm0 10h4v4h-4z"/></g>'
-                f'<g transform="translate(-23 5)">{head}{torso}'
-                '<path class="office-limb" d="M45 65l-5 14M67 65l5 14"/></g></svg>')
+        # Standing, waiting to be let in: no hands on the desk, and the '!'
+        # is what the eye lands on.
+        return (
+            '<svg class="office-character" viewBox="0 0 112 96" aria-hidden="true">'
+            f'<g class="office-body office-body--waiting">{torso}'
+            f'{face(blink, straight)}{cheeks}</g>'
+            '<path class="office-limb" d="M25 55l-4 8M59 55l4 8"/>'
+            f'{desk}'
+            '<g class="office-monitor"><rect class="office-screen office-screen--wait"'
+            ' x="72" y="30" width="33" height="24" rx="2.5"/>'
+            '<path class="office-stand" d="M88.5 54v6M81 60h15"/></g>'
+            '<g class="office-alert"><circle class="office-alert-bubble" cx="66" cy="14" r="11"/>'
+            '<path class="office-alert-mark" d="M64 7h4l-1 9h-2zm0 11h4v4h-4z"/></g></svg>')
+
     if state == BLOCKED:
-        return (f'<svg class="office-character" viewBox="0 0 112 90" aria-hidden="true">'
-                f'{desk}<rect class="office-screen" x="39" y="9" width="34" height="22" rx="2"/>'
-                f'<g class="office-chair--pushed">{chair}{head}{torso}'
-                '<path class="office-limb" d="M45 67l-7 12M67 67l7 12"/></g></svg>')
-    return (f'<svg class="office-character" viewBox="0 0 112 90" aria-hidden="true">'
-            f'{desk}<g class="office-silhouette"><circle cx="56" cy="52" r="10"/>'
-            '<path d="M42 81V66q14-10 28 0v15M45 66l-7 12M67 66l7 12"/></g></svg>')
+        # Not a sad face for its own sake: the spec forbids drawing a blocked
+        # agent smiling, because the picture would be saying the opposite of
+        # the label under it. Flat eyes, flat mouth, dark screen, chair away.
+        return (
+            '<svg class="office-character" viewBox="0 0 112 96" aria-hidden="true">'
+            '<g class="office-body office-body--slumped">'
+            f'{torso}{face(flat_eyes, frown)}</g>'
+            '<path class="office-limb" d="M25 56l-5 7M59 56l5 7"/>'
+            f'{desk}'
+            '<g class="office-monitor"><rect class="office-screen" x="72" y="30"'
+            ' width="33" height="24" rx="2.5"/>'
+            '<path class="office-stand" d="M88.5 54v6M81 60h15"/></g></svg>')
+
+    # UNKNOWN: an outline where somebody might be. No face - inventing an
+    # expression would be claiming to know a state the files do not report.
+    return (
+        '<svg class="office-character" viewBox="0 0 112 96" aria-hidden="true">'
+        '<g class="office-silhouette"><circle cx="42" cy="31" r="16.5"/>'
+        '<path d="M22 64V56q0-12 20-12t20 12v8M25 55l-5 7M59 55l5 7"/></g>'
+        f'{desk}'
+        '<g class="office-monitor"><rect class="office-screen" x="72" y="30"'
+        ' width="33" height="24" rx="2.5" stroke-dasharray="4 4"/>'
+        '<path class="office-stand" d="M88.5 54v6M81 60h15"/></g></svg>')
 
 
 def _office_caption(agent: Agent, working: bool) -> str:
@@ -1664,6 +1799,111 @@ def _art_plan_html(plan: dict[str, Any]) -> str:
     return f'<div class="panel"><div class="plan">{"".join(rows)}</div></div>'
 
 
+# Three rows of this panel used to draw a button for an action server.ACTIONS
+# does not contain, so pressing it answered "알 수 없는 동작입니다." and nothing
+# else. Section 10 is explicit that a control with nothing behind it should not
+# be drawn, so the state is reported and the control is not. Wiring the three
+# actions for real is queued separately - this only stops the page lying about
+# what it can do.
+_UNWIRED = ('<span class="control-note" style="color:var(--unknown)">'
+            '실행 버튼 미연결 — 이 동작은 아직 서버에 없습니다</span>')
+
+
+def _scope_label(pattern: str) -> str:
+    """A team's allowlist entry, short enough for one line and still readable.
+
+    _short_path takes the last segment, which is right for the board's
+    directory entries and useless for a glob: every one of these patterns ends
+    in '**', so three of them rendered as '** · ** · **'. What distinguishes
+    them is the segment BEFORE the glob.
+    """
+    cleaned = pattern.replace("\\", "/")
+    if cleaned.endswith("/**"):
+        return cleaned[:-3].rsplit("/", 1)[-1] + "/"
+    head, _, tail = cleaned.rpartition("/")
+    if "*" in tail and head:
+        # A filename glob keeps its directory: 'GameSpecs/*.json' says more
+        # than '*.json', which could be anywhere.
+        return f"{head.rsplit('/', 1)[-1]}/{tail}"
+    return _short_path(pattern)
+
+
+def _order_html(snapshot: Snapshot) -> str:
+    """The command window: one sentence in, real work out.
+
+    Rendered only behind a server, like the rest of the control panel - a
+    static copy has nothing to POST to, and a box that swallowed an
+    instruction and did nothing with it would be the worst control on the page.
+
+    What it does NOT do is as important as what it does, and is said on the
+    page rather than only in the code: the text becomes a task on the board,
+    Codex reads it, and Codex cannot compile. So the order runs the Unity
+    tests afterwards, and the page says that is why.
+    """
+    teams = []
+    for dept in orders.DEPARTMENTS.values():
+        if dept.unavailable:
+            teams.append(
+                f'<option value="{e(dept.id)}" disabled>'
+                f'{e(dept.label)} · 지금은 맡길 수 없음</option>')
+            continue
+        teams.append(
+            f'<option value="{e(dept.id)}" '
+            f'data-summary="{e(dept.summary)}" '
+            f'data-files="{e(" · ".join(_scope_label(f) for f in dept.files))}" '
+            f'data-seat="{e(dept.seat)}">{e(dept.label)} · {e(dept.summary)}</option>')
+
+    closed = [d for d in orders.DEPARTMENTS.values() if d.unavailable]
+    closed_note = "".join(
+        f'<div class="order-closed">{e(d.label)} — {e(d.unavailable)}</div>'
+        for d in closed)
+
+    games = [g for g in snapshot.games if g["spec"]]
+    game_options = "".join(
+        f'<option value="{e(g["id"])}">{e(g["id"])}</option>' for g in games)
+    if games:
+        verify_row = (
+            '<label class="order-check"><input type="checkbox" id="order-verify" checked> '
+            '끝나면 Unity 테스트까지 돌린다</label>'
+            f'<select id="order-game" aria-label="테스트할 게임">{game_options}</select>')
+    else:
+        # No GameSpec means nothing to test against. Said, not silently
+        # dropped: an order will still run, it just cannot be checked.
+        verify_row = ('<span class="control-note">GameSpec 이 없어서 테스트 단계는 '
+                      '건너뜁니다. Codex 결과는 컴파일 확인 없이 남습니다.</span>')
+
+    return f"""  <section>
+    <div class="head">
+      <h2>명령창</h2>
+      <span class="note">한 줄로 지시하면 담당 팀이 일합니다 · 최대 {orders.MAX_ORDER_CHARS}자</span>
+    </div>
+    <div class="ctl">
+      <div class="order">
+        <div class="order-row">
+          <select id="order-dept" aria-label="지시를 맡길 팀">{"".join(teams)}</select>
+          <span class="order-scope mono" id="order-scope"></span>
+        </div>
+        <textarea id="order-text" rows="4" maxlength="{orders.MAX_ORDER_CHARS}"
+          aria-label="지시 내용"
+          placeholder="예) 점프를 더 무겁게. 올라갈 때보다 내려올 때가 빠르게 느껴지도록."></textarea>
+        <div class="order-row">
+          {verify_row}
+          <button class="btn" id="order-send">지시 보내기</button>
+        </div>
+        <div class="order-how">
+          지시는 작업판에 <span class="mono">ORDER-날짜-번호</span> 로 접수되고, Codex가
+          그 글을 그대로 읽고 작업합니다. <b>Codex는 컴파일을 못 합니다</b> — 그래서
+          끝나면 Unity 테스트를 이어서 돌립니다. 커밋과 푸시는 하지 않으니
+          결과는 검토한 뒤 직접 커밋하세요.
+        </div>
+        {closed_note}
+      </div>
+    </div>
+  </section>
+
+"""
+
+
 def _control_html(snapshot: Snapshot, token: str,
                   live_job: dict[str, Any] | None = None) -> str:
     """The action panel. Rendered ONLY when a local server is behind it.
@@ -1706,12 +1946,15 @@ def _control_html(snapshot: Snapshot, token: str,
             if model.get("reason"):
                 reasons.append(
                     f'<span>{e(model["name"])} — {e(model["reason"])}</span>')
-        button_disabled = "" if enabled_models else ' disabled data-blocked="true"'
+        # No button: server.ACTIONS has no 'ollama-use', so one drawn here
+        # would POST an action the server answers "알 수 없는 동작" to. Section
+        # 10 - a control with nothing behind it is worse than none - and this
+        # panel had three of them. The list itself is still real information,
+        # so it stays; only the dead control goes.
         ollama_control = (
-            '<div class="combo"><select id="ollama-model" '
-            f'aria-label="설치된 Ollama 모델">{"".join(options)}</select>'
-            '<button class="btn" data-act="ollama-use" data-arg="ollama-model"'
-            f'{button_disabled}>모델 사용</button></div>'
+            f'<select id="ollama-model" aria-label="설치된 Ollama 모델" disabled>'
+            f'{"".join(options)}</select>'
+            f'{_UNWIRED}'
             f'<div class="control-reasons">{"".join(reasons)}</div>')
 
     image_allowed = (
@@ -1720,13 +1963,11 @@ def _control_html(snapshot: Snapshot, token: str,
         and snapshot.licences.get("stable-diffusion-v1-5") == "APPROVED"
     )
     if image_allowed:
+        # Allowed by policy and licence, but see _UNWIRED: there is no
+        # 'image-generate' action on the server, so the button is not drawn.
         image_control = (
-            '<div class="combo"><select id="image-preset" aria-label="이미지 프리셋">'
-            '<option value="runner-idle">러너 · 대기</option>'
-            '<option value="runner-run">러너 · 달리기</option>'
-            '<option value="runner-jump">러너 · 점프</option></select>'
-            '<button class="btn" data-act="image-generate" data-arg="image-preset">'
-            '이미지 생성</button></div>')
+            '<span class="control-note">정책·라이선스 통과 (stable-diffusion-v1-5)</span>'
+            f'{_UNWIRED}')
     elif not snapshot.image_adapter:
         image_control = '<span class="control-note">generate-sprite.py 없음</span>'
     else:
@@ -1735,17 +1976,12 @@ def _control_html(snapshot: Snapshot, token: str,
     if snapshot.gemini_adapter:
         gemini_agent = next(
             (agent for agent in snapshot.agents if agent.name == "Gemini"), None)
-        blocked = gemini_agent is None or gemini_agent.state != READY
-        blocked_attr = ' disabled data-blocked="true"' if blocked else ""
-        blocked_note = (
-            f'<span class="control-note">{e(gemini_agent.detail)}</span>'
-            if blocked and gemini_agent else "")
-        gemini_control = (
-            '<div class="combo"><select id="gemini-preset" aria-label="Gemini 조언 프리셋">'
-            '<option value="mobile-ui">모바일 UI 방향</option>'
-            '<option value="sprite-review">스프라이트 검토 기준</option></select>'
-            '<button class="btn" data-act="gemini-design" data-arg="gemini-preset"'
-            f'{blocked_attr}>Gemini 실행</button></div>{blocked_note}')
+        # Reported from the agent row's own evidence (the key gate), then the
+        # same _UNWIRED note: there is no 'gemini-design' action, and unlike
+        # the other two there is no CLI subcommand behind one either.
+        state_note = (f'<span class="control-note">{e(gemini_agent.detail)}</span>'
+                      if gemini_agent else "")
+        gemini_control = f"{state_note}{_UNWIRED}"
     else:
         gemini_control = '<span class="control-note">gemini_client.py 없음</span>'
 
@@ -1806,10 +2042,14 @@ def _control_html(snapshot: Snapshot, token: str,
     const busy = document.getElementById('busy');
     const live = document.getElementById('live');
     const buttons = [...document.querySelectorAll('.btn[data-act]')];
+    const send = document.getElementById('order-send');
     let poll = null;
 
     function lock(on, label) {{
       buttons.forEach(b => {{ b.disabled = on || b.dataset.blocked === 'true'; }});
+      // The order button is not a data-act button - it posts to /order, not
+      // /run - but one job at a time is one job at a time, so it locks too.
+      if (send) send.disabled = on;
       busy.className = on ? 'running' : '';
       // The label is the button's own text, which already reads '...실행';
       // appending '실행 중' to it produced 'Codex 실행 실행 중'.
@@ -1826,7 +2066,12 @@ def _control_html(snapshot: Snapshot, token: str,
       if (!p || !p.phase) {{ live.innerHTML = ''; return; }}
       const tone = p.done ? (p.exit_code === 0 ? ' live--done' : ' live--failed') : '';
       const dots = p.done ? '' : ' <span class="live-dots" aria-hidden="true"></span>';
-      const what = [p.action_label, data.arg].filter(Boolean).join(' · ');
+      // An order runs two steps, so say which one this is - otherwise the
+      // page reads as if the whole order finished when only Codex did.
+      const stage = (data.steps > 1)
+        ? '[' + data.step + '/' + data.steps + '] ' : '';
+      const what = stage + [data.title, p.action_label, data.arg]
+        .filter(Boolean).join(' · ');
       const note = (p.slow && !p.done)
         ? '<div class="live-note">이 단계는 외부 프로그램이 끝날 때까지 출력이 나오지 않습니다. 멈춘 것이 아닙니다.</div>'
         : '';
@@ -1884,7 +2129,8 @@ def _control_html(snapshot: Snapshot, token: str,
               (data.exit_code === 0 ? '' : ' - 실패했습니다. 위 출력을 그대로 Claude에게 주세요.');
             // The board and the reports move as a result of these commands, so
             // a finished run makes the page above it stale.
-            if (data.exit_code === 0 && ['team-run','build','dashboard'].includes(data.action)) {{
+            if (data.exit_code === 0 &&
+                ['team-run','build','test','dashboard'].includes(data.action)) {{
               term.textContent += '\\n페이지를 새로 읽어옵니다...';
               setTimeout(() => location.reload(), 1400);
             }}
@@ -1897,6 +2143,77 @@ def _control_html(snapshot: Snapshot, token: str,
     }}
 
     buttons.forEach(b => b.addEventListener('click', () => start(b)));
+
+    // ---- the order box ----
+    const dept = document.getElementById('order-dept');
+    const scope = document.getElementById('order-scope');
+    const text = document.getElementById('order-text');
+
+    // Which files that team may touch, shown as the team is chosen. This is
+    // the allowlist the run is checked against, so the user should see the
+    // boundary BEFORE typing an instruction that falls outside it.
+    function showScope() {{
+      if (!dept || !scope) return;
+      const picked = dept.options[dept.selectedIndex];
+      const files = picked ? picked.dataset.files : '';
+      const seat = picked ? picked.dataset.seat : '';
+      scope.textContent = files ? (seat + ' · ' + files) : '';
+    }}
+    if (dept) {{ dept.addEventListener('change', showScope); showScope(); }}
+
+    async function order() {{
+      const body = {{
+        token: TOKEN,
+        department: dept ? dept.value : '',
+        text: text ? text.value : '',
+      }};
+      const verifyBox = document.getElementById('order-verify');
+      const gameBox = document.getElementById('order-game');
+      // No checkbox on the page means there was no GameSpec to test, which
+      // the section already says. Sending verify:false keeps the server from
+      // having to guess what a missing field meant.
+      body.verify = verifyBox ? verifyBox.checked : false;
+      body.game = (body.verify && gameBox) ? gameBox.value : '';
+
+      term.textContent = '';
+      live.innerHTML = '';
+      lock(true, '지시 처리');
+      try {{
+        const res = await fetch('/order', {{
+          method: 'POST',
+          headers: {{ 'Content-Type': 'application/json' }},
+          body: JSON.stringify(body)
+        }});
+        const data = await res.json();
+        if (!res.ok) {{
+          term.textContent = '거부됨: ' + (data.error || res.status) +
+            (data.note ? '\\n' + data.note : '');
+          lock(false);
+          return;
+        }}
+        let head = '접수: ' + data.order + ' → ' + data.department_label +
+                   '\\n단계: ' + (data.steps || []).join(' → ');
+        if (data.duplicate_of) {{
+          head += '\\n같은 지시가 이미 ' + data.duplicate_of + ' 로 대기 중입니다.';
+        }}
+        term.textContent = head + '\\n\\n';
+        // Cleared only once the order is accepted: a rejected order should
+        // leave the text where the user can fix it instead of retyping it.
+        if (text) text.value = '';
+        showLive(data);
+        watch(data.job, '지시 처리');
+      }} catch (err) {{
+        term.textContent = '서버에 연결할 수 없습니다: ' + err;
+        lock(false);
+      }}
+    }}
+
+    if (send) send.addEventListener('click', order);
+    // Ctrl+Enter sends, because Enter has to stay a newline in a textarea -
+    // an order is often two or three sentences.
+    if (text) text.addEventListener('keydown', ev => {{
+      if ((ev.ctrlKey || ev.metaKey) && ev.key === 'Enter' && !send.disabled) order();
+    }});
   }});
   </script>
 """
@@ -2010,7 +2327,11 @@ def render(snapshot: Snapshot, control_token: str | None = None,
     hardware = snapshot.profile.get("hardware", {})
     unity = snapshot.profile.get("unity", {})
 
-    control = (_control_html(snapshot, control_token, live_job)
+    # Order box first, then the fixed-button panel. Both only exist behind a
+    # server: the static copy has nothing to POST to, and section 10's rule
+    # that a control which cannot act should not be drawn covers a text box
+    # every bit as much as a button.
+    control = (_order_html(snapshot) + _control_html(snapshot, control_token, live_job)
                if control_token else "")
     shot_count = sum(len(g["items"]) for g in snapshot.gallery)
 
@@ -2049,7 +2370,6 @@ def render(snapshot: Snapshot, control_token: str | None = None,
     <span>설치된 것과 실제로 돌아가는 것은 다릅니다. 아래 각 줄은 그 판단의 근거 파일을 함께 표시합니다.</span>
   </div>
   {missing_block}
-{control}
   <section>
     <div class="head">
       <h2>부서 사무실</h2>
@@ -2057,6 +2377,7 @@ def render(snapshot: Snapshot, control_token: str | None = None,
     </div>
     {office}
   </section>
+{control}
 
   <section>
     <div class="head">

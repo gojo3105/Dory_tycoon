@@ -264,7 +264,10 @@ class JobProgressTests(unittest.TestCase):
     """
 
     def job(self, action="team-run", arg="C-1"):
-        return srv.Job(id="j1", action=action, arg=arg, argv=["true"])
+        return srv.Job(id="j1", steps=[self.step(action, arg)])
+
+    def step(self, action="team-run", arg="C-1"):
+        return srv.Step(action=action, arg=arg, argv=["true"], timeout=60)
 
     def test_the_snapshot_carries_a_phase_and_the_argument(self):
         job = self.job()

@@ -70,6 +70,20 @@ MARKERS: dict[str, tuple[Marker, ...]] = {
         _m(r"^BUILD_FAILED", "실패 · 검증된 APK 없음"),
         _m(r"^ERROR", "실패"),
     ),
+    # Every phrase here is keyed to a line cmd_test actually prints; the
+    # wording was taken from a real run's output, not guessed at.
+    "test": (
+        _m(r"^=== LOCAL UNITY TESTS", "Unity 테스트 준비 중"),
+        _m(r"^\s*Unity: ", "Unity 실행 파일을 찾았습니다", SLOW),
+        _m(r"^\s*\[ OK \] generate", "Scene/Prefab 생성 완료 · 테스트를 실행하는 중", SLOW),
+        _m(r"^\s*\[FAIL\] generate", "생성 단계에서 실패 · 테스트는 돌지 않았습니다"),
+        _m(r"^\s*\[ OK \] test-", "테스트 완료 · 결과를 읽는 중"),
+        _m(r"^\s*\[FAIL\] test-", "테스트 단계에서 실패"),
+        _m(r"^\s*passed=\d+", "결과 집계됨"),
+        _m(r"^TESTS_PASSED", "테스트 전부 통과"),
+        _m(r"^TESTS_FAILED", "실패 · 테스트가 통과하지 못했습니다"),
+        _m(r"^(REFUSED|ERROR)", "실패"),
+    ),
     "codex-doctor": (
         _m(r"^=== CODEX ===", "Codex CLI 상태를 확인하는 중"),
         _m(r"^=== codex doctor", "codex doctor 원문을 읽는 중"),
@@ -88,6 +102,7 @@ MARKERS: dict[str, tuple[Marker, ...]] = {
 ACTION_LABEL = {
     "team-run": "Codex 작업 실행",
     "build": "Unity 빌드",
+    "test": "Unity 테스트",
     "codex-doctor": "Codex 진단",
     "git-status": "변경 파일 확인",
     "dashboard": "대시보드 새로고침",
@@ -99,6 +114,7 @@ ACTION_AGENT_PREFIX = {
     "team-run": "Codex",
     "codex-doctor": "Codex",
     "build": "Unity",
+    "test": "Unity",
 }
 
 STARTING = "시작하는 중"
