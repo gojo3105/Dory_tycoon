@@ -1,10 +1,10 @@
 ﻿# Auto-sync status
 
-Generated: 2026-09-09 01:55:48
+Generated: 2026-09-09 02:10:48
 Outcome: BLOCKED
-Reason: Uncommitted changes to tracked files: M  AI_GAME_COMPANY/company/orchestrator/dashboard.py | A  AI_GAME_COMPANY/company/orchestrator/orders.py | M  AI_GAME_COMPANY/company/orchestrator/progress.py | M  AI_GAME_COMPANY/company/orchestrator/server.py | UU AI_GAME_COMPANY/config/TASKBOARD.json | A  AI_GAME_COMPANY/tests/test_orders.py | M  AI_GAME_COMPANY/tests/test_server.py | M  CLAUDE.md | M  Reports/build-status/latest.txt | M  Reports/dashboard.html | M  Reports/errors/latest.txt | A  Reports/runs/20260908-083849-dashboard.txt | M  Reports/runs/latest.txt | M  Reports/sync-status/latest.txt
+Reason: Uncommitted changes to tracked files: M AI_GAME_COMPANY/company/orchestrator/server.py |  M AI_GAME_COMPANY/tests/test_dashboard.py |  M AI_GAME_COMPANY/tests/test_orders.py |  M Assets/GameFactory/Core/GameSpec/GameSpecData.cs |  M Assets/GameFactory/Core/GameSpec/GameSpecValidator.cs |  M Assets/GameFactory/Core/InputSystem.cs |  M Assets/GameFactory/Editor/SceneGenerator.cs |  M Assets/GameFactory/Gameplay/Runner/Coin.cs |  M Assets/GameFactory/Gameplay/Runner/CoinSpawner.cs |  M Assets/GameFactory/Gameplay/Runner/RunnerGameInitializer.cs |  M Assets/GameFactory/Gameplay/Runner/RunnerPlayer...
 Last-Success: 2026-09-08 02:09:47
-Local-Head: 2d30125
+Local-Head: 37b73b2
 Upstream-Head: fcd835a
 Branch: claude/delete-current-content-mgn4xm
 
