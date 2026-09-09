@@ -31,6 +31,7 @@ namespace GameFactory.Editor
         private const string ButtonGreyPath = "Assets/Common/Art/UI/button_grey.png";
         private const string CoinSpritePath = "Assets/Common/Art/Runner/coin.png";
         private const string PlayerSpritePath = "Assets/Common/Art/Runner/player.png";
+        private const string FactoryBackgroundPath = "Assets/Common/Art/Runner/factory_background_v2.png";
 
         private const float GroundY = -1f;
         private const float ObstacleY = 0f;
@@ -90,6 +91,12 @@ namespace GameFactory.Editor
             audioManagerGO.AddComponent<AudioSource>();
             audioManagerGO.AddComponent<AudioManager>();
 
+            MonetizationService monetization = new GameObject("MonetizationService").AddComponent<MonetizationService>();
+            monetization.Configure(
+                System.Environment.GetEnvironmentVariable("LEVELPLAY_ANDROID_APP_KEY"),
+                System.Environment.GetEnvironmentVariable("LEVELPLAY_REWARDED_AD_UNIT_ID"),
+                System.Environment.GetEnvironmentVariable("LEVELPLAY_INTERSTITIAL_AD_UNIT_ID"));
+
             CreateVfxManager();
 
             GameObject cameraGO = new GameObject("Main Camera");
@@ -99,14 +106,17 @@ namespace GameFactory.Editor
             cam.orthographic = true;
             cam.orthographicSize = 5f;
             cam.clearFlags = CameraClearFlags.SolidColor;
+            string environment = spec.theme != null ? spec.theme.environment : string.Empty;
+            Color themeTint = ThemeTint(environment);
             // Sky blue, not the near-black it used to be. The gradient sprite
             // below covers the frustum, so this only shows on an aspect ratio
             // wider than the quad - matching it keeps that invisible.
-            cam.backgroundColor = SkyMid;
+            cam.backgroundColor = Color.Lerp(SkyMid, themeTint, 0.22f);
             CameraFollow2D follow = cameraGO.AddComponent<CameraFollow2D>();
             follow.SetTarget(playerInstance.transform);
 
-            CreateSky(cameraGO.transform);
+            CreateSky(cameraGO.transform, Color.Lerp(Color.white, themeTint, 0.22f));
+            CreateFactoryBackground(cameraGO.transform, spec.player.moveSpeed, themeTint);
 
             GameObject groundSpawnerGO = new GameObject("GroundSpawner");
             GroundSpawner groundSpawner = groundSpawnerGO.AddComponent<GroundSpawner>();
@@ -136,13 +146,16 @@ namespace GameFactory.Editor
                 runnerEnergy = energyGO.AddComponent<RunnerEnergy>();
             }
 
+            GameObject comboGO = new GameObject("RunnerCombo");
+            RunnerCombo runnerCombo = comboGO.AddComponent<RunnerCombo>();
+
             GameObject initializerGO = new GameObject("RunnerGameInitializer");
             RunnerGameInitializer initializer = initializerGO.AddComponent<RunnerGameInitializer>();
-            initializer.SetTargets(playerController, obstacleSpawner, coinSpawner, runnerEnergy);
+            initializer.SetTargets(playerController, obstacleSpawner, coinSpawner, runnerEnergy, runnerCombo);
 
             LevelGenerator.ConfigureRunnerLevel(spec, playerInstance.transform, prefabs.GravityZone);
 
-            BuildUI(spec.game.title, runnerEnergy);
+            BuildUI(spec.game.title, playerController, runnerEnergy, runnerCombo);
             EnsureEventSystem(scene);
 
             Directory.CreateDirectory(EditorPaths.ToAbsolutePath(sceneFolder));
@@ -170,7 +183,7 @@ namespace GameFactory.Editor
         /// script: an orthographic camera's frustum is a fixed size, so a quad
         /// sized once in camera space covers it forever.
         /// </summary>
-        private static void CreateSky(Transform cameraTransform)
+        private static void CreateSky(Transform cameraTransform, Color tint)
         {
             Sprite sky = AssetDatabase.LoadAssetAtPath<Sprite>(UiSpriteGenerator.SkyPath);
             if (sky == null) return;
@@ -186,10 +199,59 @@ namespace GameFactory.Editor
 
             SpriteRenderer renderer = skyGO.AddComponent<SpriteRenderer>();
             renderer.sprite = sky;
+            renderer.color = tint;
             renderer.sortingOrder = -100;
         }
 
-        private static void BuildUI(string gameTitle, RunnerEnergy runnerEnergy)
+        private static void CreateFactoryBackground(Transform cameraTransform, float runSpeed, Color tint)
+        {
+            Sprite background = AssetDatabase.LoadAssetAtPath<Sprite>(FactoryBackgroundPath);
+            if (background == null) return;
+
+            GameObject root = new GameObject("FactoryBackground");
+            root.transform.SetParent(cameraTransform, false);
+            root.transform.localPosition = new Vector3(0f, 0f, 15f);
+
+            GameObject strip = new GameObject("FactoryStrip");
+            strip.transform.SetParent(root.transform, false);
+            float width = background.bounds.size.x;
+            for (int i = 0; i < 2; i++)
+            {
+                GameObject copy = new GameObject("FactoryBackground_" + i);
+                copy.transform.SetParent(strip.transform, false);
+                copy.transform.localPosition = new Vector3(i * width, 0f, 0f);
+                SpriteRenderer renderer = copy.AddComponent<SpriteRenderer>();
+                renderer.sprite = background;
+                renderer.color = tint;
+                renderer.sortingOrder = -90;
+            }
+
+            ParallaxBackground parallax = root.AddComponent<ParallaxBackground>();
+            parallax.SetLayers(new[] { strip.transform });
+            parallax.Configure(runSpeed, new[] { 0.08f });
+        }
+
+        /// <summary>
+        /// Gives generated games an immediately visible world identity while
+        /// keeping the approved shared background art.  Theme names are
+        /// allowlisted by the local game creator; unknown hand-written specs
+        /// fall back to the original factory palette.
+        /// </summary>
+        private static Color ThemeTint(string environment)
+        {
+            switch ((environment ?? string.Empty).Trim().ToLowerInvariant())
+            {
+                case "candy": return new Color32(0xFF, 0xC4, 0xDE, 0xFF);
+                case "sky": return new Color32(0xC4, 0xEE, 0xFF, 0xFF);
+                case "forest": return new Color32(0xA7, 0xDA, 0xA2, 0xFF);
+                case "neon": return new Color32(0x9B, 0xB8, 0xFF, 0xFF);
+                case "lava": return new Color32(0xFF, 0xA0, 0x73, 0xFF);
+                default: return Color.white;
+            }
+        }
+
+        private static void BuildUI(string gameTitle, RunnerPlayerController player,
+            RunnerEnergy runnerEnergy, RunnerCombo runnerCombo)
         {
             GameObject canvasGO = new GameObject("Canvas");
             Canvas canvas = canvasGO.AddComponent<Canvas>();
@@ -219,19 +281,31 @@ namespace GameFactory.Editor
 
             Transform root = safeAreaGO.transform;
 
-            (GameObject hudRoot, Text scoreText, Text hudCoinText, Button pauseButton, Image energyFill)
-                = BuildHud(root, runnerEnergy != null);
+            (GameObject hudRoot, Text scoreText, Text hudCoinText, Button pauseButton,
+                Image energyFill, Text comboText, Image feverFill)
+                = BuildHud(root, player, runnerEnergy != null);
             (GameObject gameOverPanel, Text finalScoreText, Text bestScoreText, Text runCoinsText,
-                GameObject newBestBadge, Button restartButton, Button homeButton, Button gameOverShopButton)
+                GameObject newBestBadge, Button restartButton, Button homeButton, Button gameOverShopButton,
+                Text runProgressText, Button rewardedCoinsButton, Text rewardedCoinsLabel)
                 = BuildGameOverUI(root);
             (GameObject pausePanel, Button resumeButton, Button pauseHomeButton) = BuildPauseUI(root);
 
             // Panels are added in draw order: the shop sits above game-over, and
             // the title above both, because a Canvas child drawn later wins.
             (GameObject titlePanel, Text titleBestText, Text titleCurrencyText,
-                Button playButton, Button titleShopButton) = BuildTitleUI(root, gameTitle);
+                Button playButton, Button titleShopButton, Text levelText, Text stageTitleText,
+                Text stageDetailsText, Text dailyRewardText, Button previousStageButton,
+                Button nextStageButton, Button missionOpenButton, Button settingsOpenButton)
+                = BuildTitleUI(root, gameTitle);
 
             BuildShopUI(root, new[] { titleShopButton, gameOverShopButton });
+            (GameObject missionPanel, Button missionCloseButton, Text[] missionProgressTexts,
+                Button[] missionClaimButtons, Text[] missionClaimLabels) = BuildMissionUI(root);
+            (GameObject settingsPanel, Button settingsCloseButton, Button soundButton, Text soundLabel,
+                Button vibrationButton, Text vibrationLabel, Button adsPrivacyButton, Text adsPrivacyLabel)
+                = BuildSettingsUI(root);
+            (GameObject tutorialPanel, Text tutorialStepText, Text tutorialBodyText,
+                Button tutorialNextButton, Text tutorialNextLabel) = BuildTutorialUI(root);
 
             // Button clicks (Restart/Home/Play/Shop/Pause) are all wired at
             // runtime by GameUIController/ShopController, not here:
@@ -240,11 +314,24 @@ namespace GameFactory.Editor
             // would silently produce dead buttons.
             GameObject controllerGO = new GameObject("GameUIController");
             GameUIController controller = controllerGO.AddComponent<GameUIController>();
-            controller.SetHudReferences(hudRoot, scoreText, hudCoinText, pauseButton, energyFill, runnerEnergy);
+            controller.SetHudReferences(hudRoot, scoreText, hudCoinText, pauseButton,
+                energyFill, runnerEnergy, comboText, feverFill, runnerCombo);
             controller.SetGameOverReferences(gameOverPanel, finalScoreText, bestScoreText,
                 runCoinsText, newBestBadge, restartButton, homeButton);
             controller.SetPauseReferences(pausePanel, resumeButton, pauseHomeButton);
             controller.SetTitleReferences(titlePanel, titleBestText, titleCurrencyText, playButton);
+
+            GameObject metaControllerGO = new GameObject("MetaGameController");
+            MetaGameController metaController = metaControllerGO.AddComponent<MetaGameController>();
+            metaController.SetTitleReferences(levelText, titleCurrencyText, stageTitleText, stageDetailsText, dailyRewardText,
+                previousStageButton, nextStageButton);
+            metaController.SetMissionReferences(missionPanel, new[] { missionOpenButton }, missionCloseButton,
+                missionProgressTexts, missionClaimButtons, missionClaimLabels);
+            metaController.SetSettingsReferences(settingsPanel, new[] { settingsOpenButton }, settingsCloseButton,
+                soundButton, soundLabel, vibrationButton, vibrationLabel, adsPrivacyButton, adsPrivacyLabel);
+            metaController.SetTutorialReferences(tutorialPanel, tutorialStepText, tutorialBodyText,
+                tutorialNextButton, tutorialNextLabel);
+            metaController.SetRunRewardReferences(runProgressText, rewardedCoinsButton, rewardedCoinsLabel);
         }
 
         // ---- HUD -------------------------------------------------------------
@@ -255,8 +342,9 @@ namespace GameFactory.Editor
         /// panel, so the pickup the whole economy rests on gave no feedback
         /// while playing.
         /// </summary>
-        private static (GameObject root, Text score, Text coins, Button pause, Image energyFill)
-            BuildHud(Transform parent, bool includeEnergy)
+        private static (GameObject root, Text score, Text coins, Button pause, Image energyFill,
+            Text combo, Image feverFill) BuildHud(Transform parent, RunnerPlayerController player,
+            bool includeEnergy)
         {
             GameObject hud = CreateRect(parent, "HUD", Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f),
                 Vector2.zero, Vector2.zero);
@@ -284,7 +372,49 @@ namespace GameFactory.Editor
 
             Image energyFill = includeEnergy ? CreateEnergyGauge(hud.transform) : null;
 
-            return (hud, score, coins, pause, energyFill);
+            Text combo = CreateText(hud.transform, "ComboText", string.Empty, 44, TextAnchor.MiddleCenter,
+                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(320f, 64f), new Vector2(0f, -116f));
+            combo.color = Gold;
+            AddOutline(combo, 3f);
+
+            Image feverFill = CreateFeverGauge(hud.transform);
+            CreateRunnerActionButton(hud.transform, "JumpActionButton", "점프", ButtonGreenPath,
+                new Vector2(250f, 118f), new Vector2(0f, 0f), new Vector2(Margin, 44f),
+                player, RunnerActionButton.ActionKind.Jump);
+            CreateRunnerActionButton(hud.transform, "SlideActionButton", "슬라이드", ButtonYellowPath,
+                new Vector2(250f, 118f), new Vector2(1f, 0f), new Vector2(-Margin, 44f),
+                player, RunnerActionButton.ActionKind.Slide);
+
+            return (hud, score, coins, pause, energyFill, combo, feverFill);
+        }
+
+        private static Image CreateFeverGauge(Transform parent)
+        {
+            GameObject track = CreatePanel(parent, "FeverGauge", UiSpriteGenerator.CreamPanelPath,
+                new Vector2(360f, 42f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(0f, -162f));
+            GameObject fillGO = CreateRect(track.transform, "Fill", Vector2.zero, Vector2.one,
+                new Vector2(0.5f, 0.5f), new Vector2(-14f, -14f), Vector2.zero);
+            Image fill = fillGO.AddComponent<Image>();
+            fill.sprite = AssetDatabase.LoadAssetAtPath<Sprite>(UiSpriteGenerator.GoldPanelPath);
+            fill.color = fill.sprite != null ? Color.white : Gold;
+            fill.type = Image.Type.Filled;
+            fill.fillMethod = Image.FillMethod.Horizontal;
+            fill.fillOrigin = (int)Image.OriginHorizontal.Left;
+            fill.raycastTarget = false;
+            return fill;
+        }
+
+        private static void CreateRunnerActionButton(Transform parent, string name, string label,
+            string spritePath, Vector2 size, Vector2 anchor, Vector2 position,
+            RunnerPlayerController player, RunnerActionButton.ActionKind action)
+        {
+            (Button button, Text text) = CreateButton(parent, name, spritePath, size, anchor,
+                position, label, 42);
+            AddOutline(text, 3f);
+            RunnerActionButton control = button.gameObject.AddComponent<RunnerActionButton>();
+            control.SetReferences(player, action);
         }
 
         private static Image CreateEnergyGauge(Transform parent)
@@ -313,7 +443,9 @@ namespace GameFactory.Editor
         /// the level is already drawn behind it, and the old opaque near-black
         /// panel hid the character the screen is meant to sell.
         /// </summary>
-        private static (GameObject panel, Text bestText, Text currencyText, Button play, Button shop)
+        private static (GameObject panel, Text bestText, Text currencyText, Button play, Button shop,
+            Text levelText, Text stageTitleText, Text stageDetailsText, Text dailyRewardText,
+            Button previousStage, Button nextStage, Button missions, Button settings)
             BuildTitleUI(Transform parent, string gameTitle)
         {
             GameObject titlePanel = CreateFullScreenPanel(parent, "TitlePanel", new Color(0f, 0f, 0f, 0f));
@@ -337,6 +469,40 @@ namespace GameFactory.Editor
             Text currencyText = CreatePill(titlePanel.transform, "TitleCoinPill", new Vector2(200f, 76f),
                 new Vector2(1f, 1f), new Vector2(-Margin, -56f), "0", 38, OrangeText);
 
+            GameObject levelPill = CreatePanel(titlePanel.transform, "LevelPill", UiSpriteGenerator.CreamPanelPath,
+                new Vector2(260f, 76f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(Margin, -56f));
+            Text levelText = CreateText(levelPill.transform, "Value", "LV.1  0/80 XP", 27, TextAnchor.MiddleCenter,
+                Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+            levelText.color = BrownText;
+
+            GameObject stageCard = CreatePanel(titlePanel.transform, "StageCard", UiSpriteGenerator.CreamPanelPath,
+                new Vector2(620f, 138f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -380f));
+            (Button previousStage, Text previousLabel) = CreateButton(stageCard.transform, "PreviousStageButton",
+                ButtonGreyPath, new Vector2(76f, 76f), new Vector2(0f, 0.5f), new Vector2(26f, 0f), "◀", 32);
+            AddOutline(previousLabel, 2f);
+            (Button nextStage, Text nextLabel) = CreateButton(stageCard.transform, "NextStageButton",
+                ButtonGreyPath, new Vector2(76f, 76f), new Vector2(1f, 0.5f), new Vector2(-26f, 0f), "▶", 32);
+            AddOutline(nextLabel, 2f);
+            Text stageTitleText = CreateText(stageCard.transform, "StageTitle", "스테이지 1 · 첫 출근", 34,
+                TextAnchor.MiddleCenter, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(420f, 54f), new Vector2(0f, -24f));
+            stageTitleText.color = DarkText;
+            Text stageDetailsText = CreateText(stageCard.transform, "StageDetails", "목표 150m · 최고 0m · 별 0/3", 23,
+                TextAnchor.MiddleCenter, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+                new Vector2(420f, 44f), new Vector2(0f, 18f));
+            stageDetailsText.color = MutedText;
+
+            (Button missions, Text missionsLabel) = CreateButton(titlePanel.transform, "MissionOpenButton", ButtonYellowPath,
+                new Vector2(296f, 86f), new Vector2(0.5f, 1f), new Vector2(-158f, -536f), "오늘의 미션", 31);
+            AddOutline(missionsLabel, 2f);
+            (Button settings, Text settingsLabel) = CreateButton(titlePanel.transform, "SettingsOpenButton", ButtonGreyPath,
+                new Vector2(296f, 86f), new Vector2(0.5f, 1f), new Vector2(158f, -536f), "설정", 31);
+            AddOutline(settingsLabel, 2f);
+            Text dailyRewardText = CreateText(titlePanel.transform, "DailyRewardText", string.Empty, 25,
+                TextAnchor.MiddleCenter, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(500f, 40f), new Vector2(0f, -632f));
+            dailyRewardText.color = OrangeText;
+
             // The controls, spelled out. A verb nobody knows about is a verb
             // the game does not have: the slide is invisible until someone
             // happens to drag downward, and nothing on screen would ever
@@ -348,7 +514,7 @@ namespace GameFactory.Editor
             AddOutline(controlsTop, 2f);
 
             Text controlsBottom = CreateText(titlePanel.transform, "ControlsHintBottom",
-                "아래로 밀기 = 슬라이드", 26, TextAnchor.MiddleCenter,
+                "왼쪽 점프 · 오른쪽 슬라이드 버튼", 26, TextAnchor.MiddleCenter,
                 new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
                 new Vector2(680f, 40f), new Vector2(0f, 446f));
             AddOutline(controlsBottom, 2f);
@@ -377,7 +543,8 @@ namespace GameFactory.Editor
                 "상점", 40);
             AddOutline(shopLabel, 3f);
 
-            return (titlePanel, bestText, currencyText, play, shop);
+            return (titlePanel, bestText, currencyText, play, shop, levelText, stageTitleText,
+                stageDetailsText, dailyRewardText, previousStage, nextStage, missions, settings);
         }
 
         // ---- game over -------------------------------------------------------
@@ -388,7 +555,8 @@ namespace GameFactory.Editor
         /// almost every time competed with the two that are not.
         /// </summary>
         private static (GameObject panel, Text finalScore, Text bestScore, Text runCoins,
-            GameObject newBestBadge, Button restart, Button home, Button shop) BuildGameOverUI(Transform parent)
+            GameObject newBestBadge, Button restart, Button home, Button shop, Text runProgress,
+            Button rewardedCoins, Text rewardedCoinsLabel) BuildGameOverUI(Transform parent)
         {
             GameObject panel = CreateFullScreenPanel(parent, "GameOverPanel", Scrim);
 
@@ -426,6 +594,16 @@ namespace GameFactory.Editor
             Text bestScore = CreateStatBox(card.transform, "PreviousBestBox", new Vector2(145f, -382f),
                 "0", BrownText, "이전 최고", coinIcon: false);
 
+            Text runProgress = CreateText(card.transform, "RunProgressText", "XP +0 · 별 0/3", 26,
+                TextAnchor.MiddleCenter, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+                new Vector2(560f, 48f), new Vector2(0f, 24f));
+            runProgress.color = OrangeText;
+
+            (Button rewardedCoins, Text rewardedCoinsLabel) = CreateButton(panel.transform,
+                "RewardedCoinsButton", ButtonYellowPath, new Vector2(ContentWidth, 88f),
+                new Vector2(0.5f, 0f), new Vector2(0f, 336f), "광고 보고 코인 2배", 34);
+            AddOutline(rewardedCoinsLabel, 2f);
+
             (Button restart, Text restartLabel) = CreateButton(panel.transform, "RestartButton", ButtonGreenPath,
                 new Vector2(ContentWidth, 142f), new Vector2(0.5f, 0f), new Vector2(0f, 176f),
                 "다시하기", 56);
@@ -445,7 +623,8 @@ namespace GameFactory.Editor
             panel.AddComponent<PanelTransition>();
             panel.SetActive(false);
 
-            return (panel, finalScore, bestScore, runCoins, badge, restart, home, shop);
+            return (panel, finalScore, bestScore, runCoins, badge, restart, home, shop,
+                runProgress, rewardedCoins, rewardedCoinsLabel);
         }
 
         /// <summary>One of the two figures under the game-over score. Returns the value label.</summary>
@@ -536,8 +715,10 @@ namespace GameFactory.Editor
                 "CoinMagnet", -178f, "코인 자석", "주변 코인을 끌어당깁니다");
             (Button redSkinButton, Text redSkinLabel) = CreateShopRow(shopPanel.transform,
                 "RedSkin", -356f, "빨간 스킨", "도리의 색을 바꿉니다");
-
-            BuildShopPreview(shopPanel.transform);
+            (Button coinPackButton, Text coinPackLabel) = CreateShopRow(shopPanel.transform,
+                "CoinPack", -534f, "코인 팩", "상점 코인 500개를 충전합니다");
+            (Button removeAdsButton, Text removeAdsLabel) = CreateShopRow(shopPanel.transform,
+                "RemoveAds", -712f, "광고 제거", "보상형 광고 외 일반 광고를 제거합니다");
 
             CanvasGroup shopCanvasGroup = shopPanel.AddComponent<CanvasGroup>();
             shopCanvasGroup.alpha = 0f;
@@ -547,7 +728,8 @@ namespace GameFactory.Editor
             GameObject shopControllerGO = new GameObject("ShopController");
             ShopController shopController = shopControllerGO.AddComponent<ShopController>();
             shopController.SetReferences(shopPanel, currencyText, openButtons, coinMagnetButton,
-                coinMagnetLabel, redSkinButton, redSkinLabel, closeButton);
+                coinMagnetLabel, redSkinButton, redSkinLabel, coinPackButton, coinPackLabel,
+                removeAdsButton, removeAdsLabel, closeButton);
         }
 
         /// <summary>
@@ -604,6 +786,127 @@ namespace GameFactory.Editor
             CreateText(preview.transform, "Name", "기본 도리", 38, TextAnchor.UpperLeft,
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 1f),
                 new Vector2(260f, 56f), new Vector2(20f, -6f)).color = DarkText;
+        }
+
+        // ---- missions / settings / tutorial ---------------------------------
+
+        private static (GameObject panel, Button close, Text[] progress, Button[] claims, Text[] claimLabels)
+            BuildMissionUI(Transform parent)
+        {
+            GameObject panel = CreateFullScreenPanel(parent, "MissionPanel", SkyMid);
+            CreateSectionHeader(panel.transform, "오늘의 미션");
+            Button close = CreateCloseButton(panel.transform, "MissionCloseButton");
+            Text[] progress = new Text[MissionSystem.DailyMissions.Length];
+            Button[] claims = new Button[MissionSystem.DailyMissions.Length];
+            Text[] claimLabels = new Text[MissionSystem.DailyMissions.Length];
+
+            for (int i = 0; i < MissionSystem.DailyMissions.Length; i++)
+            {
+                MissionDefinition mission = MissionSystem.DailyMissions[i];
+                float y = -190f - i * 190f;
+                GameObject row = CreatePanel(panel.transform, "Mission_" + mission.Id,
+                    UiSpriteGenerator.CreamPanelPath, new Vector2(640f, 166f),
+                    new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, y));
+                CreateText(row.transform, "Title", mission.Title, 34, TextAnchor.MiddleLeft,
+                    new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f),
+                    new Vector2(390f, 58f), new Vector2(34f, -28f)).color = DarkText;
+                progress[i] = CreateText(row.transform, "Progress", $"0 / {mission.Target}", 27,
+                    TextAnchor.MiddleLeft, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(0f, 0f),
+                    new Vector2(300f, 50f), new Vector2(34f, 25f));
+                progress[i].color = MutedText;
+                (claims[i], claimLabels[i]) = CreateButton(row.transform, "ClaimButton", ButtonYellowPath,
+                    new Vector2(205f, 88f), new Vector2(1f, 0.5f), new Vector2(-28f, 0f),
+                    $"+{mission.Reward}", 29);
+                AddOutline(claimLabels[i], 2f);
+            }
+
+            CreateText(panel.transform, "ResetHint", "매일 00:00 UTC에 새 미션으로 갱신됩니다", 24,
+                TextAnchor.MiddleCenter, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+                new Vector2(640f, 50f), new Vector2(0f, 80f)).color = MutedText;
+            PrepareOverlay(panel);
+            return (panel, close, progress, claims, claimLabels);
+        }
+
+        private static (GameObject panel, Button close, Button sound, Text soundLabel,
+            Button vibration, Text vibrationLabel, Button adsPrivacy, Text adsPrivacyLabel)
+            BuildSettingsUI(Transform parent)
+        {
+            GameObject panel = CreateFullScreenPanel(parent, "SettingsPanel", SkyMid);
+            CreateSectionHeader(panel.transform, "설정");
+            Button close = CreateCloseButton(panel.transform, "SettingsCloseButton");
+
+            (Button sound, Text soundLabel) = CreateSettingsRow(panel.transform, "SoundSetting", -220f, "효과음  켜짐");
+            (Button vibration, Text vibrationLabel) = CreateSettingsRow(panel.transform, "VibrationSetting", -390f, "진동  켜짐");
+            (Button adsPrivacy, Text adsPrivacyLabel) = CreateSettingsRow(panel.transform, "AdsPrivacySetting", -560f,
+                "광고 개인정보 선택");
+            CreateText(panel.transform, "PrivacyHint",
+                "맞춤 광고 설정은 광고 제공사에 전달됩니다.\n보상형 광고는 직접 선택했을 때만 표시됩니다.", 25,
+                TextAnchor.MiddleCenter, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+                new Vector2(620f, 100f), new Vector2(0f, 120f)).color = MutedText;
+            PrepareOverlay(panel);
+            return (panel, close, sound, soundLabel, vibration, vibrationLabel, adsPrivacy, adsPrivacyLabel);
+        }
+
+        private static (GameObject panel, Text step, Text body, Button next, Text nextLabel)
+            BuildTutorialUI(Transform parent)
+        {
+            GameObject panel = CreateFullScreenPanel(parent, "TutorialPanel", Scrim);
+            GameObject card = CreatePanel(panel.transform, "TutorialCard", UiSpriteGenerator.CreamPanelPath,
+                new Vector2(640f, 620f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero);
+            Text step = CreateText(card.transform, "Step", "처음 달리기  1/3", 30, TextAnchor.MiddleCenter,
+                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(520f, 60f), new Vector2(0f, -55f));
+            step.color = OrangeText;
+            Text title = CreateText(card.transform, "Title", "도리 러너 사용법", 48, TextAnchor.MiddleCenter,
+                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(560f, 80f), new Vector2(0f, -125f));
+            title.color = DarkText;
+            Text body = CreateText(card.transform, "Body", string.Empty, 31, TextAnchor.MiddleCenter,
+                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(550f, 210f), new Vector2(0f, -10f));
+            body.color = BrownText;
+            (Button next, Text nextLabel) = CreateButton(card.transform, "TutorialNextButton", ButtonGreenPath,
+                new Vector2(520f, 120f), new Vector2(0.5f, 0f), new Vector2(0f, 54f), "다음", 42);
+            AddOutline(nextLabel, 3f);
+            panel.SetActive(false);
+            return (panel, step, body, next, nextLabel);
+        }
+
+        private static void CreateSectionHeader(Transform parent, string title)
+        {
+            GameObject ribbon = CreatePanel(parent, "SectionHeader", UiSpriteGenerator.GoldPanelPath,
+                new Vector2(310f, 92f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(Margin, -52f));
+            Text label = CreateText(ribbon.transform, "Label", title, 46, TextAnchor.MiddleCenter,
+                Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+            AddOutline(label, 3f);
+        }
+
+        private static Button CreateCloseButton(Transform parent, string name)
+        {
+            Button close = CreateIconButton(parent, name, ButtonRedPath,
+                new Vector2(82f, 82f), new Vector2(1f, 1f), new Vector2(-Margin, -56f));
+            CreateBar(close.transform, "BarA", new Vector2(9f, 40f), Vector2.zero, 45f, Color.white);
+            CreateBar(close.transform, "BarB", new Vector2(9f, 40f), Vector2.zero, -45f, Color.white);
+            return close;
+        }
+
+        private static (Button button, Text label) CreateSettingsRow(Transform parent, string name,
+            float y, string label)
+        {
+            GameObject row = CreatePanel(parent, name + "Row", UiSpriteGenerator.CreamPanelPath,
+                new Vector2(640f, 136f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, y));
+            (Button button, Text text) = CreateButton(row.transform, name + "Button", ButtonGreyPath,
+                new Vector2(560f, 88f), new Vector2(0.5f, 0.5f), Vector2.zero, label, 32);
+            text.color = DarkText;
+            return (button, text);
+        }
+
+        private static void PrepareOverlay(GameObject panel)
+        {
+            CanvasGroup group = panel.AddComponent<CanvasGroup>();
+            group.alpha = 0f;
+            panel.AddComponent<PanelTransition>();
+            panel.SetActive(false);
         }
 
         // ---- widget helpers --------------------------------------------------

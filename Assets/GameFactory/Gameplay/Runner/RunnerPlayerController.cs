@@ -46,6 +46,10 @@ namespace GameFactory.Gameplay.Runner
         [Tooltip("Downward speed applied when the slide input arrives in mid-air.")]
         [SerializeField] private float diveSpeed = 16f;
 
+        [Header("Pacing")]
+        [SerializeField] private float speedGainPer100m = 0.08f;
+        [SerializeField] private float maxSpeedMultiplier = 1.45f;
+
         [SerializeField] private float hitStopDuration = 0.05f;
         [SerializeField] private float hitStopTimeScale = 0.05f;
         [SerializeField] private float hitShakeDuration = 0.2f;
@@ -97,7 +101,8 @@ namespace GameFactory.Gameplay.Runner
         /// <summary>Applies GameSpec-driven tuning. Called at runtime by RunnerGameInitializer.</summary>
         public void Configure(float speed, float jump, bool useGravitySwitch,
                               float gravity = 3.5f, bool useDoubleJump = false,
-                              bool useSlide = false)
+                              bool useSlide = false, float speedGain = 0.08f,
+                              float maxSpeed = 1.45f)
         {
             moveSpeed = speed;
             jumpPower = jump;
@@ -105,6 +110,8 @@ namespace GameFactory.Gameplay.Runner
             gravityScale = Mathf.Max(0.1f, gravity);
             doubleJumpEnabled = useDoubleJump;
             slideEnabled = useSlide;
+            speedGainPer100m = Mathf.Max(0f, speedGain);
+            maxSpeedMultiplier = Mathf.Max(1f, maxSpeed);
             if (body != null) body.gravityScale = gravityScale;
             if (!slideEnabled) EndSlide();
         }
@@ -180,7 +187,9 @@ namespace GameFactory.Gameplay.Runner
             // only forward movement itself waits for Play.
             if (isDead || GameManager.Instance == null || GameManager.Instance.CurrentState != GameManager.GameState.Playing) return;
 
-            body.linearVelocity = new Vector2(moveSpeed, body.linearVelocity.y);
+            float pace = Mathf.Min(maxSpeedMultiplier,
+                1f + GameManager.Instance.Score / 100f * speedGainPer100m);
+            body.linearVelocity = new Vector2(moveSpeed * pace, body.linearVelocity.y);
         }
 
         /// <summary>
@@ -222,6 +231,14 @@ namespace GameFactory.Gameplay.Runner
             if (jumpClip == null) jumpClip = ProceduralTone.Sine("SFX_Jump", 620f, 0.12f);
             AudioManager.Instance?.PlaySfx(jumpClip);
             if (SettingsSystem.VibrationEnabled) Handheld.Vibrate();
+        }
+
+        public void RequestJump() => HandleTap();
+
+        public void RequestSlide(bool pressed)
+        {
+            if (pressed) HandleSwipeDown();
+            else HandleSwipeReleased();
         }
 
         // ---- slide -----------------------------------------------------------
@@ -316,6 +333,13 @@ namespace GameFactory.Gameplay.Runner
         {
             if (other.CompareTag("Obstacle"))
             {
+                if (RunnerCombo.Instance != null && RunnerCombo.Instance.IsFever)
+                {
+                    VfxManager.Instance?.PlayBurst(other.transform.position,
+                        new Color(1f, 0.45f, 0.1f), 0.25f, 18);
+                    other.GetComponent<RecycleWhenPassed>()?.ReleaseNow();
+                    return;
+                }
                 Die();
             }
         }

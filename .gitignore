@@ -92,3 +92,7 @@ scripts/windows-runner/Logs/
 # all, which is how a whole afternoon of Codex output nearly looked lost.
 # Never a legitimate file; always an accident.
 nul
+
+# Unity/Android 빌드 임시물 (CMake, ninja). 작업물이 아니다.
+.utmp/
+Reports/control-panel.*.log

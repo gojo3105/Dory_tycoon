@@ -38,6 +38,24 @@ namespace GameFactory.Core
             return PlayerPrefs.GetInt(Key(gameId, key), defaultValue);
         }
 
+        public static int AddInt(string gameId, string key, int amount)
+        {
+            int value = GetInt(gameId, key) + amount;
+            SaveInt(gameId, key, value);
+            return value;
+        }
+
+        public static void SaveString(string gameId, string key, string value)
+        {
+            PlayerPrefs.SetString(Key(gameId, key), value ?? string.Empty);
+            PlayerPrefs.Save();
+        }
+
+        public static string GetString(string gameId, string key, string defaultValue = "")
+        {
+            return PlayerPrefs.GetString(Key(gameId, key), defaultValue);
+        }
+
         private static string BestScoreKey(string gameId) => Key(gameId, "best_score");
 
         private static string Key(string gameId, string key) => $"{gameId}.{key}";

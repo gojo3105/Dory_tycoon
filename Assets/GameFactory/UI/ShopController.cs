@@ -30,13 +30,19 @@ namespace GameFactory.UI
         [SerializeField] private Text coinMagnetButtonLabel;
         [SerializeField] private Button redSkinButton;
         [SerializeField] private Text redSkinButtonLabel;
+        [SerializeField] private Button coinPackButton;
+        [SerializeField] private Text coinPackButtonLabel;
+        [SerializeField] private Button removeAdsButton;
+        [SerializeField] private Text removeAdsButtonLabel;
         [SerializeField] private Button closeButton;
 
         private string gameId;
         private PanelTransition shopTransition;
 
         /// <summary>Wires structural references. Called at edit time by SceneGenerator.</summary>
-        public void SetReferences(GameObject panel, Text currency, Button[] open, Button coinMagnet, Text coinMagnetLabel, Button redSkin, Text redSkinLabel, Button close)
+        public void SetReferences(GameObject panel, Text currency, Button[] open, Button coinMagnet,
+            Text coinMagnetLabel, Button redSkin, Text redSkinLabel, Button coinPack,
+            Text coinPackLabel, Button removeAds, Text removeAdsLabel, Button close)
         {
             shopPanel = panel;
             currencyText = currency;
@@ -45,6 +51,10 @@ namespace GameFactory.UI
             coinMagnetButtonLabel = coinMagnetLabel;
             redSkinButton = redSkin;
             redSkinButtonLabel = redSkinLabel;
+            coinPackButton = coinPack;
+            coinPackButtonLabel = coinPackLabel;
+            removeAdsButton = removeAds;
+            removeAdsButtonLabel = removeAdsLabel;
             closeButton = close;
         }
 
@@ -69,7 +79,15 @@ namespace GameFactory.UI
 
             if (coinMagnetButton != null) coinMagnetButton.onClick.AddListener(HandleCoinMagnetClicked);
             if (redSkinButton != null) redSkinButton.onClick.AddListener(HandleRedSkinClicked);
+            if (coinPackButton != null) coinPackButton.onClick.AddListener(HandleCoinPackClicked);
+            if (removeAdsButton != null) removeAdsButton.onClick.AddListener(HandleRemoveAdsClicked);
             if (closeButton != null) closeButton.onClick.AddListener(Close);
+
+            if (MonetizationService.Instance != null)
+            {
+                MonetizationService.Instance.PurchaseSucceeded += HandlePurchaseSucceeded;
+                MonetizationService.Instance.AvailabilityChanged += Refresh;
+            }
 
             if (shopPanel != null) shopPanel.SetActive(false);
             Refresh();
@@ -107,6 +125,10 @@ namespace GameFactory.UI
             SaveSystem.SaveInt(gameId, ShopKeys.RedSkinEquipped, equipped ? 0 : 1);
             Refresh();
         }
+
+        private void HandleCoinPackClicked() => MonetizationService.Instance?.PurchaseCoinPack();
+        private void HandleRemoveAdsClicked() => MonetizationService.Instance?.PurchaseRemoveAds();
+        private void HandlePurchaseSucceeded(string productId) => Refresh();
 
         private void TryPurchase(string ownedKey, int cost)
         {
@@ -149,11 +171,27 @@ namespace GameFactory.UI
             }
             // An owned skin stays live - the button toggles equip/unequip.
             SetAffordable(redSkinButton, skinOwned || currency >= ShopKeys.RedSkinCost);
+
+            bool storeReady = MonetizationService.Instance != null && MonetizationService.Instance.IsStoreReady;
+            if (coinPackButtonLabel != null) coinPackButtonLabel.text = storeReady ? "500 코인" : "스토어 준비 중";
+            SetAffordable(coinPackButton, storeReady);
+
+            bool adsRemoved = SaveSystem.GetInt(gameId, MonetizationService.RemoveAdsKey) != 0;
+            if (removeAdsButtonLabel != null)
+                removeAdsButtonLabel.text = adsRemoved ? "구매 완료" : storeReady ? "광고 제거" : "스토어 준비 중";
+            SetAffordable(removeAdsButton, storeReady && !adsRemoved);
         }
 
         private static void SetAffordable(Button button, bool affordable)
         {
             if (button != null) button.interactable = affordable;
+        }
+
+        private void OnDestroy()
+        {
+            if (MonetizationService.Instance == null) return;
+            MonetizationService.Instance.PurchaseSucceeded -= HandlePurchaseSucceeded;
+            MonetizationService.Instance.AvailabilityChanged -= Refresh;
         }
     }
 }

@@ -1115,6 +1115,54 @@ section{margin-top:44px;}
 .gal-wrap > .h b{font-family:'Archivo','Noto Sans KR',sans-serif; font-size:14.5px;}
 .gal-wrap > .h span{font-size:12px; color:var(--muted);}
 
+/* ---- AI game studio (served locally only) ---- */
+.studio{position:relative; overflow:hidden; display:grid; grid-template-columns:minmax(210px,.48fr) minmax(0,1.52fr);
+  gap:22px; padding:24px; border:1px solid #d9ccba; border-radius:16px;
+  background:linear-gradient(145deg,#fffaf0 0%,#fff 52%,#eef8ff 100%);
+  box-shadow:0 16px 45px rgba(69,44,22,.09);}
+.studio::after{content:""; position:absolute; width:240px; height:240px; border-radius:50%;
+  right:-90px; top:-120px; background:rgba(70,185,255,.10); pointer-events:none;}
+.studio-character{display:flex; flex-direction:column; align-items:center; justify-content:center;
+  min-height:300px; padding:18px; border-radius:13px; color:#fff;
+  background:linear-gradient(165deg,#1677d2,#25a6dd 58%,#56c982); text-align:center;}
+.studio-character img{width:min(168px,80%); height:205px; object-fit:contain;
+  filter:drop-shadow(0 13px 10px rgba(0,0,0,.22));}
+.studio-character .lock{display:inline-flex; align-items:center; gap:6px; padding:6px 10px;
+  margin-top:7px; border-radius:999px; background:rgba(0,0,0,.18); font-size:12px; font-weight:700;}
+.studio-character h3{margin:10px 0 2px; font-size:20px;}
+.studio-character p{margin:0; font-size:12px; opacity:.84; line-height:1.6;}
+.studio-main{min-width:0; position:relative; z-index:1;}
+.studio-steps{display:flex; flex-wrap:wrap; gap:7px; margin-bottom:16px;}
+.studio-step{padding:6px 10px; border-radius:999px; background:#eef2f5; color:var(--ink-2);
+  font-size:11.5px; font-weight:700;}
+.studio-step b{color:var(--accent); margin-right:3px;}
+.creator-form{display:grid; gap:12px;}
+.creator-form label{display:grid; gap:6px; font-size:12px; font-weight:700; color:var(--ink-2);}
+.creator-form input,.creator-form textarea,.creator-form select{box-sizing:border-box; width:100%;
+  padding:11px 12px; border:1px solid var(--line); border-radius:7px; color:var(--ink);
+  background:#fff; font:13.5px 'Noto Sans KR',sans-serif;}
+.creator-form textarea{min-height:88px; resize:vertical; line-height:1.65;}
+.creator-form input:focus-visible,.creator-form textarea:focus-visible,.creator-form select:focus-visible{
+  outline:2px solid var(--accent); outline-offset:1px; border-color:transparent;}
+.creator-options{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:9px;}
+.creator-actions{display:flex; flex-wrap:wrap; gap:9px; align-items:center;}
+.creator-actions .btn.primary{padding:11px 20px; border-radius:7px; font-size:14px;
+  background:linear-gradient(135deg,#ff7656,#ff4f72); border:0; box-shadow:0 8px 18px rgba(255,79,114,.22);}
+.creator-actions .btn.preview{border-radius:7px; background:#fff; color:var(--ink); border-color:var(--line);}
+.creator-ai-note{font-size:11.5px; color:var(--muted); line-height:1.6;}
+.creator-result{display:none; margin-top:14px; padding:15px; border-radius:10px;
+  border:1px solid #cbdce9; background:#f7fbff;}
+.creator-result.on{display:block;}
+.creator-result h3{margin:0 0 5px; font-size:17px;}
+.creator-result p{margin:4px 0; color:var(--ink-2); font-size:12.5px; line-height:1.65;}
+.creator-tags{display:flex; flex-wrap:wrap; gap:5px; margin-top:9px;}
+.creator-tags span{font-size:11px; padding:4px 7px; border-radius:999px; background:#e7f2fa; color:#1c618c;}
+.creator-spec{margin-top:9px; font-size:11px; color:var(--muted);}
+.creator-download{display:inline-flex; margin-top:10px; padding:8px 11px; border-radius:6px;
+  color:#fff; background:var(--ok); font-size:12px; font-weight:700; text-decoration:none;}
+@media(max-width:820px){.studio{grid-template-columns:1fr}.studio-character{min-height:220px}.studio-character img{height:145px}}
+@media(max-width:680px){.creator-options{grid-template-columns:1fr 1fr}}
+
 /* ---- control (served locally only) ---- */
 .ctl{background:var(--surface); border:1px solid var(--line); border-radius:3px;
      border-left:4px solid var(--accent); padding:18px 20px 20px;}
@@ -1828,6 +1876,110 @@ def _scope_label(pattern: str) -> str:
     return _short_path(pattern)
 
 
+def _studio_html(snapshot: Snapshot) -> str:
+    """The primary flow: idea -> safe plan -> GameSpec -> Unity -> APK."""
+    character_src = ""
+    for group in snapshot.gallery:
+        for item in group.get("items", []):
+            if str(item.get("rel", "")).replace("\\", "/") == \
+                    "Assets/Common/Art/Runner/player.png":
+                character_src = str(item.get("src", ""))
+                break
+        if character_src:
+            break
+    character = (
+        f'<img src="{e(character_src)}" alt="공용 캐릭터 도리">'
+        if character_src else '<div style="font-size:64px" aria-label="도리">🦔</div>'
+    )
+
+    enabled_models = [model["name"] for model in snapshot.ollama_models
+                      if model.get("enabled")]
+    if enabled_models:
+        ai_note = f'Ollama 보강 가능 · {e(enabled_models[0])}'
+    else:
+        ai_note = ("로컬 자동 설계 엔진 사용 중 · Ollama는 라이선스와 메모리 검사를 "
+                   "통과한 모델이 연결되면 기획 보강에 사용합니다.")
+
+    next_game = next((game["id"] for game in snapshot.games if not game["spec"]), "새 슬롯 없음")
+    return f"""  <section class="studio-section">
+    <div class="head">
+      <h2>도리 AI 게임 스튜디오</h2>
+      <span class="note">다음 생성 슬롯 · {e(next_game)}</span>
+    </div>
+    <div class="studio">
+      <aside class="studio-character">
+        {character}
+        <h3>도리</h3>
+        <div class="lock">🔒 모든 게임에서 같은 캐릭터</div>
+        <p>캐릭터 원본과 조작 방식은 유지하고<br>규칙·속도·난이도·테마를 새로 설계합니다.</p>
+      </aside>
+      <div class="studio-main">
+        <div class="studio-steps" aria-label="자동 생성 단계">
+          <span class="studio-step"><b>1</b> 아이디어</span>
+          <span class="studio-step"><b>2</b> AI 설계</span>
+          <span class="studio-step"><b>3</b> Unity 검증</span>
+          <span class="studio-step"><b>4</b> APK</span>
+        </div>
+        <div class="creator-form">
+          <label>어떤 게임을 만들까요?
+            <textarea id="creator-idea" maxlength="800" placeholder="예: 사탕 왕국에서 코인을 연속으로 모으며 거대 젤리를 피하는 빠른 러너"></textarea>
+          </label>
+          <label>게임 이름 <span style="font-weight:400;color:var(--muted)">비워두면 자동 생성</span>
+            <input id="creator-title" maxlength="60" placeholder="도리 캔디 러시">
+          </label>
+          <div class="creator-options">
+            <label>플레이 스타일
+              <select id="creator-style">
+                <option value="auto">AI 추천</option>
+                <option value="adventure">어드벤처</option>
+                <option value="treasure">코인 러시</option>
+                <option value="gravity">중력 반전</option>
+                <option value="speed">스피드 탈출</option>
+                <option value="endurance">무한 생존</option>
+              </select>
+            </label>
+            <label>난이도
+              <select id="creator-difficulty">
+                <option value="auto">AI 추천</option>
+                <option value="Easy">쉬움</option>
+                <option value="Medium">보통</option>
+                <option value="Hard">어려움</option>
+              </select>
+            </label>
+            <label>세계관
+              <select id="creator-theme">
+                <option value="auto">AI 추천</option>
+                <option value="Factory">팩토리</option>
+                <option value="Candy">캔디</option>
+                <option value="Sky">스카이</option>
+                <option value="Forest">포레스트</option>
+                <option value="Neon">네온</option>
+                <option value="Lava">라바</option>
+              </select>
+            </label>
+            <label>자동화 범위
+              <select id="creator-pipeline">
+                <option value="full">테스트 + APK</option>
+                <option value="build">APK 바로 빌드</option>
+                <option value="test">테스트까지</option>
+                <option value="spec">기획만 저장</option>
+              </select>
+            </label>
+          </div>
+          <div class="creator-actions">
+            <button class="btn preview" id="creator-preview" type="button">AI 기획 미리보기</button>
+            <button class="btn primary" id="creator-create" type="button">새 게임 자동 생성</button>
+            <span class="creator-ai-note">{ai_note}</span>
+          </div>
+        </div>
+        <div class="creator-result" id="creator-result" aria-live="polite"></div>
+      </div>
+    </div>
+  </section>
+
+"""
+
+
 def _order_html(snapshot: Snapshot) -> str:
     """The command window: one sentence in, real work out.
 
@@ -2043,13 +2195,19 @@ def _control_html(snapshot: Snapshot, token: str,
     const live = document.getElementById('live');
     const buttons = [...document.querySelectorAll('.btn[data-act]')];
     const send = document.getElementById('order-send');
+    const creatorPreview = document.getElementById('creator-preview');
+    const creatorCreate = document.getElementById('creator-create');
+    const creatorResult = document.getElementById('creator-result');
     let poll = null;
+    let createdGame = '';
 
     function lock(on, label) {{
       buttons.forEach(b => {{ b.disabled = on || b.dataset.blocked === 'true'; }});
       // The order button is not a data-act button - it posts to /order, not
       // /run - but one job at a time is one job at a time, so it locks too.
       if (send) send.disabled = on;
+      if (creatorPreview) creatorPreview.disabled = on;
+      if (creatorCreate) creatorCreate.disabled = on;
       busy.className = on ? 'running' : '';
       // The label is the button's own text, which already reads '...실행';
       // appending '실행 중' to it produced 'Codex 실행 실행 중'.
@@ -2127,6 +2285,12 @@ def _control_html(snapshot: Snapshot, token: str,
             lock(false);
             term.textContent += '\\n\\n[종료 코드 ' + data.exit_code + ']' +
               (data.exit_code === 0 ? '' : ' - 실패했습니다. 위 출력을 그대로 Claude에게 주세요.');
+            if (data.exit_code === 0 && data.action === 'build' && createdGame && creatorResult) {{
+              creatorResult.classList.add('on');
+              creatorResult.insertAdjacentHTML('beforeend',
+                '<a class="creator-download" href="/artifact?game=' +
+                encodeURIComponent(createdGame) + '">완성된 APK 받기</a>');
+            }}
             // The board and the reports move as a result of these commands, so
             // a finished run makes the page above it stale.
             if (data.exit_code === 0 &&
@@ -2143,6 +2307,89 @@ def _control_html(snapshot: Snapshot, token: str,
     }}
 
     buttons.forEach(b => b.addEventListener('click', () => start(b)));
+
+    // ---- AI game creator ----
+    function creatorBody() {{
+      return {{
+        token: TOKEN,
+        idea: document.getElementById('creator-idea').value,
+        title: document.getElementById('creator-title').value,
+        style: document.getElementById('creator-style').value,
+        difficulty: document.getElementById('creator-difficulty').value,
+        theme: document.getElementById('creator-theme').value,
+        pipeline: document.getElementById('creator-pipeline').value,
+      }};
+    }}
+
+    function showPlan(plan, saved) {{
+      if (!creatorResult || !plan) return;
+      const spec = plan.spec || {{}};
+      const player = spec.player || {{}};
+      const level = spec.level || {{}};
+      const theme = spec.theme || {{}};
+      const tags = (plan.features || []).map(
+        feature => '<span>' + esc(feature) + '</span>').join('');
+      creatorResult.classList.add('on');
+      creatorResult.innerHTML =
+        '<h3>' + esc(plan.title) + ' <small class="mono">' + esc(plan.game_id) + '</small></h3>' +
+        '<p>' + esc(plan.pitch) + '</p>' +
+        '<p><b>' + esc(plan.style_label) + '</b> · ' + esc(level.difficulty) +
+          ' · ' + esc(theme.environment) + ' · 속도 ' + esc(player.moveSpeed) + '</p>' +
+        '<div class="creator-tags">' + tags + '</div>' +
+        '<div class="creator-spec mono">' +
+          (saved ? '저장됨 · GameSpecs/' + esc(plan.game_id) + '.json' :
+                   '미리보기 · 아직 파일을 만들지 않았습니다') +
+        '</div>';
+    }}
+
+    async function createGame(previewOnly) {{
+      const body = creatorBody();
+      if (!body.idea.trim()) {{
+        creatorResult.classList.add('on');
+        creatorResult.innerHTML = '<p>만들 게임의 아이디어를 입력하세요.</p>';
+        document.getElementById('creator-idea').focus();
+        return;
+      }}
+      term.textContent = '';
+      lock(true, previewOnly ? 'AI 기획 중' : '게임 자동 생성');
+      try {{
+        const res = await fetch(previewOnly ? '/plan-game' : '/create-game', {{
+          method: 'POST',
+          headers: {{'Content-Type': 'application/json'}},
+          body: JSON.stringify(body),
+        }});
+        const data = await res.json();
+        if (!res.ok) {{
+          creatorResult.classList.add('on');
+          creatorResult.innerHTML = '<p>생성 실패: ' + esc(data.error || res.status) + '</p>';
+          term.textContent = data.note || '';
+          lock(false);
+          return;
+        }}
+        showPlan(data.plan, Boolean(data.saved));
+        if (previewOnly) {{
+          term.textContent = 'AI 기획 미리보기가 준비되었습니다.';
+          lock(false);
+          return;
+        }}
+        createdGame = data.plan.game_id;
+        term.textContent = 'GameSpecs/' + createdGame + '.json 저장 완료\\n' +
+          ((data.steps || []).length ? '자동화: ' + data.steps.join(' → ') : '기획 저장만 완료');
+        if (data.job) {{
+          showLive(data);
+          watch(data.job, '게임 자동 생성');
+        }} else {{
+          lock(false);
+        }}
+      }} catch (err) {{
+        creatorResult.classList.add('on');
+        creatorResult.innerHTML = '<p>서버에 연결할 수 없습니다: ' + esc(err) + '</p>';
+        lock(false);
+      }}
+    }}
+
+    if (creatorPreview) creatorPreview.addEventListener('click', () => createGame(true));
+    if (creatorCreate) creatorCreate.addEventListener('click', () => createGame(false));
 
     // ---- the order box ----
     const dept = document.getElementById('order-dept');
@@ -2331,7 +2578,8 @@ def render(snapshot: Snapshot, control_token: str | None = None,
     # server: the static copy has nothing to POST to, and section 10's rule
     # that a control which cannot act should not be drawn covers a text box
     # every bit as much as a button.
-    control = (_order_html(snapshot) + _control_html(snapshot, control_token, live_job)
+    control = (_studio_html(snapshot) + _order_html(snapshot)
+               + _control_html(snapshot, control_token, live_job)
                if control_token else "")
     shot_count = sum(len(g["items"]) for g in snapshot.gallery)
 
@@ -2353,8 +2601,8 @@ def render(snapshot: Snapshot, control_token: str | None = None,
 <div class="wrap">
   <header class="mast">
     <div>
-      <h1>Game Factory 관제</h1>
-      <div class="sub">연동된 AI가 지금 무엇을 할 수 있고, 무엇이 막고 있는가</div>
+      <h1>도리 AI 게임 팩토리</h1>
+      <div class="sub">아이디어 한 줄로 새 러너 게임을 설계하고 Unity에서 APK까지 만듭니다</div>
     </div>
     <div class="stamp mono">
       생성 {e(snapshot.generated_at)}<br>

@@ -15,6 +15,7 @@ namespace GameFactory.Core.Spec
         public MechanicsConfig mechanics = new MechanicsConfig();
         public LevelConfig level = new LevelConfig();
         public EnergyConfig energy = new EnergyConfig();
+        public RunnerProgressionConfig runnerProgression = new RunnerProgressionConfig();
         public EnemyConfig enemy = new EnemyConfig();
         public SpecialConfig special = new SpecialConfig();
         public ThemeConfig theme = new ThemeConfig();
@@ -93,6 +94,17 @@ namespace GameFactory.Core.Spec
         public bool enabled;
         public float drainPerSecond = 0.075f;
         public float refillPerPickup = 0.12f;
+    }
+
+    [Serializable]
+    public class RunnerProgressionConfig
+    {
+        public float comboWindow = 2.4f;
+        public int feverPickups = 24;
+        public float feverDuration = 6f;
+        public int maxCoinMultiplier = 5;
+        public float speedGainPer100m = 0.08f;
+        public float maxSpeedMultiplier = 1.45f;
     }
 
     [Serializable]

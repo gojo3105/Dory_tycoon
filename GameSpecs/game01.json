@@ -25,6 +25,19 @@
     "procedural": true,
     "length": 120
   },
+  "energy": {
+    "enabled": true,
+    "drainPerSecond": 0.035,
+    "refillPerPickup": 0.045
+  },
+  "runnerProgression": {
+    "comboWindow": 2.4,
+    "feverPickups": 24,
+    "feverDuration": 6,
+    "maxCoinMultiplier": 5,
+    "speedGainPer100m": 0.08,
+    "maxSpeedMultiplier": 1.45
+  },
   "enemy": {
     "enabled": false,
     "types": 0

@@ -104,3 +104,16 @@ Runner의 시간 압박을 설정한다. `enabled`가 false이거나 생략된 �
 캐릭터/배경(`theme`)만 바꾼 리스킨은 새 게임으로 인정하지 않는다. `mechanics`/`level`/`enemy`/
 `special`의 조합이 실제로 달라져야 한다 - `GameSpecValidator`는 이를 강제하지 않으므로 리뷰 시
 사람이 확인한다.
+
+### `runnerProgression`
+
+Runner의 반복 플레이 속도와 보상을 조절한다.
+
+| 필드 | 타입 | 설명 | 검증 규칙 |
+|---|---|---|---|
+| `comboWindow` | float | 다음 젤리를 먹어 콤보를 유지할 수 있는 시간(초). | `> 0` |
+| `feverPickups` | int | 피버를 발동하는 연속 획득 수. | `>= 2` |
+| `feverDuration` | float | 장애물을 파괴하며 달리는 피버 시간(초). | `> 0` |
+| `maxCoinMultiplier` | int | 콤보로 얻는 최대 코인 배수. | `>= 1` |
+| `speedGainPer100m` | float | 100m마다 증가하는 이동 속도 비율. | `>= 0` |
+| `maxSpeedMultiplier` | float | 기본 속도 대비 최고 속도 배수. | `>= 1` |

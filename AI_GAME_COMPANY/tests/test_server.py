@@ -122,7 +122,8 @@ class LiveServerTests(unittest.TestCase):
         cls.repo = Path(cls.tmp.name)
         # A working tree with just enough for collect() and the guards.
         (cls.repo / "GameSpecs").mkdir()
-        (cls.repo / "GameSpecs" / "game01.json").write_text("{}", encoding="utf-8")
+        shutil.copy(REPO / "GameSpecs" / "game01.json",
+                    cls.repo / "GameSpecs" / "game01.json")
         (cls.repo / "Reports").mkdir()
         company = cls.repo / "AI_GAME_COMPANY"
         (company / "config").mkdir(parents=True)
@@ -149,9 +150,9 @@ class LiveServerTests(unittest.TestCase):
     def url(self, path: str) -> str:
         return f"http://{srv.LOOPBACK}:{self.port}{path}"
 
-    def post(self, payload: dict, headers: dict | None = None):
+    def post(self, payload: dict, headers: dict | None = None, path: str = "/run"):
         request = urllib.request.Request(
-            self.url("/run"), method="POST",
+            self.url(path), method="POST",
             data=json.dumps(payload).encode("utf-8"),
             headers={"Content-Type": "application/json", **(headers or {})})
         try:
@@ -178,6 +179,9 @@ class LiveServerTests(unittest.TestCase):
         status, body = self.get("/")
         self.assertEqual(200, status)
         page = body.decode("utf-8")
+        self.assertIn("도리 AI 게임 스튜디오", page)
+        self.assertIn("/plan-game", page)
+        self.assertIn("/create-game", page)
         self.assertIn("AI 제어", page)
         self.assertIn("const TOKEN", page)
 
@@ -254,6 +258,51 @@ class LiveServerTests(unittest.TestCase):
         # a job that finished cleanly.
         self.assertTrue(payload["done"])
         self.assertNotEqual(0, payload["exit_code"])
+
+    # ---- AI game creator ----
+
+    def test_game_plan_is_a_preview_and_locks_the_shared_character(self):
+        target = self.repo / "GameSpecs" / "game02.json"
+        target.unlink(missing_ok=True)
+        status, body = self.post({
+            "token": self.token,
+            "idea": "사탕 왕국에서 코인을 연속으로 모으는 러너",
+            "style": "auto",
+            "difficulty": "Easy",
+            "theme": "Candy",
+        }, path="/plan-game")
+        self.assertEqual(200, status)
+        self.assertFalse(body["saved"])
+        self.assertEqual("Dori_Default", body["plan"]["character"])
+        self.assertEqual("game02", body["plan"]["game_id"])
+        self.assertFalse(target.exists())
+
+    def test_game_create_can_save_a_spec_without_starting_a_process(self):
+        target = self.repo / "GameSpecs" / "game02.json"
+        target.unlink(missing_ok=True)
+        try:
+            status, body = self.post({
+                "token": self.token,
+                "idea": "중력이 뒤집히는 하늘 러너",
+                "pipeline": "spec",
+            }, path="/create-game")
+            self.assertEqual(200, status)
+            self.assertTrue(body["saved"])
+            self.assertTrue(body["done"])
+            self.assertTrue(target.is_file())
+            spec = json.loads(target.read_text(encoding="utf-8"))
+            self.assertEqual("Dori_Default", spec["theme"]["character"])
+        finally:
+            target.unlink(missing_ok=True)
+
+    def test_game_creator_rejects_unlisted_pipeline(self):
+        status, body = self.post({
+            "token": self.token,
+            "idea": "안전한 게임",
+            "pipeline": "powershell",
+        }, path="/create-game")
+        self.assertEqual(409, status)
+        self.assertIn("지원하지 않는", body["error"])
 
 
 class JobProgressTests(unittest.TestCase):

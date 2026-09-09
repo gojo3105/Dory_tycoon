@@ -15,15 +15,18 @@ namespace GameFactory.Gameplay.Runner
         [SerializeField] private ObstacleSpawner obstacleSpawner;
         [SerializeField] private CoinSpawner coinSpawner;
         [SerializeField] private RunnerEnergy energy;
+        [SerializeField] private RunnerCombo combo;
+        private GameSpec loadedSpec;
 
         /// <summary>Wires structural references. Called at edit time by SceneGenerator.</summary>
         public void SetTargets(RunnerPlayerController playerController, ObstacleSpawner obstacles, CoinSpawner coins,
-            RunnerEnergy runnerEnergy)
+            RunnerEnergy runnerEnergy, RunnerCombo runnerCombo)
         {
             player = playerController;
             obstacleSpawner = obstacles;
             coinSpawner = coins;
             energy = runnerEnergy;
+            combo = runnerCombo;
         }
 
         private void Start()
@@ -45,11 +48,25 @@ namespace GameFactory.Gameplay.Runner
                 return;
             }
 
+            loadedSpec = spec;
+            ApplySelectedStage();
+        }
+
+        public void ApplySelectedStage()
+        {
+            if (loadedSpec == null || GameManager.Instance == null) return;
+            GameSpec spec = loadedSpec;
+            StageDefinition stage = ProgressionSystem.GetStage(
+                ProgressionSystem.GetSelectedStage(GameManager.Instance.GameId));
+            float stageSpeed = spec.player.moveSpeed * stage.SpeedMultiplier;
+
             if (player != null)
             {
-                player.Configure(spec.player.moveSpeed, spec.player.jumpPower,
+                player.Configure(stageSpeed, spec.player.jumpPower,
                                  spec.mechanics.gravitySwitch, spec.player.gravityScale,
-                                 spec.mechanics.doubleJump, spec.mechanics.slide);
+                                 spec.mechanics.doubleJump, spec.mechanics.slide,
+                                 spec.runnerProgression.speedGainPer100m,
+                                 spec.runnerProgression.maxSpeedMultiplier);
             }
 
             if (obstacleSpawner != null)
@@ -63,7 +80,7 @@ namespace GameFactory.Gameplay.Runner
                 obstacleSpawner.Configure(
                     spec.level.length, spec.level.difficulty,
                     RunnerPlayerController.JumpDistance(
-                        spec.player.moveSpeed, spec.player.jumpPower, spec.player.gravityScale),
+                        stageSpeed, spec.player.jumpPower, spec.player.gravityScale),
                     spec.mechanics.slide);
             }
 
@@ -76,6 +93,8 @@ namespace GameFactory.Gameplay.Runner
             {
                 energy.Configure(spec.energy.drainPerSecond, spec.energy.refillPerPickup);
             }
+
+            combo?.Configure(spec.runnerProgression);
         }
     }
 }

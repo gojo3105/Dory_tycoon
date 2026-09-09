@@ -25,6 +25,9 @@ namespace GameFactory.UI
         [SerializeField] private Button pauseButton;
         [SerializeField] private Image energyFill;
         [SerializeField] private RunnerEnergy runnerEnergy;
+        [SerializeField] private Text comboText;
+        [SerializeField] private Image feverFill;
+        [SerializeField] private RunnerCombo runnerCombo;
 
         [SerializeField] private GameObject gameOverPanel;
         [SerializeField] private Text finalScoreText;
@@ -49,7 +52,8 @@ namespace GameFactory.UI
 
         /// <summary>Wires the in-run HUD. Called at edit time by SceneGenerator.</summary>
         public void SetHudReferences(GameObject root, Text score, Text coins, Button pause,
-            Image energyGaugeFill, RunnerEnergy energy)
+            Image energyGaugeFill, RunnerEnergy energy, Text comboLabel,
+            Image feverGaugeFill, RunnerCombo combo)
         {
             hudRoot = root;
             scoreText = score;
@@ -57,6 +61,9 @@ namespace GameFactory.UI
             pauseButton = pause;
             energyFill = energyGaugeFill;
             runnerEnergy = energy;
+            comboText = comboLabel;
+            feverFill = feverGaugeFill;
+            runnerCombo = combo;
         }
 
         /// <summary>Wires the game-over card. Called at edit time by SceneGenerator.</summary>
@@ -117,6 +124,12 @@ namespace GameFactory.UI
                 runnerEnergy.EnergyChanged += HandleEnergyChanged;
                 HandleEnergyChanged(runnerEnergy.NormalizedValue);
             }
+            if (runnerCombo != null)
+            {
+                runnerCombo.StateChanged += HandleComboChanged;
+                HandleComboChanged(runnerCombo.Combo, runnerCombo.Multiplier,
+                    runnerCombo.FeverProgress, runnerCombo.IsFever);
+            }
             HandleScoreChanged(manager.Score);
             HandleCoinsChanged(manager.Coins);
             RefreshTitleStats();
@@ -136,6 +149,7 @@ namespace GameFactory.UI
         private void OnDestroy()
         {
             if (runnerEnergy != null) runnerEnergy.EnergyChanged -= HandleEnergyChanged;
+            if (runnerCombo != null) runnerCombo.StateChanged -= HandleComboChanged;
 
             GameManager manager = GameManager.Instance;
             if (manager == null) return;
@@ -165,6 +179,17 @@ namespace GameFactory.UI
         private void HandleEnergyChanged(float normalizedEnergy)
         {
             if (energyFill != null) energyFill.fillAmount = Mathf.Clamp01(normalizedEnergy);
+        }
+
+        private void HandleComboChanged(int combo, int multiplier, float fever, bool active)
+        {
+            if (comboText != null)
+                comboText.text = active ? "피버 타임!" : combo >= 2 ? $"{combo} 콤보  x{multiplier}" : string.Empty;
+            if (feverFill != null)
+            {
+                feverFill.fillAmount = Mathf.Clamp01(fever);
+                feverFill.color = active ? new Color(1f, 0.4f, 0.1f) : Color.white;
+            }
         }
 
         private void HandleGameOver(int finalScore, int bestScore)

@@ -52,6 +52,7 @@ namespace GameFactory.Core.Spec
             ValidatePlayer(spec.player, spec.mechanics, errors);
             ValidateLevel(spec.level, errors);
             ValidateEnergy(spec.energy, errors);
+            ValidateRunnerProgression(spec.runnerProgression, errors);
             ValidateEnemy(spec.enemy, errors);
             ValidateSpecial(spec.special, errors);
 
@@ -123,6 +124,28 @@ namespace GameFactory.Core.Spec
             {
                 errors.Add($"level.length must be > 0 (got {level.length}).");
             }
+        }
+
+        private static void ValidateRunnerProgression(RunnerProgressionConfig progression, List<string> errors)
+        {
+            if (progression == null)
+            {
+                errors.Add("runnerProgression: section is missing.");
+                return;
+            }
+
+            if (progression.comboWindow <= 0f)
+                errors.Add("runnerProgression.comboWindow must be > 0.");
+            if (progression.feverPickups < 5)
+                errors.Add("runnerProgression.feverPickups must be >= 5.");
+            if (progression.feverDuration <= 0f)
+                errors.Add("runnerProgression.feverDuration must be > 0.");
+            if (progression.maxCoinMultiplier < 1)
+                errors.Add("runnerProgression.maxCoinMultiplier must be >= 1.");
+            if (progression.speedGainPer100m < 0f)
+                errors.Add("runnerProgression.speedGainPer100m must be >= 0.");
+            if (progression.maxSpeedMultiplier < 1f)
+                errors.Add("runnerProgression.maxSpeedMultiplier must be >= 1.");
         }
 
         private static void ValidateEnemy(EnemyConfig enemy, List<string> errors)

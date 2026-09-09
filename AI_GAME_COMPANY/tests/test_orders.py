@@ -271,8 +271,10 @@ class SequenceTests(unittest.TestCase):
         # thing this panel could print.
         root = Path(tempfile.mkdtemp())
         runner = srv.Runner(root, root)
-        job = srv.Job(id="j", steps=[self.step("team-run", ["false"]),
-                                     self.step("test", ["true"])])
+        job = srv.Job(id="j", steps=[
+            self.step("team-run", [sys.executable, "-c", "raise SystemExit(1)"]),
+            self.step("test", [sys.executable, "-c", "raise SystemExit(0)"])
+        ])
         runner._run(job)
 
         self.assertTrue(job.done)
@@ -284,8 +286,9 @@ class SequenceTests(unittest.TestCase):
     def test_both_steps_run_when_the_first_succeeds(self):
         root = Path(tempfile.mkdtemp())
         runner = srv.Runner(root, root)
-        job = srv.Job(id="j", steps=[self.step("team-run", ["true"]),
-                                     self.step("test", ["true"])])
+        succeeds = [sys.executable, "-c", "raise SystemExit(0)"]
+        job = srv.Job(id="j", steps=[self.step("team-run", succeeds),
+                                     self.step("test", succeeds)])
         runner._run(job)
 
         self.assertTrue(job.done)
@@ -293,8 +296,9 @@ class SequenceTests(unittest.TestCase):
         self.assertEqual(1, job.step_index)
 
     def test_the_snapshot_says_which_step_of_how_many(self):
-        job = srv.Job(id="j", steps=[self.step("team-run", ["true"]),
-                                     self.step("test", ["true"])])
+        succeeds = [sys.executable, "-c", "raise SystemExit(0)"]
+        job = srv.Job(id="j", steps=[self.step("team-run", succeeds),
+                                     self.step("test", succeeds)])
         payload = job.snapshot()
         self.assertEqual(1, payload["step"])
         self.assertEqual(2, payload["steps"])

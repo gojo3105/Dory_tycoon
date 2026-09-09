@@ -30,7 +30,10 @@ namespace GameFactory.Gameplay.Runner
             if (collected) return;
 
             collected = true;
-            GameManager.Instance.AddCoins(coinValue);
+            int reward = RunnerCombo.Instance != null
+                ? RunnerCombo.Instance.RegisterPickup(coinValue)
+                : coinValue;
+            GameManager.Instance.AddCoins(reward);
             RunnerEnergy.Instance?.RefillFromPickup();
 
             if (collectClip == null) collectClip = ProceduralTone.Sine("SFX_Coin", 1200f, 0.1f);

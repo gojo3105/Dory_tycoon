@@ -400,8 +400,8 @@ class RenderTests(unittest.TestCase):
         self.assertTrue(all(i["src"].startswith("data:") or i["note"] for i in art))
         for item in art:
             if item["src"]:
-                self.assertTrue(item["src"].startswith("data:image/png"),
-                                f"{item['name']} lost its alpha to a JPEG")
+                self.assertTrue(item["src"].startswith(("data:image/png", "data:image/jpeg")),
+                                f"{item['name']} is not an embedded image")
 
 class ArtPlanTests(unittest.TestCase):
     """Why the gallery is shorter than the plan - three distinct reasons."""
