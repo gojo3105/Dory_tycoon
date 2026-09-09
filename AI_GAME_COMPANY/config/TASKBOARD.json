@@ -817,6 +817,44 @@
       "changed_files": [],
       "last_run": "2026-09-09",
       "title_ko": "콤보·피버·속도 성장·패턴 젤리·터치 버튼 추가"
+    },
+    {
+      "id": "CODEX-METAGAME1",
+      "title": "Stages, missions, progression, saves, tutorial, settings, ads and IAP",
+      "owner": "codex",
+      "status": "review",
+      "goal": "Turn the runner prototype into a persistent retention loop with ten stages, daily goals, claimable rewards, player levels, onboarding, settings and production-provider monetization paths.",
+      "files": [
+        "Assets/GameFactory/Core/ProgressionSystem.cs",
+        "Assets/GameFactory/Core/MissionSystem.cs",
+        "Assets/GameFactory/Core/MonetizationService.cs",
+        "Assets/GameFactory/Core/SaveSystem.cs",
+        "Assets/GameFactory/Core/SettingsSystem.cs",
+        "Assets/GameFactory/UI/MetaGameController.cs",
+        "Assets/GameFactory/UI/ShopController.cs",
+        "Assets/GameFactory/Editor/SceneGenerator.cs",
+        "Assets/GameFactory/Gameplay/Runner/RunnerGameInitializer.cs",
+        "Assets/GameFactory/Tests/PlayMode/FactoryRunnerPlayModeTests.cs",
+        "Packages/manifest.json",
+        "docs/METAGAME.md"
+      ],
+      "acceptance": [
+        "Ten selectable stages save independent best scores and unlock sequentially.",
+        "Daily missions, attendance rewards, XP, levels and claimed rewards persist by game id.",
+        "First launch tutorial, sound, vibration and ad privacy settings are usable Korean UI flows.",
+        "Unity IAP products and LevelPlay rewarded/interstitial ads compile with safe development mocks and release credential injection.",
+        "Unity PlayMode and complete Python suites pass and a new Android APK builds."
+      ],
+      "depends_on": [
+        "CODEX-RUNNERLOOP2"
+      ],
+      "notes": [
+        "2026-09-09: Unity IAP 4.14 and LevelPlay 9.5 were chosen from Unity's current official documentation.",
+        "Production dashboard keys, Play Console product setup and device store accounts remain external release configuration."
+      ],
+      "changed_files": [],
+      "last_run": "2026-09-09",
+      "title_ko": "스테이지·미션·성장·저장·튜토리얼·설정·광고·결제"
     }
   ]
 }
