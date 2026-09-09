@@ -1,7 +1,7 @@
 {
   "_comment": "AI GAME COMPANY cost-prevention policy (master prompt section 7). The orchestrator MUST load this before any agent call and refuse anything it forbids. Editing a false to true is a deliberate act with billing consequences.",
   "_version": 1,
-  "_lastUpdated": "2026-09-02",
+  "_lastUpdated": "2026-09-10",
   "allow_paid_api": false,
   "allow_paid_assets": false,
   "allow_cloud_ai_generation": false,
@@ -86,5 +86,8 @@
   "_retry_note": "Section 31: after 5 attempts go to NEEDS_HUMAN_REVIEW. If the same error hash repeats, stop burning retries and move to root-cause analysis instead.",
   "allow_local_image_generation": true,
   "_allow_local_image_generation_note": "Set true on 2026-09-02 because the user explicitly asked for a free image generation AI to be integrated. This is LOCAL only - it does not relax allow_cloud_ai_generation, which stays false, and no API is called. image_generation_models left never_auto_install for the same reason: the user asked. The section 8/9 gate still applies and was satisfied first - stable-diffusion-v1-5 is APPROVED in LICENSE_REGISTRY.json under CreativeML OpenRAIL-M, which permits commercial use, and the non-commercial Turbo variants were rejected on those grounds.",
-  "_comfyui_note": "comfyui left never_auto_install on 2026-09-02 because the user asked for it explicitly. GPL-3.0, build-time only, never bundled into the APK. It does NOT make Qwen-Image runnable here - see the qwen-image entry in LICENSE_REGISTRY.json and HardwareProfile.image_model_fit()."
+  "_comfyui_note": "comfyui left never_auto_install on 2026-09-02 because the user asked for it explicitly. GPL-3.0, build-time only, never bundled into the APK. It does NOT make Qwen-Image runnable here - see the qwen-image entry in LICENSE_REGISTRY.json and HardwareProfile.image_model_fit().",
+  "allow_hydra_proxy": false,
+  "hydra_proxy_dir": "C:/Users/VASCO-PC03/Desktop/w재두/HydraTeams-main/HydraTeams-main",
+  "_allow_hydra_proxy_note": "HydraTeams (MIT, Pickle-Pixel) is a proxy that makes Claude Code Agent Teams model-agnostic: each teammate stays a full Claude Code instance with every tool, while its LLM is GPT, Gemini or a local model. It is built and present on this machine. Left FALSE because turning it on has three consequences that are policy decisions, not conveniences. (1) CREDENTIALS: upstream reads ~/.codex/auth.json automatically whenever OPENAI_API_KEY is unset, and --provider openai is the default - so the file on secrets_never_touched was read by accident rather than on purpose. The local copy is patched so that path requires --use-codex-auth, and no longer prints the plan type it decoded from the token; src/config.ts.orig is the original. (2) BILLING: --provider openai with an OPENAI_API_KEY is the paid API, which allow_openai_api_billing and on_codex_limit.escalate_to_paid_api both forbid. Only --provider chatgpt (the subscription, no metered cost) is compatible, and that is the mode that needs --use-codex-auth. The two limits meet here, which is why this is one flag and not two. (3) RULE 1: codex_writes_all_code names Codex as the implementer. Teammates on other models writing code is a change to that rule, and the user sets it."
 }

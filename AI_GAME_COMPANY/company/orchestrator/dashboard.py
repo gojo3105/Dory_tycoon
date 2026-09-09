@@ -74,6 +74,7 @@ STATE_LABEL = {
 DEPARTMENT_BY_PREFIX = {
     "Claude Code": "dev",
     "Codex CLI": "dev",
+    "HydraTeams": "dev",
     "Gemini": "design",
     "Stable Diffusion": "design",
     "Qwen-Image": "design",
@@ -416,6 +417,33 @@ def build_agents(profile: dict[str, Any], policy: dict[str, Any],
             "Gemini", "디자인 · 이미지 생성", GATED,
             f"initial_gemini_login 게이트가 남아 있습니다. {gemini_key_env or '정책에 지정된 환경 변수'}에 키가 없습니다.",
             "", [policy_evidence]))
+
+    # --- HydraTeams: the proxy that would let other models be teammates ---
+    # Reported, not started. HydraProxy is a long-running server, and the
+    # Runner in server.py waits for a job to exit - so a "start" button built
+    # on the job runner would hang the panel on a process that never ends.
+    # Supervising it is a separate mechanism (CLAUDE-HYDRA1).
+    hydra_dir = str(policy.get("hydra_proxy_dir") or "")
+    hydra_built = bool(hydra_dir) and (Path(hydra_dir) / "dist" / "index.js").is_file()
+    hydra_evidence = "AI_GAME_COMPANY/config/company_policy.json"
+    if policy.get("allow_hydra_proxy") is not True:
+        detail = ("정책 allow_hydra_proxy 가 true 가 아닙니다. "
+                  + ("빌드는 되어 있습니다. " if hydra_built else "빌드도 아직 없습니다. ")
+                  + "켜기 전에 결정할 것: ~/.codex/auth.json 사용 여부, "
+                    "구독(chatgpt) 대 유료 API(openai), 규칙 1(코드는 Codex) 변경 여부.")
+        agents.append(Agent("HydraTeams (모델 라우팅)", "다른 모델을 팀원으로",
+                            BLOCKED, detail, "", [hydra_evidence]))
+    elif not hydra_built:
+        agents.append(Agent("HydraTeams (모델 라우팅)", "다른 모델을 팀원으로", GATED,
+                            f"{hydra_dir} 에 dist/index.js 가 없습니다. npm run build 가 필요합니다.",
+                            "", [hydra_evidence]))
+    elif not tool("claude").get("installed", True):
+        agents.append(Agent("HydraTeams (모델 라우팅)", "다른 모델을 팀원으로", GATED,
+                            "claude CLI 가 없습니다. Agent Teams 가 팀원을 띄우는 주체입니다.",
+                            "", [profile_evidence]))
+    else:
+        agents.append(Agent("HydraTeams (모델 라우팅)", "다른 모델을 팀원으로", READY,
+                            f"빌드됨: {hydra_dir}/dist/index.js", "", [hydra_evidence]))
 
     # --- Ollama and whatever model is actually installed ---
     api = profile.get("ollamaApi", {}) if isinstance(profile.get("ollamaApi"), dict) else {}
