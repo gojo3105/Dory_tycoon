@@ -1,10 +1,10 @@
 ﻿# Auto-sync status
 
-Generated: 2026-09-10 00:40:51
-Outcome: BLOCKED
-Reason: Uncommitted changes to tracked files: M AI_GAME_COMPANY/company/orchestrator/dashboard.py |  M AI_GAME_COMPANY/company/orchestrator/server.py |  M AI_GAME_COMPANY/tests/test_dashboard.py |  M AI_GAME_COMPANY/tests/test_orders.py |  M AI_GAME_COMPANY/tests/test_server.py |  M Assets/GameFactory/Core/GameSpec/GameSpecData.cs |  M Assets/GameFactory/Core/GameSpec/GameSpecValidator.cs |  M Assets/GameFactory/Core/InputSystem.cs |  M Assets/GameFactory/Core/SaveSystem.cs |  M Assets/GameFactory/Core/SettingsSystem.cs |  M Assets/GameFactory/Editor/SceneGenerator.cs |  M Assets/GameFactory/GameFacto...
+Generated: 2026-09-10 00:55:52
+Outcome: FAILED
+Reason: Uncommitted changes to tracked files - stopping. Commit or stash them first: |  | M AI_GAME_COMPANY/company/orchestrator/dashboard.py |  M AI_GAME_COMPANY/company/orchestrator/server.py |  M AI_GAME_COMPANY/tests/test_dashboard.py |  M AI_GAME_COMPANY/tests/test_orders.py |  M AI_GAME_COMPANY/tests/test_server.py |  M Assets/GameFactory/Core/GameSpec/GameSpecData.cs |  M Assets/GameFactory/Core/GameSpec/GameSpecValidator.cs |  M Assets/GameFactory/Core/InputSystem.cs |  M Assets/GameFactory/Core/SaveSystem.cs |  M Assets/GameFactory/Core/SettingsSystem.cs |  M Assets/GameFactory/Editor/SceneGe...
 Last-Success: 2026-09-08 02:09:47
-Local-Head: 3f21700
+Local-Head: 9c1c22b
 Upstream-Head: fcd835a
 Branch: claude/delete-current-content-mgn4xm
 
