@@ -1,10 +1,10 @@
 ﻿# Auto-sync status
 
-Generated: 2026-09-09 20:55:57
-Outcome: FAILED
-Reason: Uncommitted changes to tracked files - stopping. Commit or stash them first: |  | M AI_GAME_COMPANY/company/orchestrator/server.py |  M AI_GAME_COMPANY/tests/test_dashboard.py |  M AI_GAME_COMPANY/tests/test_orders.py |  M Assets/GameFactory/Core/GameSpec/GameSpecData.cs |  M Assets/GameFactory/Core/GameSpec/GameSpecValidator.cs |  M Assets/GameFactory/Core/InputSystem.cs |  M Assets/GameFactory/Editor/SceneGenerator.cs |  M Assets/GameFactory/Gameplay/Runner/Coin.cs |  M Assets/GameFactory/Gameplay/Runner/CoinSpawner.cs |  M Assets/GameFactory/Gameplay/Runner/RunnerGameInitializer.cs |  M Ass...
+Generated: 2026-09-09 21:10:55
+Outcome: BLOCKED
+Reason: Uncommitted changes to tracked files: M AI_GAME_COMPANY/company/orchestrator/server.py |  M AI_GAME_COMPANY/tests/test_dashboard.py |  M AI_GAME_COMPANY/tests/test_orders.py |  M Assets/GameFactory/Core/GameSpec/GameSpecData.cs |  M Assets/GameFactory/Core/GameSpec/GameSpecValidator.cs |  M Assets/GameFactory/Core/InputSystem.cs |  M Assets/GameFactory/Editor/SceneGenerator.cs |  M Assets/GameFactory/Gameplay/Runner/Coin.cs |  M Assets/GameFactory/Gameplay/Runner/CoinSpawner.cs |  M Assets/GameFactory/Gameplay/Runner/RunnerGameInitializer.cs |  M Assets/GameFactory/Gameplay/Runner/RunnerPlayer...
 Last-Success: 2026-09-08 02:09:47
-Local-Head: d5c1a5d
+Local-Head: 60e7c12
 Upstream-Head: fcd835a
 Branch: claude/delete-current-content-mgn4xm
 
