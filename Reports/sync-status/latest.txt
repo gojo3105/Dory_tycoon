@@ -1,10 +1,10 @@
 ﻿# Auto-sync status
 
-Generated: 2026-09-10 08:23:25
-Outcome: UP-TO-DATE
-Reason: Nothing new on upstream/claude/delete-current-content-mgn4xm
+Generated: 2026-09-10 08:55:54
+Outcome: BLOCKED
+Reason: Uncommitted changes to tracked files: M AI_GAME_COMPANY/company/orchestrator/dashboard.py
 Last-Success: 2026-09-10 08:23:25
-Local-Head: b3a2f69
+Local-Head: 8abc15a
 Upstream-Head: 646dd7a
 Branch: claude/delete-current-content-mgn4xm
 
