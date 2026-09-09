@@ -1,10 +1,10 @@
 # Orchestrator run report
 
-Generated: 2026-09-09 21:37:54
+Generated: 2026-09-09 21:30:08
 Command: build --game game01
 Outcome: FAILED
 Exit: 1
-Duration: 1분 19초
+Duration: 4분 55초
 
 ## Output (tail)
 
