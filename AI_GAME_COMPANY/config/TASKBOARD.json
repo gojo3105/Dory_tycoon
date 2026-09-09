@@ -780,6 +780,43 @@
       "changed_files": [],
       "last_run": "",
       "title_ko": "제어판 미연결 동작 3개 서버에 연결 (ollama-use / image-generate / gemini-design)"
+    },
+    {
+      "id": "CODEX-RUNNERLOOP2",
+      "title": "Add combo, fever, speed progression, patterned pickups, and touch controls",
+      "owner": "codex",
+      "status": "review",
+      "goal": "Strengthen the runner loop with readable two-button controls, escalating speed, combo rewards, fever, patterned pickups, energy pressure, and an original scrolling factory background.",
+      "files": [
+        "Assets/GameFactory/Gameplay/Runner/RunnerCombo.cs",
+        "Assets/GameFactory/Gameplay/Runner/RunnerPlayerController.cs",
+        "Assets/GameFactory/Gameplay/Runner/Coin.cs",
+        "Assets/GameFactory/Gameplay/Runner/CoinSpawner.cs",
+        "Assets/GameFactory/UI/RunnerActionButton.cs",
+        "Assets/GameFactory/UI/GameUIController.cs",
+        "Assets/GameFactory/Editor/SceneGenerator.cs",
+        "Assets/GameFactory/Core/GameSpec/GameSpecData.cs",
+        "Assets/GameFactory/Core/GameSpec/GameSpecValidator.cs",
+        "Assets/Common/Art/Runner/factory_background_v2.png",
+        "GameSpecs/game01.json",
+        "docs/GAME_SPEC.md"
+      ],
+      "acceptance": [
+        "Jump and slide have large separate color buttons and do not also fire world-tap input.",
+        "Pickup patterns, combo multiplier, fever, energy drain, and capped distance-based speed growth work together.",
+        "Generated scene PlayMode tests and the complete Python test suite pass.",
+        "A new Android APK is produced for device review."
+      ],
+      "depends_on": [
+        "CODEX-JUMPGAP1"
+      ],
+      "notes": [
+        "2026-09-09: Benchmarked the Jump/Slide, jelly collection, and obstacle loop described on official CookieRun pages.",
+        "The factory background is original artwork generated with OpenAI ImageGen; Ollama UX review was discarded because the local terminal corrupted the Korean prompt encoding."
+      ],
+      "changed_files": [],
+      "last_run": "2026-09-09",
+      "title_ko": "콤보·피버·속도 성장·패턴 젤리·터치 버튼 추가"
     }
   ]
 }
