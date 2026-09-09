@@ -371,6 +371,24 @@
       ],
       "status": "APPROVED",
       "notes": "Exposes IP-Adapter as ComfyUI nodes. Code only - the weights are the separate ip-adapter entry, per section 8."
+    },
+    {
+      "id": "user-supplied-night-platformer-pack",
+      "name": "Night platformer art pack (33 PNG) supplied by the project owner",
+      "type": "art",
+      "source": "Uploaded to the repository by the owner on 2026-09-08 (commit d6dfeca 'Add files via upload'). No pack name, vendor or licence file came with the upload; one filename ('Ativo 49.png', Portuguese for 'Asset 49') suggests it was exported from a commercial or free pack rather than drawn for this project.",
+      "version": "as uploaded",
+      "license": "UNKNOWN - not supplied with the files",
+      "commercial_use": null,
+      "attribution_required": null,
+      "redistribution_rules": "Unknown. These sprites ship inside the APK, so a licence that forbids redistribution would be violated by shipping.",
+      "verified_at": null,
+      "verified_by": null,
+      "games": [
+        "game01"
+      ],
+      "status": "UNKNOWN",
+      "notes": "The owner supplied these deliberately and asked for them to be applied, so they are in the tree and wired up. What is NOT established is the licence, and section 8 says 'it looks free' is not evidence. Before game01 is published, the owner needs to say where this pack came from and under what terms; if it is a paid or attribution licence, either the attribution goes in the credits screen or the art comes back out. Recorded as UNKNOWN rather than APPROVED so that decision cannot be skipped by accident."
     }
   ],
   "pending_verification": [

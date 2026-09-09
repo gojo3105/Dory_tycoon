@@ -703,28 +703,6 @@
       "title_ko": "캐릭터 리그: 분해 아트 + Animator + 클립 생성"
     },
     {
-      "id": "CODEX-JUMPGAP1",
-      "title": "Match obstacle spacing to jump trajectory",
-      "owner": "codex",
-      "status": "review",
-      "goal": "Derive minimum obstacle spacing from configured speed, jump impulse and gravity with landing/reaction clearance.",
-      "files": [
-        "Assets/GameFactory/Gameplay/Runner/ObstacleSpawner.cs",
-        "Assets/GameFactory/Gameplay/Runner/RunnerGameInitializer.cs"
-      ],
-      "acceptance": [
-        "Consecutive obstacles allow landing and the next jump at all difficulty settings.",
-        "Generated scene PlayMode tests pass; new APK is verified on device."
-      ],
-      "depends_on": [],
-      "notes": [
-        "2026-09-05: User reported jump and obstacle distances do not match. Existing 4-8 gap was independent of approximately 12.2 units of jump travel."
-      ],
-      "changed_files": [],
-      "last_run": "",
-      "title_ko": "점프 거리와 장애물 간격 조정"
-    },
-    {
       "id": "CLAUDE-ORDERS1",
       "title": "Control panel order box: typed instruction -> board task -> Codex -> Unity test",
       "owner": "claude",
@@ -780,6 +758,137 @@
       "changed_files": [],
       "last_run": "",
       "title_ko": "제어판 미연결 동작 3개 서버에 연결 (ollama-use / image-generate / gemini-design)"
+    },
+    {
+      "id": "CODEX-ARTIMPORT1",
+      "title": "Import settings for the supplied art pack: bilinear, and a scale per role",
+      "owner": "codex",
+      "status": "todo",
+      "goal": "SharedArtImporter stamps every file under Assets/Common/Art/ with 64 pixels per unit and Point filtering. That was right for the Kenney pack, which is chunky pixel art. The pack the owner supplied on 2026-09-08 is smooth vector art, and Point sampling makes a scaled curve visibly jagged - so it needs Bilinear.\n\nThe three sprites already in the game (ground, coin, obstacle) are done: their .meta files were set by hand to 264, 180 and 208 PPU so each keeps the world size the scene already expects, and to filterMode 1. Do not change those - they are measured, not guessed.\n\nWhat is left is the 22 NEW files under Runner/Background/ and UI/Pack/, which have no .meta yet and will therefore be stamped with the wrong defaults on first import. Add them to SharedArtImporter:\n  - Everything under Assets/Common/Art/Runner/Background/ : Bilinear.\n  - Everything under Assets/Common/Art/UI/Pack/ : Bilinear.\n  - sky.png is 1920x1079 and has NO transparency; it is the backmost layer.\n  - The UI sprites are for uGUI Images, which scale by RectTransform, so     their PPU matters far less than their filtering.\n\nUse the same mechanism the file already has (a root prefix test, like CharacterRigRoot) rather than listing 22 filenames.",
+      "files": [
+        "Assets/GameFactory/Editor/SharedArtImporter.cs"
+      ],
+      "acceptance": [
+        "Every file under Runner/Background/ and UI/Pack/ imports with FilterMode.Bilinear.",
+        "The hand-set .meta values for ground.png, coin.png and obstacle.png are unchanged.",
+        "importSettingsMissing is still respected, so a deliberate per-asset tweak is not re-stamped."
+      ],
+      "depends_on": [],
+      "notes": [
+        "Measured on 2026-09-08: character 0.85 x 1.50 world units, ground band 1.09 tall, obstacle 1.09 tall (73% of the character), coin 0.70. Jump height is 1.76, so the obstacle clears."
+      ],
+      "changed_files": [],
+      "last_run": "",
+      "title_ko": "새 아트팩 임포트 설정 (Bilinear + 역할별 크기)"
+    },
+    {
+      "id": "CODEX-BGWIRE2",
+      "title": "Build the parallax background in the generated scene from the supplied layers",
+      "owner": "codex",
+      "status": "todo",
+      "goal": "ParallaxBackground.cs exists and nothing creates it, so the game has been running against a flat colour. The art is now here: 21 layers under Assets/Common/Art/Runner/Background/, documented with their intended depth order in that folder's README.md.\n\nHave SceneGenerator build the layers and hand ParallaxBackground its references, following this project's split: structural wiring in a SetReferences-style method at edit time, numbers through Configure at runtime. Scroll factors belong in the GameSpec, not hardcoded - that is why CODEX-BGWIRE1 was blocked, so add the field to GameSpecData.cs and GameSpecValidator.cs and document it in docs/GAME_SPEC.md as part of this task.\n\nDepth order matters and is not guessable from the filenames: sky is the only layer with no transparency and goes backmost; the files ending _front are darker and belong IN FRONT of the player, not behind. The README gives the full order and a suggested scroll factor per layer.",
+      "files": [
+        "Assets/GameFactory/Editor/SceneGenerator.cs",
+        "Assets/GameFactory/Gameplay/Runner/ParallaxBackground.cs",
+        "Assets/GameFactory/Core/GameSpec/GameSpecData.cs",
+        "Assets/GameFactory/Core/GameSpec/GameSpecValidator.cs",
+        "GameSpecs/game01.json",
+        "docs/GAME_SPEC.md"
+      ],
+      "acceptance": [
+        "Scroll factors come from the GameSpec, with no numeric literal for them in the generator.",
+        "sky renders behind every other layer; _front layers render in front of the player.",
+        "A GameSpec with no background block still generates a working scene.",
+        "GameSpecData.cs, GameSpecValidator.cs and docs/GAME_SPEC.md are updated together, per CLAUDE.md section 5."
+      ],
+      "depends_on": [
+        "CODEX-ARTIMPORT1"
+      ],
+      "notes": [
+        "This supersedes CODEX-BGWIRE1, which was blocked because the scroll-speed field it needed was outside its allowlist. The allowlist here includes the GameSpec files for that reason."
+      ],
+      "changed_files": [],
+      "last_run": "",
+      "title_ko": "시차 배경을 씬 생성기에 연결 (새 레이어 21장)"
+    },
+    {
+      "id": "CODEX-UIART1",
+      "title": "Swap the UI to the supplied pack: buttons, popup window, coin counter",
+      "owner": "codex",
+      "status": "todo",
+      "goal": "Eight UI sprites arrived in Assets/Common/Art/UI/Pack/ and nothing uses them yet, so the game still shows the Kenney buttons while the world around them is the new night pack. Point them at the UI:\n  big_button1/2.png (379x204) - the wide buttons: Play, Restart, Home.\n  button_play / button_pause / button_menu / yes_button (165x183) - square     icon buttons. These already CONTAIN their icon, so do not put a text     label on top of one.\n  window_popup.png (734x717) - the dialog frame behind Game Over and Shop.\n  coin_counter.png (430x140) - the HUD coin pill. The coin is drawn into the     left of it, so the number sits in the purple area to its right.\n\nMeasure the 9-slice borders off the actual files and put them in SharedArtImporter's UiBorders table the way the existing entries were measured - do not guess a border, and do not stretch a rounded corner.",
+      "files": [
+        "Assets/GameFactory/UI/**",
+        "Assets/GameFactory/Editor/UIGenerator.cs",
+        "Assets/GameFactory/Editor/SharedArtImporter.cs"
+      ],
+      "acceptance": [
+        "No button shows a stretched or smeared rounded corner at any screen width.",
+        "The square icon buttons carry no text label over their built-in icon.",
+        "The coin count sits in the flat area of coin_counter.png, not over the coin."
+      ],
+      "depends_on": [
+        "CODEX-ARTIMPORT1"
+      ],
+      "notes": [
+        "The old Kenney buttons stay in Assets/Common/Art/UI/ and stay in art-mapping.json - they are the fallback if this swap is reverted."
+      ],
+      "changed_files": [],
+      "last_run": "",
+      "title_ko": "UI를 새 팩으로 교체 (버튼·팝업창·코인 카운터)"
+    },
+    {
+      "id": "CODEX-IDLE1",
+      "title": "Game02 groundwork: the Idle genre and its two modules",
+      "owner": "codex",
+      "status": "todo",
+      "goal": "Game02 (Idle Factory Tycoon) is the next game and is blocked on code that does not exist: Assets/GameFactory/Gameplay/Idle/ is an empty folder, and so are Modules/Producer and Modules/UpgradeTree (which have no folder yet).\n\nBuild the genre, not the game. Three pieces:\n  Gameplay/Idle/IdleGameInitializer.cs - the genre entry point, matching the shape RunnerGameInitializer already has.\n  Modules/Producer/ - one production line: a rate, an accumulator, and OFFLINE catch-up. Offline is the whole genre: on resume, compute what accumulated from the saved timestamp rather than ticking in Update. Cap it (the GameSpec says how long), and never trust the device clock going backwards - a clock moved back must produce zero, not negative.\n  Modules/UpgradeTree/ - levels with a cost curve, read from the GameSpec.\n\nEvery number belongs in the GameSpec: base rate, cost curve, offline cap, tap bonus. Add the fields to GameSpecData.cs and GameSpecValidator.cs and document them in docs/GAME_SPEC.md, together, per CLAUDE.md section 5.\n\nReference reading: Particle Clicker (MIT, github.com/particle-clicker/particle-clicker) shows the upgrade curve and offline handling. READ it, do not port it - it is JavaScript, and docs/REFERENCE_GAMES.md explains why porting is the wrong move here.\n\nNo scene or prefab generator yet - that is a separate task once the genre compiles and its EditMode tests pass.",
+      "files": [
+        "Assets/GameFactory/Gameplay/Idle/**",
+        "Assets/GameFactory/Modules/Producer/**",
+        "Assets/GameFactory/Modules/UpgradeTree/**",
+        "Assets/GameFactory/Core/GameSpec/GameSpecData.cs",
+        "Assets/GameFactory/Core/GameSpec/GameSpecValidator.cs",
+        "Assets/GameFactory/Tests/**",
+        "GameSpecs/game02.json",
+        "docs/GAME_SPEC.md"
+      ],
+      "acceptance": [
+        "Offline accumulation is computed from a saved timestamp, not from Update ticks.",
+        "A clock moved backwards yields zero accumulation, never negative.",
+        "The offline cap, base rate, cost curve and tap bonus all come from the GameSpec.",
+        "EditMode tests cover the offline maths, including the backwards-clock case.",
+        "Runtime scripts reference no UnityEditor type."
+      ],
+      "depends_on": [],
+      "notes": [
+        "Genre first, game second: Game02 is the first test of whether the factory actually generates rather than hand-builds. docs/REFERENCE_GAMES.md has the module map for Game02-10 and the licence findings behind it."
+      ],
+      "changed_files": [],
+      "last_run": "",
+      "title_ko": "Game02 기반: Idle 장르 + Producer/UpgradeTree 모듈"
+    },
+    {
+      "id": "CODEX-JUMPGAP1",
+      "title": "Match obstacle spacing to jump trajectory",
+      "owner": "codex",
+      "status": "review",
+      "goal": "Derive minimum obstacle spacing from configured speed, jump impulse and gravity with landing/reaction clearance.",
+      "files": [
+        "Assets/GameFactory/Gameplay/Runner/ObstacleSpawner.cs",
+        "Assets/GameFactory/Gameplay/Runner/RunnerGameInitializer.cs"
+      ],
+      "acceptance": [
+        "Consecutive obstacles allow landing and the next jump at all difficulty settings.",
+        "Generated scene PlayMode tests pass; new APK is verified on device."
+      ],
+      "depends_on": [],
+      "notes": [
+        "2026-09-05: User reported jump and obstacle distances do not match. Existing 4-8 gap was independent of approximately 12.2 units of jump travel."
+      ],
+      "changed_files": [],
+      "last_run": "",
+      "title_ko": "점프 거리와 장애물 간격 조정"
     },
     {
       "id": "CODEX-RUNNERLOOP2",
