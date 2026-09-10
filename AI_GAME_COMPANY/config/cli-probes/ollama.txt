@@ -1,5 +1,5 @@
 ﻿# ollama capability probe
-# captured: 2026-09-10 22:38:06
+# captured: 2026-09-10 22:53:45
 ----------------------------------------------------------------------
 resolved path: C:\Users\VASCO-PC03\AppData\Local\Programs\Ollama\ollama.exe
 
@@ -45,9 +45,10 @@ NAME    ID    SIZE    PROCESSOR    CONTEXT    UNTIL
 
 
 ### ollama list  (exit: )
-NAME               ID              SIZE      MODIFIED      
-Qwen3-VL:latest    901cae732162    6.1 GB    3 minutes ago    
-gemma4:26b         08ae7ec1744b    18 GB     5 days ago       
+NAME               ID              SIZE      MODIFIED       
+Qwen3-VL:4b        1343d82ebee3    3.3 GB    36 seconds ago    
+Qwen3-VL:latest    901cae732162    6.1 GB    19 minutes ago    
+gemma4:26b         08ae7ec1744b    18 GB     5 days ago        
 
 
 

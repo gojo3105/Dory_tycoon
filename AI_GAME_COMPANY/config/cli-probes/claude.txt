@@ -1,5 +1,5 @@
 ﻿# claude capability probe
-# captured: 2026-09-10 22:38:05
+# captured: 2026-09-10 22:53:44
 ----------------------------------------------------------------------
 resolved path: C:\Users\VASCO-PC03\AppData\Roaming\npm\claude.cmd
 

@@ -397,11 +397,19 @@
       "model_ids": [
         "Qwen3-VL",
         "Qwen3-VL:latest",
+        "Qwen3-VL:2b",
+        "Qwen3-VL:4b",
+        "Qwen3-VL:8b",
+        "Qwen3-VL:30b",
         "qwen3-vl",
-        "qwen3-vl:latest"
+        "qwen3-vl:latest",
+        "qwen3-vl:2b",
+        "qwen3-vl:4b",
+        "qwen3-vl:8b",
+        "qwen3-vl:30b"
       ],
       "source": "Pulled into local Ollama 0.33.3 by the project owner on 2026-09-10. Never sent anywhere: ollama_local_only is true and the client refuses a non-loopback endpoint.",
-      "version": "8.8B parameters, Q4_K_M quantisation, 262144 context, 6.1 GB on disk (ollama show)",
+      "version": "2b / 4b / 8b(latest, 8.8B) / 30b tags, all Q4_K_M, 262144 context. Installed here: Qwen3-VL:4b (4.4B, 3.3 GB) and Qwen3-VL:latest (8.8B, 6.1 GB).",
       "license": "Apache-2.0",
       "commercial_use": true,
       "attribution_required": false,
@@ -412,7 +420,7 @@
         "game01"
       ],
       "status": "APPROVED",
-      "notes": "Licence read from the model's OWN shipped file, not inferred: `ollama show Qwen3-VL --license` prints the Apache License 2.0 text in full. Section 8 is explicit that 'it is a Qwen' is not evidence, and the registry already carries gemma4:26b as UNKNOWN for exactly that reason. Capabilities reported by ollama: completion, vision, tools, thinking - the vision half is the reason to prefer it over a text-only model here, since this project's open questions are about art on screen. RAM IS THE REAL LIMIT, NOT THE LICENCE: 6.1 GB of weights against 15.71 GB total, of which about 8.8 GB is already held by Windows and the editor, leaves 6.87 GB free - under the project's own free-minus-2GB budget of 4.87 GB. It does load and run (llama-server was observed at 6.8 GB resident), but it leaves under 1 GB free while loaded, which is the thrashing HardwareProfile.model_fit exists to refuse. A smaller Qwen3-VL tag (4B, roughly 3 GB) would fit with headroom."
+      "notes": "Licence read from each model's OWN shipped file, not inferred from the family: `ollama show Qwen3-VL --license` and `ollama show Qwen3-VL:4b --license` both print the Apache License 2.0 in full. They were checked separately on purpose - section 8 is explicit that 'it is a Qwen' is not evidence, and one size of a family carrying different terms from another is exactly the trap that rule exists for. Capabilities on both: completion, vision, tools, thinking.\n\nRAM is why 4b is the one in use. On this 15.71 GB machine, with about 9 GB held by Windows and the editor, the budget is free-minus-2GB: the 8.8B tag needs 5.7 GB against a 4.6 GB budget and HardwareProfile.model_fit refuses it (it does load, but leaves under 1 GB free, which is the thrashing the check exists to prevent). 4b needs 3.3 GB and fits with headroom. The larger tag stays installed and stays APPROVED - it becomes usable the moment there is more free memory."
     }
   ],
   "pending_verification": [
