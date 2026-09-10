@@ -736,7 +736,7 @@
       "id": "CODEX-WIREACT1",
       "title": "Wire the three control-panel actions that had buttons but no server action",
       "owner": "codex",
-      "status": "todo",
+      "status": "blocked",
       "goal": "dashboard.py drew buttons posting 'ollama-use', 'image-generate' and 'gemini-design'. server.ACTIONS contains none of them, so every press answered '알 수 없는 동작입니다.' and did nothing. The buttons are now replaced by a note (_UNWIRED in dashboard.py) so the page stops lying; this task is to make the actions real and put the buttons back.\n\nollama-use: 'main.py ollama --use <model>' already exists. The model name is NOT SAFE_ID - 'gemma4:26b' has a colon - so add a separate validator for a model name instead of loosening SAFE_ID, and validate it against the installed list rather than a charset alone.\nimage-generate: tools/generate-sprite.py exists; the preset must be checked against a fixed list in server.py, not taken from the request.\ngemini-design: there is NO CLI subcommand behind this one. Either add one to main.py or drop the row entirely - do not add a button without a command behind it.",
       "files": [
         "AI_GAME_COMPANY/company/orchestrator/server.py",
@@ -753,7 +753,8 @@
       ],
       "depends_on": [],
       "notes": [
-        "Found on 2026-09-07 while adding the order box. The drift is what made it invisible: dashboard.py and server.py each looked correct on their own."
+        "Found on 2026-09-07 while adding the order box. The drift is what made it invisible: dashboard.py and server.py each looked correct on their own.",
+        "BLOCKED: the run raised ReviewNotRun: codex exec (implement) exited 1. Output: OpenAI Codex v0.151.0\n--------\nworkdir: C:\\Dory_tycoon\nmodel: gpt-5.6-sol\nprovider: openai\napproval: never\nsandbox: workspace-write [workdir, /tmp, $TMPDIR]\nreasoning effort: none\nreasoning summaries: none\nsession id: 01a08b4b-f337-78b0-b82b-a2327c439451\n--------\nuser\nTASK CODEX-WIREACT1: Wire the three control-panel actions that had buttons but no server action\n\nGOAL\n  dashboard.py drew buttons posting 'ollama-use', 'image-generate' and 'gemini-design'. server.ACTIONS contains none of them, so "
       ],
       "changed_files": [],
       "last_run": "",
@@ -763,7 +764,7 @@
       "id": "CODEX-ARTIMPORT1",
       "title": "Import settings for the supplied art pack: bilinear, and a scale per role",
       "owner": "codex",
-      "status": "todo",
+      "status": "blocked",
       "goal": "SharedArtImporter stamps every file under Assets/Common/Art/ with 64 pixels per unit and Point filtering. That was right for the Kenney pack, which is chunky pixel art. The pack the owner supplied on 2026-09-08 is smooth vector art, and Point sampling makes a scaled curve visibly jagged - so it needs Bilinear.\n\nThe three sprites already in the game (ground, coin, obstacle) are done: their .meta files were set by hand to 264, 180 and 208 PPU so each keeps the world size the scene already expects, and to filterMode 1. Do not change those - they are measured, not guessed.\n\nWhat is left is the 22 NEW files under Runner/Background/ and UI/Pack/, which have no .meta yet and will therefore be stamped with the wrong defaults on first import. Add them to SharedArtImporter:\n  - Everything under Assets/Common/Art/Runner/Background/ : Bilinear.\n  - Everything under Assets/Common/Art/UI/Pack/ : Bilinear.\n  - sky.png is 1920x1079 and has NO transparency; it is the backmost layer.\n  - The UI sprites are for uGUI Images, which scale by RectTransform, so     their PPU matters far less than their filtering.\n\nUse the same mechanism the file already has (a root prefix test, like CharacterRigRoot) rather than listing 22 filenames.",
       "files": [
         "Assets/GameFactory/Editor/SharedArtImporter.cs"
@@ -775,7 +776,8 @@
       ],
       "depends_on": [],
       "notes": [
-        "Measured on 2026-09-08: character 0.85 x 1.50 world units, ground band 1.09 tall, obstacle 1.09 tall (73% of the character), coin 0.70. Jump height is 1.76, so the obstacle clears."
+        "Measured on 2026-09-08: character 0.85 x 1.50 world units, ground band 1.09 tall, obstacle 1.09 tall (73% of the character), coin 0.70. Jump height is 1.76, so the obstacle clears.",
+        "BLOCKED: the run raised ReviewNotRun: codex exec (implement) exited 1. Output: OpenAI Codex v0.151.0\n--------\nworkdir: C:\\Dory_tycoon\nmodel: gpt-5.6-sol\nprovider: openai\napproval: never\nsandbox: workspace-write [workdir, /tmp, $TMPDIR]\nreasoning effort: none\nreasoning summaries: none\nsession id: 01a08b4c-3971-7dc3-89ad-d1fe9896ae6c\n--------\nuser\nTASK CODEX-ARTIMPORT1: Import settings for the supplied art pack: bilinear, and a scale per role\n\nGOAL\n  SharedArtImporter stamps every file under Assets/Common/Art/ with 64 pixels per unit and Point filtering. That was right for t"
       ],
       "changed_files": [],
       "last_run": "",
@@ -841,7 +843,7 @@
       "id": "CODEX-IDLE1",
       "title": "Game02 groundwork: the Idle genre and its two modules",
       "owner": "codex",
-      "status": "todo",
+      "status": "blocked",
       "goal": "Game02 (Idle Factory Tycoon) is the next game and is blocked on code that does not exist: Assets/GameFactory/Gameplay/Idle/ is an empty folder, and so are Modules/Producer and Modules/UpgradeTree (which have no folder yet).\n\nBuild the genre, not the game. Three pieces:\n  Gameplay/Idle/IdleGameInitializer.cs - the genre entry point, matching the shape RunnerGameInitializer already has.\n  Modules/Producer/ - one production line: a rate, an accumulator, and OFFLINE catch-up. Offline is the whole genre: on resume, compute what accumulated from the saved timestamp rather than ticking in Update. Cap it (the GameSpec says how long), and never trust the device clock going backwards - a clock moved back must produce zero, not negative.\n  Modules/UpgradeTree/ - levels with a cost curve, read from the GameSpec.\n\nEvery number belongs in the GameSpec: base rate, cost curve, offline cap, tap bonus. Add the fields to GameSpecData.cs and GameSpecValidator.cs and document them in docs/GAME_SPEC.md, together, per CLAUDE.md section 5.\n\nReference reading: Particle Clicker (MIT, github.com/particle-clicker/particle-clicker) shows the upgrade curve and offline handling. READ it, do not port it - it is JavaScript, and docs/REFERENCE_GAMES.md explains why porting is the wrong move here.\n\nNo scene or prefab generator yet - that is a separate task once the genre compiles and its EditMode tests pass.",
       "files": [
         "Assets/GameFactory/Gameplay/Idle/**",
@@ -862,7 +864,8 @@
       ],
       "depends_on": [],
       "notes": [
-        "Genre first, game second: Game02 is the first test of whether the factory actually generates rather than hand-builds. docs/REFERENCE_GAMES.md has the module map for Game02-10 and the licence findings behind it."
+        "Genre first, game second: Game02 is the first test of whether the factory actually generates rather than hand-builds. docs/REFERENCE_GAMES.md has the module map for Game02-10 and the licence findings behind it.",
+        "BLOCKED: the run raised ReviewNotRun: codex exec (implement) exited 1. Output: OpenAI Codex v0.151.0\n--------\nworkdir: C:\\Dory_tycoon\nmodel: gpt-5.6-sol\nprovider: openai\napproval: never\nsandbox: workspace-write [workdir, /tmp, $TMPDIR]\nreasoning effort: none\nreasoning summaries: none\nsession id: 01a08b4c-9b7c-74e3-8585-22fd999c779a\n--------\nuser\nTASK CODEX-IDLE1: Game02 groundwork: the Idle genre and its two modules\n\nGOAL\n  Game02 (Idle Factory Tycoon) is the next game and is blocked on code that does not exist: Assets/GameFactory/Gameplay/Idle/ is an empty folder, and so "
       ],
       "changed_files": [],
       "last_run": "",
