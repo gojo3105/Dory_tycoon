@@ -75,6 +75,7 @@ STATE_LABEL = {
 DEPARTMENT_BY_PREFIX = {
     "Claude Code": "dev",
     "Codex CLI": "dev",
+    "HydraTeams": "dev",
     "Gemini": "design",
     "Stable Diffusion": "design",
     "Qwen-Image": "design",
@@ -501,6 +502,31 @@ def build_agents(profile: dict[str, Any], policy: dict[str, Any],
         if present else
         "정책상 차단되어 있고, 환경에 키도 없습니다. 비용이 발생하는 경로가 없습니다.",
         "", [profile_evidence, policy_evidence]))
+
+    # --- HydraTeams: the proxy that would let other models be teammates ---
+    # Reported, not started. HydraProxy is a long-running server and the
+    # Runner in server.py waits for a job to exit, so a start button built on
+    # the job runner would leave the panel permanently busy (CLAUDE-HYDRA1).
+    hydra_dir = str(policy.get("hydra_proxy_dir") or "")
+    hydra_built = bool(hydra_dir) and (Path(hydra_dir) / "dist" / "index.js").is_file()
+    hydra_evidence = "config/company_policy.json"
+    if policy.get("allow_hydra_proxy") is not True:
+        agents.append(Agent(
+            "HydraTeams (모델 라우팅)", "다른 모델을 팀원으로", BLOCKED,
+            "정책 allow_hydra_proxy 가 true 가 아닙니다. "
+            + ("빌드는 되어 있습니다. " if hydra_built else "빌드도 아직 없습니다. ")
+            + "켜기 전에 결정할 것: ~/.codex/auth.json 사용 여부, "
+              "구독(chatgpt) 대 유료 API(openai), 규칙 1(코드는 Codex) 변경 여부.",
+            "", [hydra_evidence]))
+    elif not hydra_built:
+        agents.append(Agent(
+            "HydraTeams (모델 라우팅)", "다른 모델을 팀원으로", GATED,
+            f"{hydra_dir} 에 dist/index.js 가 없습니다. npm run build 가 필요합니다.",
+            "", [hydra_evidence]))
+    else:
+        agents.append(Agent(
+            "HydraTeams (모델 라우팅)", "다른 모델을 팀원으로", READY,
+            f"빌드됨: {hydra_dir}/dist/index.js", "", [hydra_evidence]))
 
     return agents
 
@@ -1072,6 +1098,30 @@ section{margin-top:44px;}
 @keyframes office-waiting{50%{transform:translateY(-3px);}}
 @keyframes office-unknown{50%{opacity:.25;}}
 
+/* ---- connect helper ----
+   One card per integration that is not working, under the office because
+   that is where a grey desk raises the question. A card that cannot be
+   fixed says so rather than listing steps that will not help. */
+.connect > summary{color:var(--gate);}
+.conn-note{margin:4px 4px 14px; padding:10px 12px; background:var(--gate-soft);
+  border-left:3px solid var(--gate); border-radius:2px; font-size:12px;
+  line-height:1.7; color:var(--ink-2);}
+.conn-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:14px;}
+.conn{padding:14px 16px; background:var(--surface); border:1px solid var(--line);
+  border-left:3px solid var(--st); border-radius:3px;}
+.conn-top{display:flex; justify-content:space-between; align-items:baseline; gap:10px;}
+.conn-top b{font-size:13.5px; color:var(--ink);}
+.conn-badge{font-size:11px; color:var(--st); white-space:nowrap;}
+.conn-why{margin:8px 0 0; font-size:12.5px; line-height:1.7; color:var(--muted);}
+.conn-hard{margin:8px 0 0; font-size:12.5px; font-weight:600; color:var(--blocked);}
+.conn-steps{margin:10px 0 0; padding-left:20px; font-size:12.5px; line-height:1.8;
+  color:var(--ink-2);}
+.conn-cmd{display:flex; gap:8px; align-items:center; margin-top:10px;
+  padding:8px 10px; background:var(--sunk); border-radius:2px;}
+.conn-cmd code{flex:1; min-width:0; overflow-x:auto; font-size:12px; color:var(--ink);}
+.conn-cmd .btn{padding:5px 11px; font-size:11.5px;}
+.conn > .btn{margin-top:12px;}
+
 /* ---- the fold ----
    Four sections carry the flow: office, studio, order box, progress. The
    other eight are evidence you go looking for, not things you act on, and
@@ -1620,6 +1670,136 @@ def _character_svg(department: str, state: str) -> str:
         '<g class="office-monitor"><rect class="office-screen" x="72" y="30"'
         ' width="33" height="24" rx="2.5" stroke-dasharray="4 4"/>'
         '<path class="office-stand" d="M88.5 54v6M81 60h15"/></g></svg>')
+
+
+# How each unconnected integration gets connected. Written here rather than
+# in prose on the page so every step is one a person can actually run, and so
+# an entry that CANNOT be fixed says so instead of offering a false hope -
+# Qwen-Image needs more RAM than the machine has, and no button changes that.
+#
+# NOTHING HERE TAKES A SECRET. Keys are a HUMAN_GATE in company_policy.json
+# and go in the environment, never into this page: a value typed into a form
+# would travel in an HTTP body and could land in the panel's own log, which
+# is exactly what _secrets_note forbids.
+#
+# `action` names a FIXED server action (server.ACTIONS). It is never a
+# command string from this table - section 10 again.
+CONNECT_RECIPES: dict[str, dict[str, Any]] = {
+    "Codex CLI": {
+        "fixable": True,
+        "summary": "로그인만 하면 됩니다. 사람이 직접 해야 하는 단계입니다 (HUMAN_GATE).",
+        "steps": ["터미널에서 로그인합니다. 브라우저가 열립니다.",
+                  "끝나면 아래 진단으로 확인합니다."],
+        "commands": ["codex login"],
+        "action": ("codex-doctor", "진단 실행"),
+    },
+    "Ollama (로컬 LLM)": {
+        "fixable": True,
+        "summary": "모델이 하나도 없습니다. RAM 15.7 GB 이므로 3B급 이하만 올라갑니다.",
+        "steps": ["쓰려는 모델의 라이선스를 직접 확인합니다. "
+                  "'Qwen이니까 괜찮다' 는 근거가 아닙니다 (정책 8절).",
+                  "LICENSE_REGISTRY.json 에 그 모델 항목을 APPROVED 로 추가합니다.",
+                  "받습니다. 자동 설치는 정책(never_auto_install)이 막고 있어 "
+                  "버튼으로 제공하지 않습니다.",
+                  "아래 버튼으로 설치·라이선스·RAM 적합성을 확인합니다."],
+        "commands": ["ollama pull llama3.2:3b"],
+        "action": ("ollama-list", "설치된 모델 확인"),
+    },
+    "HydraTeams (모델 라우팅)": {
+        "fixable": True,
+        "summary": "빌드는 끝났습니다. 정책 플래그 하나와 결정 세 가지가 남았습니다.",
+        "steps": ["~/.codex/auth.json 을 쓸지 정합니다. "
+                  "secrets_never_touched 목록에 있는 파일입니다.",
+                  "구독(chatgpt, $0) 과 유료 API(openai, 과금) 중 고릅니다. "
+                  "유료는 allow_openai_api_billing 이 막고 있습니다.",
+                  "규칙 1(코드는 Codex) 을 바꿀지 정합니다.",
+                  "정한 뒤 company_policy.json 의 allow_hydra_proxy 를 true 로 바꿉니다."],
+        "commands": [],
+        "action": None,
+    },
+    "Blender": {
+        "fixable": False,
+        "summary": "설치는 되어 있습니다. 사용자가 할 일이 아니라 개발이 남았습니다.",
+        "steps": ["blender_runner.py 가 아직 없어서 부를 코드가 없습니다.",
+                  "명령창에서 기획팀에 지시하거나 작업판에 등록하면 Codex 가 만듭니다."],
+        "commands": [],
+        "action": None,
+    },
+    "Qwen-Image": {
+        "fixable": False,
+        "summary": "이 PC 에서는 못 씁니다. 라이선스가 아니라 RAM 이 모자랍니다.",
+        "steps": ["가중치가 약 18.5 GB 인데 이 PC 전체 RAM 이 15.7 GB 입니다.",
+                  "다른 프로그램을 다 꺼도 올라가지 않습니다. RAM 을 늘리는 것 "
+                  "말고는 방법이 없습니다.",
+                  "이미지 생성은 이미 되는 Stable Diffusion 1.5 를 쓰세요."],
+        "commands": [],
+        "action": None,
+    },
+    "유료 API (OpenAI · Anthropic · Google 등)": {
+        "fixable": False,
+        "summary": "고장이 아니라 의도된 차단입니다. 켜면 실제 요금이 나갑니다.",
+        "steps": ["company_policy.json 의 allow_paid_api 와 "
+                  "allow_openai_api_billing 이 막고 있습니다.",
+                  "지금은 Codex 구독과 Gemini 무료 등급으로 돌고 있어 추가 비용이 "
+                  "없습니다. 켜기 전에 그 비용을 감수할 이유가 있는지 먼저 정하세요."],
+        "commands": [],
+        "action": None,
+    },
+}
+
+
+def _connect_html(snapshot: Snapshot, served: bool) -> str:
+    """A card per unconnected integration: why, and what to do about it.
+
+    Collapsed, and placed under the office because the office is where a grey
+    desk raises the question. Buttons appear only on a served page and only
+    for actions the server already has.
+    """
+    stuck = [a for a in snapshot.agents if a.state != READY]
+    if not stuck:
+        return ""
+
+    cards = []
+    for agent in stuck:
+        recipe = CONNECT_RECIPES.get(agent.name)
+        badge = {GATED: "대기", BLOCKED: "사용 불가", UNKNOWN: "확인 불가"}.get(
+            agent.state, agent.state)
+        if recipe is None:
+            cards.append(
+                f'<div class="conn s-{e(agent.state)}"><div class="conn-top">'
+                f'<b>{e(agent.name)}</b><span class="conn-badge">{e(badge)}</span></div>'
+                f'<p class="conn-why">{e(agent.detail)}</p>'
+                '<p class="conn-why">연결 방법이 아직 정리돼 있지 않습니다.</p></div>')
+            continue
+
+        steps = "".join(f"<li>{e(line)}</li>" for line in recipe["steps"])
+        cmds = "".join(
+            f'<div class="conn-cmd"><code>{e(c)}</code>'
+            f'<button type="button" class="btn ghost copy" data-copy="{e(c)}">복사</button></div>'
+            for c in recipe["commands"])
+        act = ""
+        if served and recipe.get("action"):
+            name, label = recipe["action"]
+            act = (f'<button class="btn" type="button" data-act="{e(name)}">'
+                   f'{e(label)}</button>')
+        verdict = ("" if recipe["fixable"]
+                   else '<p class="conn-hard">이 PC 에서는 지금 연결할 수 없습니다.</p>')
+        cards.append(
+            f'<div class="conn s-{e(agent.state)}"><div class="conn-top">'
+            f'<b>{e(agent.name)}</b><span class="conn-badge">{e(badge)}</span></div>'
+            f'<p class="conn-why">{e(recipe["summary"])}</p>'
+            f'{verdict}<ol class="conn-steps">{steps}</ol>{cmds}{act}</div>')
+
+    return f"""  <details class="more connect">
+    <summary>연동 안 된 AI {len(stuck)}개 — 연결하는 법</summary>
+    <div class="conn-note">키는 이 페이지에 입력하지 않습니다. 환경 변수나 터미널에서만
+      넣습니다 — 입력창에 친 값은 요청 본문으로 흘러가고 이 패널 로그에 남을 수 있습니다.</div>
+    <div class="conn-grid">
+{chr(10).join(cards)}
+    </div>
+  </details>
+
+"""
 
 
 def _office_caption(agent: Agent, working: bool) -> str:
@@ -2884,6 +3064,22 @@ def _control_html(snapshot: Snapshot, token: str,
 
     buttons.forEach(b => b.addEventListener('click', () => start(b)));
 
+    // Copy buttons in the connect helper. Not a control that runs anything -
+    // it puts a command on the clipboard so it can be pasted into a terminal,
+    // which is where the login and the model pull have to happen anyway.
+    document.querySelectorAll('.copy[data-copy]').forEach(b => {{
+      b.addEventListener('click', async () => {{
+        try {{
+          await navigator.clipboard.writeText(b.dataset.copy);
+          const was = b.textContent;
+          b.textContent = '복사됨';
+          setTimeout(() => {{ b.textContent = was; }}, 1200);
+        }} catch (err) {{
+          b.textContent = '복사 실패';
+        }}
+      }});
+    }});
+
     // ---- AI game creator ----
     function creatorBody() {{
       return {{
@@ -3159,6 +3355,7 @@ def render(snapshot: Snapshot, control_token: str | None = None,
     # server: the static copy has nothing to POST to, and section 10's rule
     # that a control which cannot act should not be drawn covers a text box
     # every bit as much as a button.
+    connect = _connect_html(snapshot, served=control_token is not None)
     control = (_studio_html(snapshot) + _order_html(snapshot)
                + _control_html(snapshot, control_token, live_job)
                if control_token else "")
@@ -3218,6 +3415,7 @@ def render(snapshot: Snapshot, control_token: str | None = None,
     </div>
     {office}
   </section>
+{connect}
 {control}
 
   <section id="progress">

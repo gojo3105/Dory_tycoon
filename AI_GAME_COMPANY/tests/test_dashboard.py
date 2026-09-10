@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import sys
 import tempfile
+import re
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -946,5 +947,63 @@ class KoreanTitleTests(unittest.TestCase):
         self.assertEqual([], missing)
 
 
+class ConnectHelperTests(unittest.TestCase):
+    """The panel tells you how to connect what is not connected.
+
+    The rules that matter here are not about layout. A helper that offered a
+    box to paste an API key into would put a secret in an HTTP body and
+    possibly in this panel's own log, which company_policy's _secrets_note
+    forbids outright - so the absence of that box is asserted, not assumed.
+    """
+
+    def page(self, served=True):
+        snapshot = dash.collect(REPO)
+        return dash.render(snapshot,
+                           control_token="T" * 8 if served else None)
+
+    def test_every_button_on_the_page_names_a_real_server_action(self):
+        # dashboard.py and server.py drifted apart once already: three rows
+        # drew buttons for actions server.ACTIONS did not contain, so pressing
+        # them answered "알 수 없는 동작입니다." and nothing else. This is the
+        # test that stops the two files disagreeing again.
+        from company.orchestrator import server as srv
+        acts = set(re.findall(r'data-act="([a-z-]+)"', self.page()))
+        self.assertTrue(acts, "page rendered no buttons at all")
+        self.assertEqual(set(), acts - set(srv.ACTIONS),
+                         "page offers actions the server will refuse")
+
+    def test_no_input_ever_takes_a_key(self):
+        page = self.page()
+        self.assertNotIn('type="password"', page)
+        for word in ("API_KEY", "api_key", "apikey"):
+            self.assertNotIn(f'<input {word}', page)
+        # The warning that says where keys actually go is part of the contract.
+        self.assertIn("키는 이 페이지에 입력하지 않습니다", page)
+
+    def test_a_machine_that_cannot_run_it_says_so_instead_of_listing_steps(self):
+        # Qwen-Image needs more RAM than this machine has. Offering steps
+        # would be offering a fix that does not exist.
+        self.assertFalse(dash.CONNECT_RECIPES["Qwen-Image"]["fixable"])
+        self.assertIn("이 PC 에서는 지금 연결할 수 없습니다", self.page())
+
+    def test_recipe_actions_are_all_real_and_none_are_command_strings(self):
+        from company.orchestrator import server as srv
+        for name, recipe in dash.CONNECT_RECIPES.items():
+            action = recipe.get("action")
+            if action is None:
+                continue
+            self.assertIn(action[0], srv.ACTIONS, f"{name} names a missing action")
+
+    def test_the_static_page_offers_no_buttons_in_the_helper(self):
+        # Same rule as the rest of the panel: a control with nothing behind it
+        # should not be drawn.
+        page = self.page(served=False)
+        if "연결하는 법" in page:
+            helper = page.split("연결하는 법", 1)[1].split("</details>", 1)[0]
+            self.assertNotIn("data-act=", helper)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+

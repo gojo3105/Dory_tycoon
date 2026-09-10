@@ -111,6 +111,15 @@ ACTIONS: dict[str, Action] = {
         lambda root, arg: [_python(), "-m", "company.orchestrator.main",
                            "test", "--game", arg, "--platform", "playmode"],
         needs="game", timeout=3600),
+    # Read-only: lists what is installed and whether each model passes the
+    # licence and RAM checks. Installing is deliberately NOT here - policy
+    # never_auto_install covers ollama_models, and which model is acceptable
+    # is a licence judgement a person makes, not a button.
+    "ollama-list": Action(
+        "설치된 모델 확인",
+        lambda root, arg: [_python(), "-m", "company.orchestrator.main",
+                           "ollama", "--list"],
+        timeout=120),
     "git-status": Action(
         "변경된 파일",
         lambda root, arg: ["git", "status", "--short", "--untracked-files=all"],
