@@ -1,10 +1,10 @@
 ﻿# Auto-sync status
 
-Generated: 2026-09-11 00:25:49
-Outcome: FAILED
-Reason: Uncommitted changes to tracked files - stopping. Commit or stash them first: |  | M Reports/dashboard.html
+Generated: 2026-09-11 00:40:49
+Outcome: BLOCKED
+Reason: Uncommitted changes to tracked files: M Reports/dashboard.html
 Last-Success: 2026-09-10 08:23:25
-Local-Head: 8aebadd
+Local-Head: f144f3e
 Upstream-Head: 646dd7a
 Branch: claude/delete-current-content-mgn4xm
 
