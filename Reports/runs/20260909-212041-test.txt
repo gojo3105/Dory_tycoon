@@ -1,0 +1,23 @@
+# Orchestrator run report
+
+Generated: 2026-09-09 21:20:41
+Command: test --game game01 --platform playmode
+Outcome: FAILED
+Exit: 1
+Duration: 1분 17초
+
+## Output (tail)
+
+=== LOCAL UNITY TESTS: game01 (playmode) ===
+  Unity: C:\Program Files\Unity\Hub\Editor\6000.5.9f1\Editor\Unity.exe
+
+  [FAIL] generate          exit=1
+         log: C:\Dory_tycoon\Logs\unity-generate.log
+         generate exited 1
+         stderr: C:\Dory_tycoon\scripts\ci\wait-for-unity.ps1 : Unity exited without writing Logs\generate.exitcode - it likely crashed 
+or was killed before finishing. Check the -logFile output.
+At C:\Dory_tycoon\AI_GAME_COMPANY\logs\unity-invocations\invoke-20260909-212041-f53117.ps1:7 char:1
++ & 'C:\Dory_tycoon\scripts\ci\wait-for-unity.ps1' -SentinelName 'gener ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+TESTS_FAILED - Unity exit alone is not proof that tests passed.

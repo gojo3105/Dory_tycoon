@@ -91,6 +91,9 @@ MARKERS: dict[str, tuple[Marker, ...]] = {
     "git-status": (
         _m(r"\S", "작업 트리의 변경 파일을 세는 중"),
     ),
+    "ollama-list": (
+        _m(r"\S", "설치된 모델과 라이선스·RAM 적합성을 확인하는 중"),
+    ),
     "dashboard": (
         _m(r"\S", "대시보드를 다시 그리는 중"),
     ),
@@ -105,6 +108,7 @@ ACTION_LABEL = {
     "test": "Unity 테스트",
     "codex-doctor": "Codex 진단",
     "git-status": "변경 파일 확인",
+    "ollama-list": "설치된 모델 확인",
     "dashboard": "대시보드 새로고침",
 }
 

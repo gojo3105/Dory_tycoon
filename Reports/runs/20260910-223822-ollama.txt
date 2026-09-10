@@ -1,0 +1,13 @@
+# Orchestrator run report
+
+Generated: 2026-09-10 22:38:22
+Command: ollama --list
+Outcome: OK
+Exit: 0
+Duration: 2초
+
+## Output (tail)
+
+=== OLLAMA MODELS ===
+  Qwen3-VL:latest  licence=APPROVED  RAM=NOT_VIABLE  active=inactive
+  gemma4:26b  licence=NOT APPROVED  RAM=NOT_VIABLE  active=inactive

@@ -1,5 +1,5 @@
 ﻿# blender capability probe
-# captured: 2026-09-03 08:34:35
+# captured: 2026-09-10 22:53:45
 ----------------------------------------------------------------------
 resolved path: C:\Program Files\Blender Foundation\Blender 5.2\blender.exe
 

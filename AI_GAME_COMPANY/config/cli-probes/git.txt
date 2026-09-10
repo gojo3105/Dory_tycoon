@@ -1,7 +1,7 @@
 ﻿# git capability probe
-# captured: 2026-09-03 08:34:26
+# captured: 2026-09-10 22:53:43
 ----------------------------------------------------------------------
-resolved path: C:\Program Files\Git\cmd\git.exe
+resolved path: C:\Program Files\Git\mingw64\bin\git.exe
 
 ### --version  (exit: )
 git version 2.55.0.windows.5

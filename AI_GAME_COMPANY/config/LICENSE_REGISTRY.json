@@ -1,7 +1,7 @@
 {
   "_comment": "AI GAME COMPANY license registry (master prompt section 8). Every AI model, asset, sound, texture and 3D model used by any game is registered here. Section 38: an entry with status UNKNOWN must never ship inside a released APK.",
   "_version": 1,
-  "_lastUpdated": "2026-09-02",
+  "_lastUpdated": "2026-09-10",
   "_statusValues": [
     "APPROVED",
     "REJECTED",
@@ -389,6 +389,38 @@
       ],
       "status": "UNKNOWN",
       "notes": "The owner supplied these deliberately and asked for them to be applied, so they are in the tree and wired up. What is NOT established is the licence, and section 8 says 'it looks free' is not evidence. Before game01 is published, the owner needs to say where this pack came from and under what terms; if it is a paid or attribution licence, either the attribution goes in the credits screen or the art comes back out. Recorded as UNKNOWN rather than APPROVED so that decision cannot be skipped by accident."
+    },
+    {
+      "id": "qwen3-vl",
+      "name": "Qwen3-VL (vision-language, served locally by Ollama)",
+      "type": "ai_model",
+      "model_ids": [
+        "Qwen3-VL",
+        "Qwen3-VL:latest",
+        "Qwen3-VL:2b",
+        "Qwen3-VL:4b",
+        "Qwen3-VL:8b",
+        "Qwen3-VL:30b",
+        "qwen3-vl",
+        "qwen3-vl:latest",
+        "qwen3-vl:2b",
+        "qwen3-vl:4b",
+        "qwen3-vl:8b",
+        "qwen3-vl:30b"
+      ],
+      "source": "Pulled into local Ollama 0.33.3 by the project owner on 2026-09-10. Never sent anywhere: ollama_local_only is true and the client refuses a non-loopback endpoint.",
+      "version": "2b / 4b / 8b(latest, 8.8B) / 30b tags, all Q4_K_M, 262144 context. Installed here: Qwen3-VL:4b (4.4B, 3.3 GB) and Qwen3-VL:latest (8.8B, 6.1 GB).",
+      "license": "Apache-2.0",
+      "commercial_use": true,
+      "attribution_required": false,
+      "redistribution_rules": "Weights stay on this machine and are never bundled into the APK, so redistribution does not arise. Apache-2.0 would permit it with the notice if it ever did.",
+      "verified_at": "2026-09-10",
+      "verified_by": "claude-code",
+      "games": [
+        "game01"
+      ],
+      "status": "APPROVED",
+      "notes": "Licence read from each model's OWN shipped file, not inferred from the family: `ollama show Qwen3-VL --license` and `ollama show Qwen3-VL:4b --license` both print the Apache License 2.0 in full. They were checked separately on purpose - section 8 is explicit that 'it is a Qwen' is not evidence, and one size of a family carrying different terms from another is exactly the trap that rule exists for. Capabilities on both: completion, vision, tools, thinking.\n\nRAM is why 4b is the one in use. On this 15.71 GB machine, with about 9 GB held by Windows and the editor, the budget is free-minus-2GB: the 8.8B tag needs 5.7 GB against a 4.6 GB budget and HardwareProfile.model_fit refuses it (it does load, but leaves under 1 GB free, which is the thrashing the check exists to prevent). 4b needs 3.3 GB and fits with headroom. The larger tag stays installed and stays APPROVED - it becomes usable the moment there is more free memory."
     }
   ],
   "pending_verification": [

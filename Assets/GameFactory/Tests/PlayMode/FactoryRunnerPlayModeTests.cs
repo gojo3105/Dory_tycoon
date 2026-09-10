@@ -1,5 +1,9 @@
 using System.Collections;
+using System.Linq;
 using GameFactory.Core;
+using GameFactory.Core.Spec;
+using GameFactory.Gameplay.Runner;
+using GameFactory.UI;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -31,6 +35,38 @@ namespace GameFactory.Tests.PlayMode
             Assert.IsNotNull(GameManager.Instance, "GameManager.Instance should be set after scene load.");
             Assert.IsNotNull(GameObject.FindGameObjectWithTag("Player"), "Scene should contain a Player-tagged object.");
             yield return null;
+        }
+
+        [UnityTest]
+        public IEnumerator GeneratedScene_HasComboAndTwoActionButtons()
+        {
+            yield return null;
+
+            Assert.IsNotNull(RunnerCombo.Instance);
+            RunnerActionButton[] controls = Resources.FindObjectsOfTypeAll<RunnerActionButton>();
+            Assert.GreaterOrEqual(controls.Length, 2);
+        }
+
+        [UnityTest]
+        public IEnumerator Combo_EightPickupsRaiseTheCoinMultiplier()
+        {
+            yield return null;
+            GameManager.Instance.StartGame();
+            RunnerCombo combo = RunnerCombo.Instance;
+            combo.Configure(new RunnerProgressionConfig
+            {
+                comboWindow = 10f,
+                feverPickups = 100,
+                feverDuration = 5f,
+                maxCoinMultiplier = 5
+            });
+
+            int reward = 0;
+            for (int i = 0; i < 8; i++) reward = combo.RegisterPickup(1);
+
+            Assert.AreEqual(8, combo.Combo);
+            Assert.AreEqual(2, combo.Multiplier);
+            Assert.AreEqual(2, reward);
         }
 
         /// <summary>
@@ -220,6 +256,52 @@ namespace GameFactory.Tests.PlayMode
             yield return null;
 
             Assert.AreEqual(3, GameManager.Instance.Score, "Score should not change once the run is over.");
+        }
+
+        [UnityTest]
+        public IEnumerator GeneratedScene_HasMetaProgressionAndMonetization()
+        {
+            yield return null;
+            Assert.IsNotNull(Object.FindFirstObjectByType<MetaGameController>());
+            Assert.IsNotNull(MonetizationService.Instance);
+
+            GameObject[] sceneObjects = Resources.FindObjectsOfTypeAll<GameObject>()
+                .Where(go => go.scene.IsValid()).ToArray();
+            GameObject missionPanel = sceneObjects.FirstOrDefault(go => go.name == "MissionPanel");
+            GameObject settingsPanel = sceneObjects.FirstOrDefault(go => go.name == "SettingsPanel");
+            GameObject tutorialPanel = sceneObjects.FirstOrDefault(go => go.name == "TutorialPanel");
+            Assert.IsNotNull(missionPanel);
+            Assert.IsNotNull(settingsPanel);
+            Assert.IsNotNull(tutorialPanel);
+        }
+
+        [Test]
+        public void Progression_ClearingStageUnlocksTheNextStage()
+        {
+            string gameId = $"progression_{System.Guid.NewGuid():N}";
+            StageDefinition stage = ProgressionSystem.GetStage(1);
+
+            RunProgressResult result = ProgressionSystem.CompleteRun(gameId, 1,
+                stage.TargetDistance, 10);
+
+            Assert.IsTrue(result.StageCleared);
+            Assert.AreEqual(3, result.StageStars);
+            Assert.AreEqual(2, ProgressionSystem.GetUnlockedStage(gameId));
+            Assert.Greater(result.EarnedXp, 0);
+        }
+
+        [Test]
+        public void Missions_CompletedGoalCanBeClaimedOnlyOnce()
+        {
+            string gameId = $"missions_{System.Guid.NewGuid():N}";
+            MissionSystem.PrepareDay(gameId, System.DateTime.UtcNow);
+            MissionSystem.RecordRun(gameId, 600, 50, 20);
+            MissionDefinition mission = MissionSystem.DailyMissions[0];
+
+            Assert.IsTrue(MissionSystem.CanClaim(gameId, mission));
+            Assert.IsTrue(MissionSystem.Claim(gameId, mission));
+            Assert.IsFalse(MissionSystem.Claim(gameId, mission));
+            Assert.AreEqual(mission.Reward, SaveSystem.GetInt(gameId, ShopKeys.Currency));
         }
     }
 }

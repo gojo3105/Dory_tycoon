@@ -1,0 +1,15 @@
+# Orchestrator run report
+
+Generated: 2026-09-08 08:38:49
+Command: dashboard
+Outcome: OK
+Exit: 0
+Duration: 3초
+
+## Output (tail)
+
+Wrote C:\Dory_tycoon\Reports\dashboard.html
+  3 ready, 2 gated, 2 blocked, 1 unknown
+
+  could not read (those sections show as 'no evidence', not as OK):
+    - config/TASKBOARD.json

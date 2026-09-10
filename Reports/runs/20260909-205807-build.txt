@@ -1,0 +1,25 @@
+# Orchestrator run report
+
+Generated: 2026-09-09 20:58:07
+Command: build --game game01
+Outcome: OK
+Exit: 0
+Duration: 2분 15초
+
+## Output (tail)
+
+=== LOCAL BUILD: game01 ===
+  Unity: C:\Program Files\Unity\Hub\Editor\6000.5.9f1\Editor\Unity.exe
+  This takes a while - Gradle on a cold cache is the slow part.
+
+  [ OK ] generate  exit=0
+         log: C:\Dory_tycoon\Logs\unity-generate.log
+  [ OK ] validate  exit=0
+         log: C:\Dory_tycoon\Logs\unity-validate.log
+  [ OK ] build     exit=0
+         log: C:\Dory_tycoon\Logs\unity-build.log
+
+APK: C:\Dory_tycoon\Builds\game01\APK\Game01_FactoryRunner_v1.0.apk
+  size: 22.51 MB
+
+Next: run scripts/dev/report-build-status.ps1 -Commit so this is readable from the repository.

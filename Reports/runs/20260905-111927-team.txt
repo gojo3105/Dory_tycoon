@@ -1,0 +1,54 @@
+# Orchestrator run report
+
+Generated: 2026-09-05 11:19:27
+Command: team run --task CODEX-AICTL1
+Outcome: FAILED
+Exit: 1
+Duration: 11분 42초
+
+## Output (tail)
+
+=== HANDING CODEX-AICTL1 TO CODEX ===
+  A control per AI in the panel, and honest silence where there is none
+  allowlist: AI_GAME_COMPANY/company/orchestrator/dashboard.py, AI_GAME_COMPANY/company/orchestrator/server.py, AI_GAME_COMPANY/tests/test_dashboard.py, AI_GAME_COMPANY/tests/test_server.py, Reports/dashboard.html
+  running codex exec --sandbox workspace-write ...
+
+--- codex said ---
+Implemented TASK CODEX-AICTL1.
+
+Changed files:
+
+- [dashboard.py](C:\Dory_tycoon\AI_GAME_COMPANY\company\orchestrator\dashboard.py) — Added per-adapter controls, live Ollama inventory handling, disabled-model reasons, zero-model messaging, and honest Gemini/Blender availability.
+- [server.py](C:\Dory_tycoon\AI_GAME_COMPANY\company\orchestrator\server.py) — Added secured Ollama, image-generation, and conditional Gemini actions with server-owned argv and argument validation.
+- [test_dashboard.py](C:\Dory_tycoon\AI_GAME_COMPANY\tests\test_dashboard.py) — Added zero-model, disabled-model, adapter-absence, static-control, and no-confirmation coverage.
+- [test_server.py](C:\Dory_tycoon\AI_GAME_COMPANY\tests\test_server.py) — Added token, Origin, unknown-action, injection, installed-model, and preset validation tests.
+- [dashboard.html](C:\Dory_tycoon\Reports\dashboard.html) — Regenerated static dashboard; it contains no controls or confirmation dialogs.
+
+Verification: all 114 dashboard/server tests passed; the final targeted 48 tests also passed. `git diff --check` passes.
+
+Note: background repository automation advanced `HEAD` and included the main dashboard changes in commit `609ffc9` while tests were running. I did not stage, commit, push, or alter history. Unrelated working-tree changes were left untouched.
+
+--- files this run changed ---
+  AI_GAME_COMPANY/company/orchestrator/dashboard.py
+  AI_GAME_COMPANY/company/orchestrator/server.py
+  AI_GAME_COMPANY/tests/test_dashboard.py
+  AI_GAME_COMPANY/tests/test_server.py
+  Assets/Common/Art/UI/button.png.meta
+  Assets/Common/Art/UI/button_green.png.meta
+  Assets/Common/Art/UI/button_grey.png.meta
+  Assets/Common/Art/UI/button_red.png.meta
+  Assets/Common/Art/UI/button_yellow.png.meta
+  GeneratedGames/game01.json
+  Reports/dashboard.html
+
+BLOCKED - these are outside the task's allowlist:
+  Assets/Common/Art/UI/button.png.meta
+  Assets/Common/Art/UI/button_green.png.meta
+  Assets/Common/Art/UI/button_grey.png.meta
+  Assets/Common/Art/UI/button_red.png.meta
+  Assets/Common/Art/UI/button_yellow.png.meta
+  GeneratedGames/game01.json
+
+  Nothing was reverted: the working tree may hold work in
+  progress from the other agent, and discarding that silently
+  would be worse than the overreach. Review them by hand.

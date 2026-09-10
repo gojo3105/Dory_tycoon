@@ -1,0 +1,24 @@
+# Orchestrator run report
+
+Generated: 2026-09-05 12:04:59
+Command: test --platform playmode
+Outcome: FAILED
+Exit: 1
+Duration: 30분 1초
+
+## Output (tail)
+
+=== LOCAL UNITY TESTS: game01 (playmode) ===
+  Unity: C:\Program Files\Unity\Hub\Editor\6000.5.9f1\Editor\Unity.exe
+
+  [FAIL] generate          exit=1
+         log: C:\Dory_tycoon\Logs\unity-generate.log
+         generate exited 1
+         stderr: C:\Dory_tycoon\scripts\ci\wait-for-unity.ps1 : Timed out after 30 minute(s) waiting for Unity to finish. Killing remain
+ing Unity process(es).
+At C:\Dory_tycoon\AI_GAME_COMPANY\logs\unity-invocations\invoke-20260905-120459-2927fb.ps1:7 char:1
++ & 'C:\Dory_tycoon\scripts\ci\wait-for-unity.ps1' -SentinelName 'gener ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + Cat
+
+TESTS_FAILED - Unity exit alone is not proof that tests passed.

@@ -1,0 +1,20 @@
+# Orchestrator run report
+
+Generated: 2026-09-08 07:35:22
+Command: serve
+Outcome: OK
+Exit: 0
+Duration: 1분 16초
+
+## Output (tail)
+
+  working directory: C:\Dory_tycoon\AI_GAME_COMPANY
+  package root:      C:\Dory_tycoon\AI_GAME_COMPANY
+=== GAME FACTORY 제어판 ===
+  http://127.0.0.1:8765/
+  이 주소는 이 PC에서만 열립니다 (127.0.0.1 전용).
+  실행 가능한 동작: dashboard, codex-doctor, team-run, build, git-status
+  커밋과 푸시는 하지 않습니다. Ctrl+C 로 종료합니다.
+
+
+종료합니다.

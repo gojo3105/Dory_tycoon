@@ -1,0 +1,11 @@
+# Orchestrator run report
+
+Generated: 2026-09-10 22:38:24
+Command: ollama --use Qwen3-VL:latest
+Outcome: FAILED
+Exit: 2
+Duration: 2초
+
+## Output (tail)
+
+REFUSED: RAM fit check failed for 'Qwen3-VL:latest': model size 5.72 GB, machine total 15.71 GB. 5.7 GB of weights against a 4.6 GB budget (6.6 GB free minus 2 GB headroom) - it would swap to disk instead of running

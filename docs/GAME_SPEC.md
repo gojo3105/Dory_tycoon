@@ -17,6 +17,7 @@
     "gravitySwitch": true, "teleport": false, "timeSlow": false
   },
   "level": { "levelCount": 1, "difficulty": "Medium", "procedural": true, "length": 120 },
+  "energy": { "enabled": true, "drainPerSecond": 0.075, "refillPerPickup": 0.12 },
   "enemy": { "enabled": false, "types": 0 },
   "special": { "mechanic": "GravitySwitch" },
   "theme": { "environment": "Factory", "character": "Slime" }
@@ -68,6 +69,16 @@
 | `procedural` | bool | 절차적 생성 여부 (정보성 필드, Runner는 항상 절차적). | - |
 | `length` | float | 코인 간격, 중력 반전 구간 길이 등 절차적 생성의 기준 스케일. | `> 0` |
 
+### `energy`
+
+Runner의 시간 압박을 설정한다. `enabled`가 false이거나 생략된 기존 스펙은 에너지 컴포넌트와 HUD 게이지를 생성하지 않는다.
+
+| 필드 | 타입 | 설명 | 검증 규칙 |
+|---|---|---|---|
+| `enabled` | bool | true면 플레이 중 에너지가 감소하고 0에서 게임 오버된다. 코인을 획득하면 같은 픽업이 화폐와 에너지를 모두 지급한다. | - |
+| `drainPerSecond` | float | 초당 감소하는 정규화 에너지(게이지 전체가 1). 일시정지 중에는 감소하지 않는다. | `enabled`가 true면 `> 0` |
+| `refillPerPickup` | float | 코인 하나를 획득할 때 회복하는 정규화 에너지. 결과는 1로 제한된다. | `enabled`가 true면 `> 0` |
+
 ### `enemy`
 
 | 필드 | 타입 | 설명 | 검증 규칙 |
@@ -93,3 +104,16 @@
 캐릭터/배경(`theme`)만 바꾼 리스킨은 새 게임으로 인정하지 않는다. `mechanics`/`level`/`enemy`/
 `special`의 조합이 실제로 달라져야 한다 - `GameSpecValidator`는 이를 강제하지 않으므로 리뷰 시
 사람이 확인한다.
+
+### `runnerProgression`
+
+Runner의 반복 플레이 속도와 보상을 조절한다.
+
+| 필드 | 타입 | 설명 | 검증 규칙 |
+|---|---|---|---|
+| `comboWindow` | float | 다음 젤리를 먹어 콤보를 유지할 수 있는 시간(초). | `> 0` |
+| `feverPickups` | int | 피버를 발동하는 연속 획득 수. | `>= 2` |
+| `feverDuration` | float | 장애물을 파괴하며 달리는 피버 시간(초). | `> 0` |
+| `maxCoinMultiplier` | int | 콤보로 얻는 최대 코인 배수. | `>= 1` |
+| `speedGainPer100m` | float | 100m마다 증가하는 이동 속도 비율. | `>= 0` |
+| `maxSpeedMultiplier` | float | 기본 속도 대비 최고 속도 배수. | `>= 1` |

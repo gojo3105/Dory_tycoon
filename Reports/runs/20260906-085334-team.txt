@@ -1,0 +1,32 @@
+# Orchestrator run report
+
+Generated: 2026-09-06 08:53:34
+Command: team run --task CODEX-BGWIRE1
+Outcome: FAILED
+Exit: 1
+Duration: 30초
+
+## Output (tail)
+
+=== HANDING CODEX-BGWIRE1 TO CODEX ===
+  Generate the parallax background layers and wire them into the scene
+  allowlist: Assets/GameFactory/Editor/SceneGenerator.cs, AI_GAME_COMPANY/config/art-mapping.json, Assets/GameFactory/Editor/SharedArtImporter.cs
+  running codex exec --sandbox workspace-write ...
+
+--- codex said ---
+Unable to proceed because the required parallax speed-factor field is absent from `GameSpec`.
+
+Changed files: none.
+
+Required files outside the allowlist:
+
+- `Assets/GameFactory/Core/GameSpec/GameSpecData.cs` — define the background configuration and default speed factors.
+- `Assets/GameFactory/Core/GameSpec/GameSpecValidator.cs` — validate configured layers and distant-to-near speed ordering.
+- `docs/GAME_SPEC.md` — document the new GameSpec fields and defaults.
+
+The task explicitly requires these updates while also requiring work to stop if any non-allowlisted file is needed. Please add these three files to the allowlist.
+
+--- files this run changed ---
+  (none)
+
+BLOCKED - the run changed nothing. That is not progress.

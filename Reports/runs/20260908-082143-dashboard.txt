@@ -1,0 +1,12 @@
+# Orchestrator run report
+
+Generated: 2026-09-08 08:21:43
+Command: dashboard
+Outcome: OK
+Exit: 0
+Duration: 2초
+
+## Output (tail)
+
+Wrote C:\Dory_tycoon\Reports\dashboard.html
+  3 ready, 2 gated, 2 blocked, 1 unknown

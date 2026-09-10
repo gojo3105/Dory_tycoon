@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 namespace GameFactory.Core
 {
@@ -45,10 +46,20 @@ namespace GameFactory.Core
 
             if (Input.touchCount > 0)
             {
-                HandlePointer(Input.GetTouch(0).position,
-                              Input.GetTouch(0).phase == TouchPhase.Began,
-                              Input.GetTouch(0).phase == TouchPhase.Ended
-                              || Input.GetTouch(0).phase == TouchPhase.Canceled);
+                Touch touch = Input.GetTouch(0);
+                if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject(touch.fingerId))
+                {
+                    pressActive = false;
+                    return;
+                }
+                HandlePointer(touch.position, touch.phase == TouchPhase.Began,
+                              touch.phase == TouchPhase.Ended || touch.phase == TouchPhase.Canceled);
+                return;
+            }
+
+            if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
+            {
+                pressActive = false;
                 return;
             }
 

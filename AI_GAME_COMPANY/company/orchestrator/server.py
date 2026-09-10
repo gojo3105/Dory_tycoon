@@ -46,18 +46,20 @@ import subprocess
 import sys
 import threading
 import time
+import urllib.parse
 from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
 from company.orchestrator import dashboard as dash
+from company.orchestrator import game_creator as creation
 from company.orchestrator import orders as ordering
 from company.orchestrator import progress as prog
 from company.orchestrator.teamwork import TaskBoard
 
 LOOPBACK = "127.0.0.1"
-MAX_BODY = 8192
+MAX_BODY = 16384
 # Kept small and read-only-ish per entry; the log a browser polls does not
 # need to hold a whole Gradle run.
 MAX_LOG_CHARS = 200_000
@@ -109,6 +111,15 @@ ACTIONS: dict[str, Action] = {
         lambda root, arg: [_python(), "-m", "company.orchestrator.main",
                            "test", "--game", arg, "--platform", "playmode"],
         needs="game", timeout=3600),
+    # Read-only: lists what is installed and whether each model passes the
+    # licence and RAM checks. Installing is deliberately NOT here - policy
+    # never_auto_install covers ollama_models, and which model is acceptable
+    # is a licence judgement a person makes, not a button.
+    "ollama-list": Action(
+        "설치된 모델 확인",
+        lambda root, arg: [_python(), "-m", "company.orchestrator.main",
+                           "ollama", "--list"],
+        timeout=120),
     "git-status": Action(
         "변경된 파일",
         lambda root, arg: ["git", "status", "--short", "--untracked-files=all"],
@@ -393,8 +404,11 @@ class Handler(BaseHTTPRequestHandler):
         if self.path.startswith("/log"):
             self._log()
             return
+        if self.path.startswith("/artifact"):
+            self._artifact()
+            return
         if self.path in ("/", "/index.html"):
-            snapshot = dash.collect(self.runner.repo_root)
+            snapshot = dash.collect(self.runner.repo_root, live_ollama=True)
             # Read-only: the renderer is handed the current job so the page
             # agrees with itself about who is working. Nothing in a request
             # can set or clear it - only start() creates one.
@@ -423,12 +437,15 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802
         if not self._local_host():
+            self._discard_body()
             self._json(400, {"error": "bad host"})
             return
         if not self._origin_ok():
+            self._discard_body()
             self._json(403, {"error": "cross-site 요청은 거부됩니다."})
             return
-        if self.path not in ("/run", "/order", "/board"):
+        if self.path not in ("/run", "/order", "/plan-game", "/create-game"):
+            self._discard_body()
             self._json(404, {"error": "not found"})
             return
 
@@ -438,10 +455,21 @@ class Handler(BaseHTTPRequestHandler):
 
         if self.path == "/order":
             self._order(payload)
-        elif self.path == "/board":
-            self._board(payload)
+        elif self.path == "/plan-game":
+            self._plan_game(payload)
+        elif self.path == "/create-game":
+            self._create_game(payload)
         else:
             self._run_action(payload)
+
+    def _discard_body(self) -> None:
+        """Drain a small rejected request so Windows sends the response instead of a TCP reset."""
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            return
+        if 0 < length <= MAX_BODY + 1024:
+            self.rfile.read(length)
 
     def _authorised_body(self) -> dict[str, Any] | None:
         """Parse and authorise a POST body, or answer the error and return None."""
@@ -451,6 +479,8 @@ class Handler(BaseHTTPRequestHandler):
             self._json(400, {"error": "bad length"})
             return None
         if length <= 0 or length > MAX_BODY:
+            if length > 0:
+                self.rfile.read(min(length, MAX_BODY + 1024))
             self._json(400, {"error": "bad body size"})
             return None
 
@@ -479,6 +509,100 @@ class Handler(BaseHTTPRequestHandler):
 
         print(f"  [실행] {' '.join(job.step.argv)}")
         self._json(200, {"job": job.id})
+
+    def _plan_game(self, payload: dict[str, Any]) -> None:
+        """Return a complete preview without writing a file or starting Unity."""
+        try:
+            plan = creation.plan_game(self.runner.repo_root, payload)
+        except creation.GameCreationError as exc:
+            self._json(409, {"error": str(exc)})
+            return
+        self._json(200, {"plan": plan.as_dict(), "saved": False})
+
+    def _create_game(self, payload: dict[str, Any]) -> None:
+        """Save a generated GameSpec, then run an allowlisted Unity pipeline."""
+        if self.runner.busy():
+            self._json(409, {"error": "지금 다른 작업이 실행 중입니다. 끝나면 다시 시도하세요."})
+            return
+
+        pipeline = payload.get("pipeline", "full")
+        if not isinstance(pipeline, str) or pipeline not in ("spec", "test", "build", "full"):
+            self._json(409, {"error": "지원하지 않는 자동화 단계입니다."})
+            return
+
+        try:
+            plan = creation.create_game(self.runner.repo_root, payload)
+        except creation.GameCreationError as exc:
+            self._json(409, {"error": str(exc)})
+            return
+
+        pairs = {
+            "spec": [],
+            "test": [("test", plan.game_id)],
+            "build": [("build", plan.game_id)],
+            "full": [("test", plan.game_id), ("build", plan.game_id)],
+        }[pipeline]
+        response: dict[str, Any] = {
+            "plan": plan.as_dict(),
+            "saved": True,
+            "spec_path": f"GameSpecs/{plan.game_id}.json",
+            "steps": [ACTIONS[action].label for action, _ in pairs],
+        }
+        if not pairs:
+            response.update(done=True, exit_code=0)
+            self._json(200, response)
+            return
+
+        job, why = self.runner.start_steps(
+            pairs,
+            title=f"{plan.title} 자동 생성",
+        )
+        if job is None:
+            response.update(error=why, note="GameSpec은 저장되었습니다.")
+            self._json(409, response)
+            return
+
+        job.append(
+            f"GameSpec created: GameSpecs/{plan.game_id}.json\n"
+            f"Character locked: {creation.SHARED_CHARACTER}\n"
+        )
+        response.update(job.snapshot())
+        print(f"  [게임 생성] {plan.game_id} · {plan.title} · {pipeline}")
+        self._json(200, response)
+
+    def _artifact(self) -> None:
+        """Download the newest verified Android artifact for one safe game id."""
+        query = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
+        game = (query.get("game") or [""])[0]
+        if not SAFE_ID.match(game):
+            self._json(400, {"error": "올바르지 않은 게임 id입니다."})
+            return
+        build_dir = self.runner.repo_root / "Builds" / game
+        if not build_dir.is_dir():
+            self._json(404, {"error": "빌드 파일이 없습니다."})
+            return
+        files = [
+            path for pattern in ("**/*.apk", "**/*.aab")
+            for path in build_dir.glob(pattern)
+            if path.is_file() and path.stat().st_size > 0
+        ]
+        if not files:
+            self._json(404, {"error": "빌드 파일이 없습니다."})
+            return
+        artifact = max(files, key=lambda path: path.stat().st_mtime)
+        body = artifact.read_bytes()
+        content_type = (
+            "application/vnd.android.package-archive"
+            if artifact.suffix.lower() == ".apk" else "application/octet-stream"
+        )
+        self.send_response(200)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Content-Disposition", f'attachment; filename="{artifact.name}"')
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.end_headers()
+        self.wfile.write(body)
 
     def _order(self, payload: dict[str, Any]) -> None:
         """Accept one typed instruction and put the AI to work on it.

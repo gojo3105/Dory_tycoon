@@ -6,7 +6,7 @@
       "id": "CLAUDE-UI1",
       "title": "Casual/Korean UI layout in SceneGenerator",
       "owner": "claude",
-      "status": "review",
+      "status": "done",
       "goal": "Rebuild the title, HUD, game-over, pause and shop screens in SceneGenerator to match the approved casual direction: cream cards with a thick brown outline, Korean labels, one primary green button per screen.",
       "files": [
         "Assets/GameFactory/Editor/SceneGenerator.cs",
@@ -24,7 +24,8 @@
       "notes": [
         "Design reference: https://claude.ai/code/artifact/2c13a317-896d-45cc-98da-b01955e1bc92",
         "Compiles as of 2026-09-02 (build succeeded, APK produced). Still REVIEW and not done: the acceptance criteria are that every string is Korean and legible ON A DEVICE, and whether Font.CreateDynamicFontFromOSFont finds a Hangul face on Android is the one thing that cannot be checked from here. Install the APK and look.",
-        "Verified from the fork's committed reports 2026-09-02 20:25: generate/validate/build all exit 0, APK Builds/game01/APK/Game01_FactoryRunner_v1.0.apk 17.32 MB sha256:7F81E6F18E29EA94, and 0 compile errors / 0 obsolete-API warnings / 0 runtime exceptions / 0 build failures. Still REVIEW for one reason only: nobody has looked at the Korean text on a device yet."
+        "Verified from the fork's committed reports 2026-09-02 20:25: generate/validate/build all exit 0, APK Builds/game01/APK/Game01_FactoryRunner_v1.0.apk 17.32 MB sha256:7F81E6F18E29EA94, and 0 compile errors / 0 obsolete-API warnings / 0 runtime exceptions / 0 build failures. Still REVIEW for one reason only: nobody has looked at the Korean text on a device yet.",
+        "2026-09-05: User verified Korean text and colored buttons on Android APK SHA256 6B43C5A77974357C. Device acceptance passed."
       ],
       "changed_files": [],
       "last_run": "",
@@ -78,7 +79,8 @@
         "Ran 2026-09-02. Codex edited both allowlisted files correctly; the run was reported BLOCKED only because Unity rewrote Packages/packages-lock.json while it worked - see CODEX-BOARD1 defect 1. Committed by hand as 89514dc. Still needs apply-art-mapping.ps1 -Commit to copy the actual PNGs, and a build to compile SharedArtImporter.",
         "SharedArtImporter compiles as of 2026-09-02. Still REVIEW: the four button PNGs are not on disk yet, so every button in the current APK is still the blue fallback. Needs AI_GAME_COMPANY/tools/apply-art-mapping.ps1 -Commit.",
         "Still REVIEW as of 2026-09-02 20:25: the fork has no Assets/Common/Art/UI/ directory at all, so the four button PNGs were never copied - apply-art-mapping.ps1 has not been run with -Commit. Every button in the 17.32 MB APK is therefore still the blue fallback that StyleButton falls back to.",
-        "DONE 2026-09-05 11:21. apply-art-mapping.ps1 -Commit finally ran: Assets/Common/Art/UI/ now holds button_green, button_yellow, button_red, button_grey (plus the blue original), and Unity generated a .meta for each, which is the editor confirming it imported them. The reason this sat at review for three days was that one script run, not the mapping - the mapping was correct on 2026-09-02. Buttons stop being the blue fallback at the next build."
+        "DONE 2026-09-05 11:21. apply-art-mapping.ps1 -Commit finally ran: Assets/Common/Art/UI/ now holds button_green, button_yellow, button_red, button_grey (plus the blue original), and Unity generated a .meta for each, which is the editor confirming it imported them. The reason this sat at review for three days was that one script run, not the mapping - the mapping was correct on 2026-09-02. Buttons stop being the blue fallback at the next build.",
+        "2026-09-05: User verified Korean text and colored buttons on Android APK SHA256 6B43C5A77974357C. Device acceptance passed."
       ],
       "changed_files": [
         "AI_GAME_COMPANY/config/art-mapping.json",
@@ -140,7 +142,8 @@
         "Keep it subtle. This is a 136x192 sprite on a phone; limbs that swing far read as broken, not lively.",
         "2026-09-03 00:47 UTC: Codex RAN THIS TASK and finished (Reports/runs/20260903T004724...txt). The run then died with UnicodeEncodeError: cp949 while PRINTING the summary - an em dash in Codex's message that the Korean Windows console cannot encode. run_task had already saved REVIEW, but Codex's edits from that run were then swept into the PC stash named 'codex RUNLOG1 attempt' on 2026-09-05 (git stash push -u before pulling upstream). That stash holds finished work from FOUR runs - do not drop it. Export with `git stash show -p > Reports/codex-attempts.diff`, commit, push, and Claude will review and merge what is good.",
         "2026-09-05: Codex's finished ANIM1 code RECOVERED from the PC stash (Reports/codex-attempts.diff) and applied to this branch by Claude. Read against the acceptance criteria: four limb GameObjects created once in CreateLimbs from one shared 1x1 sprite (no art file); diagonal pairs share a phase (left arm with right leg); airborne holds a jump pose and the run cycle resumes on landing; sortingOrder = body - 1 so limbs draw behind; Update only sets four localRotations - no per-frame allocation; nothing touches PrefabGenerator or a collider. No UnityEditor reference, no obsolete API. REVIEW, not DONE: NOT compiled - the first `orchestrator build` after this lands is the check, and the 136x192 sprite must be looked at on a device for limb size (limbSwing 13 deg was Codex's choice of 'subtle').",
-        "2026-09-05 11:18: COMPILES. RunnerCharacterMotion.cs was on the build PC when `orchestrator test playmode` ran, and PlayMode cannot run without compiling the whole assembly - so the limb code has no compile errors and did not break the 11 existing tests. Still review for one reason only: nobody has watched the limbs move on a 136x192 sprite. limbSwing is 13 degrees; if it reads as broken rather than lively, that number is the one to change."
+        "2026-09-05 11:18: COMPILES. RunnerCharacterMotion.cs was on the build PC when `orchestrator test playmode` ran, and PlayMode cannot run without compiling the whole assembly - so the limb code has no compile errors and did not break the 11 existing tests. Still review for one reason only: nobody has watched the limbs move on a 136x192 sprite. limbSwing is 13 degrees; if it reads as broken rather than lively, that number is the one to change.",
+        "2026-09-05: Device acceptance FAILED: user sees a sliding still image, not limb motion. Replacing occluded procedural bars with local deformation of the existing illustrated paws. Review pending new build and device check."
       ],
       "changed_files": [
         "Assets/GameFactory/Gameplay/Runner/RunnerCharacterMotion.cs"
@@ -298,7 +301,7 @@
       "id": "CODEX-TESTCMD1",
       "title": "orchestrator test - run the Unity test suites locally",
       "owner": "codex",
-      "status": "done",
+      "status": "review",
       "goal": "There is no way to run the Unity tests from the orchestrator. run_pipeline deliberately does generate/validate/build and leaves tests to the workflow, but the self-hosted runner is not always up, and a task like CODEX-TEST1 that WRITES tests cannot be verified without running them. PlayMode test assemblies are also excluded from a player build, so `orchestrator build` does not even compile them - a syntax error in a test file passes the build and is caught by nobody. Add the missing step.",
       "files": [
         "AI_GAME_COMPANY/company/orchestrator/unity_runner.py",
@@ -410,7 +413,7 @@
       "id": "CODEX-AICTL1",
       "title": "A control per AI in the panel, and honest silence where there is none",
       "owner": "codex",
-      "status": "in_progress",
+      "status": "blocked",
       "goal": "The control panel can only drive Codex and Unity. Give each connected AI its own control - and give the ones with no adapter no control at all, stated as such, because a button that cannot work misrepresents what this project can do.",
       "files": [
         "AI_GAME_COMPANY/company/orchestrator/dashboard.py",
@@ -439,10 +442,23 @@
         "THE MACHINE HAS NO OLLAMA MODELS AT ALL, verified 2026-09-02: `ollama rm gemma4:26b` said \"model not found\" and `orchestrator ollama --list` printed \"no models installed\". So the only Ollama state you can build against today is the empty one, which is why it is an acceptance criterion above. Do NOT trust HARDWARE_PROFILE.json here - it still lists gemma4:26b 17.33 GB from a 2026-09-01 scan and is stale. Read the inventory from OllamaClient at render time, not from the profile; the profile is for RAM sizes.",
         "2026-09-02 23:46 UTC: Codex RAN THIS TASK and finished (Reports/runs/20260902T234645...txt), then the same cp949 UnicodeEncodeError killed the report while printing the summary. Codex's edits from that run were then swept into the PC stash named 'codex RUNLOG1 attempt' on 2026-09-05 (git stash push -u before pulling upstream). That stash holds finished work from FOUR runs - do not drop it. Export with `git stash show -p > Reports/codex-attempts.diff`, commit, push, and Claude will review and merge what is good.",
         "2026-09-05, from the recovered stash: Codex's 2026-09-02 run of this task was marked BLOCKED only because its OWN run-log files (Reports/runs/*.txt, written by a concurrent `dashboard` action) landed in the diff - the same class of false block as packages-lock.json. Reports/* are now TOOL_OWNED in teamwork.py. Codex's dashboard.py (+224) and server.py (+151) edits are in Reports/codex-attempts.diff, based on the pre-2026-09-03 dashboard.py; they need rebasing onto the current file and a security read of the server.py part before any of it lands. Not applied yet.",
-        "2026-09-05 11:00: run stopped by the user with Ctrl+C after 1분 35초 (Reports/runs/20260905-110050-team.txt, exit 130). The board was left saying in_progress because run_task caught Exception and KeyboardInterrupt is not one - fixed in this commit, and the status corrected here by hand. Check `git status` on the PC before re-running: Codex may have edited dashboard.py or server.py in that 95 seconds, and those edits would otherwise be swept into the next run's diff and blamed on it."
+        "2026-09-05 11:00: run stopped by the user with Ctrl+C after 1분 35초 (Reports/runs/20260905-110050-team.txt, exit 130). The board was left saying in_progress because run_task caught Exception and KeyboardInterrupt is not one - fixed in this commit, and the status corrected here by hand. Check `git status` on the PC before re-running: Codex may have edited dashboard.py or server.py in that 95 seconds, and those edits would otherwise be swept into the next run's diff and blamed on it.",
+        "BLOCKED: the run changed files outside the allowlist: Assets/Common/Art/UI/button.png.meta, Assets/Common/Art/UI/button_green.png.meta, Assets/Common/Art/UI/button_grey.png.meta, Assets/Common/Art/UI/button_red.png.meta, Assets/Common/Art/UI/button_yellow.png.meta, GeneratedGames/game01.json"
       ],
-      "changed_files": [],
-      "last_run": "",
+      "changed_files": [
+        "AI_GAME_COMPANY/company/orchestrator/dashboard.py",
+        "AI_GAME_COMPANY/company/orchestrator/server.py",
+        "AI_GAME_COMPANY/tests/test_dashboard.py",
+        "AI_GAME_COMPANY/tests/test_server.py",
+        "Assets/Common/Art/UI/button.png.meta",
+        "Assets/Common/Art/UI/button_green.png.meta",
+        "Assets/Common/Art/UI/button_grey.png.meta",
+        "Assets/Common/Art/UI/button_red.png.meta",
+        "Assets/Common/Art/UI/button_yellow.png.meta",
+        "GeneratedGames/game01.json",
+        "Reports/dashboard.html"
+      ],
+      "last_run": "C:\\Dory_tycoon\\AI_GAME_COMPANY\\logs\\codex-runs\\implement-20260905-111928-7a2e7d.txt",
       "title_ko": "AI별 제어 버튼, 없으면 정직하게 없음 표시"
     },
     {
@@ -540,7 +556,7 @@
       "id": "CODEX-BGWIRE1",
       "title": "Generate the parallax background layers and wire them into the scene",
       "owner": "codex",
-      "status": "todo",
+      "status": "blocked",
       "goal": "CODEX-BG1 delivered ParallaxBackground.cs and it is sound, but nothing calls SetLayers, so every generated scene still has an empty sky. Build the layer objects at generation time from the CC0 background art already staged and approved, and wire them to the component.",
       "files": [
         "Assets/GameFactory/Editor/SceneGenerator.cs",
@@ -561,10 +577,11 @@
         "Read Assets/GameFactory/Gameplay/Runner/ParallaxBackground.cs first - its SetLayers expects one Transform per layer, each with a SpriteRenderer somewhere beneath it that defines the repeat width.",
         "The camera is orthographic, size 5, and follows the player on X (CameraFollow2D). A layer must span more than the visible width at that size or the wrap shows.",
         "Two packs are approved and only ONE should be used: kenney-background-elements-remastered (162 images, the newer one) or kenney-backgroundElements (125, the spare). Mixing the two looks worse than either.",
-        "Do not change ParallaxBackground.cs. If it genuinely needs a change, stop and say so in your final message rather than editing outside this allowlist."
+        "Do not change ParallaxBackground.cs. If it genuinely needs a change, stop and say so in your final message rather than editing outside this allowlist.",
+        "BLOCKED: the run finished but changed no files."
       ],
       "changed_files": [],
-      "last_run": "",
+      "last_run": "C:\\Dory_tycoon\\AI_GAME_COMPANY\\logs\\codex-runs\\implement-20260906-085336-c42b67.txt",
       "title_ko": "배경 레이어 생성 + 씬에 연결"
     },
     {
@@ -606,7 +623,7 @@
       "id": "CODEX-ENERGY1",
       "title": "Energy gauge and jelly pickups - the endless runner's second half",
       "owner": "codex",
-      "status": "todo",
+      "status": "review",
       "goal": "The run currently ends only on contact with an obstacle, so a careful player runs forever and the coin has no urgency. Add a draining energy gauge that ends the run at zero and pickups that refill it, so distance becomes something the player has to earn rather than merely survive.",
       "files": [
         "Assets/GameFactory/Gameplay/Runner/RunnerEnergy.cs",
@@ -635,8 +652,17 @@
         "Do not rename or repurpose the coin. The economy, the shop and the save file all depend on it as currency; energy is a second thing the same pickup gives.",
         "Balance suggestion, not a requirement: a full gauge should last roughly 12-15 seconds, and coins spawn every 3 units at speed 6, so a refill near 0.12 keeps a clean run alive without making the gauge decorative."
       ],
-      "changed_files": [],
-      "last_run": "",
+      "changed_files": [
+        "Assets/GameFactory/Core/GameSpec/GameSpecData.cs",
+        "Assets/GameFactory/Core/GameSpec/GameSpecValidator.cs",
+        "Assets/GameFactory/Editor/SceneGenerator.cs",
+        "Assets/GameFactory/Gameplay/Runner/Coin.cs",
+        "Assets/GameFactory/Gameplay/Runner/RunnerEnergy.cs",
+        "Assets/GameFactory/Gameplay/Runner/RunnerGameInitializer.cs",
+        "Assets/GameFactory/UI/GameUIController.cs",
+        "docs/GAME_SPEC.md"
+      ],
+      "last_run": "C:\\Dory_tycoon\\AI_GAME_COMPANY\\logs\\codex-runs\\implement-20260908-023750-b54e72.txt",
       "title_ko": "에너지 게이지 + 젤리(코인) 회복"
     },
     {
@@ -710,7 +736,7 @@
       "id": "CODEX-WIREACT1",
       "title": "Wire the three control-panel actions that had buttons but no server action",
       "owner": "codex",
-      "status": "todo",
+      "status": "blocked",
       "goal": "dashboard.py drew buttons posting 'ollama-use', 'image-generate' and 'gemini-design'. server.ACTIONS contains none of them, so every press answered '알 수 없는 동작입니다.' and did nothing. The buttons are now replaced by a note (_UNWIRED in dashboard.py) so the page stops lying; this task is to make the actions real and put the buttons back.\n\nollama-use: 'main.py ollama --use <model>' already exists. The model name is NOT SAFE_ID - 'gemma4:26b' has a colon - so add a separate validator for a model name instead of loosening SAFE_ID, and validate it against the installed list rather than a charset alone.\nimage-generate: tools/generate-sprite.py exists; the preset must be checked against a fixed list in server.py, not taken from the request.\ngemini-design: there is NO CLI subcommand behind this one. Either add one to main.py or drop the row entirely - do not add a button without a command behind it.",
       "files": [
         "AI_GAME_COMPANY/company/orchestrator/server.py",
@@ -727,7 +753,8 @@
       ],
       "depends_on": [],
       "notes": [
-        "Found on 2026-09-07 while adding the order box. The drift is what made it invisible: dashboard.py and server.py each looked correct on their own."
+        "Found on 2026-09-07 while adding the order box. The drift is what made it invisible: dashboard.py and server.py each looked correct on their own.",
+        "BLOCKED: the run raised ReviewNotRun: codex exec (implement) exited 1. Output: OpenAI Codex v0.151.0\n--------\nworkdir: C:\\Dory_tycoon\nmodel: gpt-5.6-sol\nprovider: openai\napproval: never\nsandbox: workspace-write [workdir, /tmp, $TMPDIR]\nreasoning effort: none\nreasoning summaries: none\nsession id: 01a08b4b-f337-78b0-b82b-a2327c439451\n--------\nuser\nTASK CODEX-WIREACT1: Wire the three control-panel actions that had buttons but no server action\n\nGOAL\n  dashboard.py drew buttons posting 'ollama-use', 'image-generate' and 'gemini-design'. server.ACTIONS contains none of them, so "
       ],
       "changed_files": [],
       "last_run": "",
@@ -737,7 +764,7 @@
       "id": "CODEX-ARTIMPORT1",
       "title": "Import settings for the supplied art pack: bilinear, and a scale per role",
       "owner": "codex",
-      "status": "todo",
+      "status": "blocked",
       "goal": "SharedArtImporter stamps every file under Assets/Common/Art/ with 64 pixels per unit and Point filtering. That was right for the Kenney pack, which is chunky pixel art. The pack the owner supplied on 2026-09-08 is smooth vector art, and Point sampling makes a scaled curve visibly jagged - so it needs Bilinear.\n\nThe three sprites already in the game (ground, coin, obstacle) are done: their .meta files were set by hand to 264, 180 and 208 PPU so each keeps the world size the scene already expects, and to filterMode 1. Do not change those - they are measured, not guessed.\n\nWhat is left is the 22 NEW files under Runner/Background/ and UI/Pack/, which have no .meta yet and will therefore be stamped with the wrong defaults on first import. Add them to SharedArtImporter:\n  - Everything under Assets/Common/Art/Runner/Background/ : Bilinear.\n  - Everything under Assets/Common/Art/UI/Pack/ : Bilinear.\n  - sky.png is 1920x1079 and has NO transparency; it is the backmost layer.\n  - The UI sprites are for uGUI Images, which scale by RectTransform, so     their PPU matters far less than their filtering.\n\nUse the same mechanism the file already has (a root prefix test, like CharacterRigRoot) rather than listing 22 filenames.",
       "files": [
         "Assets/GameFactory/Editor/SharedArtImporter.cs"
@@ -749,7 +776,8 @@
       ],
       "depends_on": [],
       "notes": [
-        "Measured on 2026-09-08: character 0.85 x 1.50 world units, ground band 1.09 tall, obstacle 1.09 tall (73% of the character), coin 0.70. Jump height is 1.76, so the obstacle clears."
+        "Measured on 2026-09-08: character 0.85 x 1.50 world units, ground band 1.09 tall, obstacle 1.09 tall (73% of the character), coin 0.70. Jump height is 1.76, so the obstacle clears.",
+        "BLOCKED: the run raised ReviewNotRun: codex exec (implement) exited 1. Output: OpenAI Codex v0.151.0\n--------\nworkdir: C:\\Dory_tycoon\nmodel: gpt-5.6-sol\nprovider: openai\napproval: never\nsandbox: workspace-write [workdir, /tmp, $TMPDIR]\nreasoning effort: none\nreasoning summaries: none\nsession id: 01a08b4c-3971-7dc3-89ad-d1fe9896ae6c\n--------\nuser\nTASK CODEX-ARTIMPORT1: Import settings for the supplied art pack: bilinear, and a scale per role\n\nGOAL\n  SharedArtImporter stamps every file under Assets/Common/Art/ with 64 pixels per unit and Point filtering. That was right for t"
       ],
       "changed_files": [],
       "last_run": "",
@@ -815,7 +843,7 @@
       "id": "CODEX-IDLE1",
       "title": "Game02 groundwork: the Idle genre and its two modules",
       "owner": "codex",
-      "status": "todo",
+      "status": "blocked",
       "goal": "Game02 (Idle Factory Tycoon) is the next game and is blocked on code that does not exist: Assets/GameFactory/Gameplay/Idle/ is an empty folder, and so are Modules/Producer and Modules/UpgradeTree (which have no folder yet).\n\nBuild the genre, not the game. Three pieces:\n  Gameplay/Idle/IdleGameInitializer.cs - the genre entry point, matching the shape RunnerGameInitializer already has.\n  Modules/Producer/ - one production line: a rate, an accumulator, and OFFLINE catch-up. Offline is the whole genre: on resume, compute what accumulated from the saved timestamp rather than ticking in Update. Cap it (the GameSpec says how long), and never trust the device clock going backwards - a clock moved back must produce zero, not negative.\n  Modules/UpgradeTree/ - levels with a cost curve, read from the GameSpec.\n\nEvery number belongs in the GameSpec: base rate, cost curve, offline cap, tap bonus. Add the fields to GameSpecData.cs and GameSpecValidator.cs and document them in docs/GAME_SPEC.md, together, per CLAUDE.md section 5.\n\nReference reading: Particle Clicker (MIT, github.com/particle-clicker/particle-clicker) shows the upgrade curve and offline handling. READ it, do not port it - it is JavaScript, and docs/REFERENCE_GAMES.md explains why porting is the wrong move here.\n\nNo scene or prefab generator yet - that is a separate task once the genre compiles and its EditMode tests pass.",
       "files": [
         "Assets/GameFactory/Gameplay/Idle/**",
@@ -836,11 +864,138 @@
       ],
       "depends_on": [],
       "notes": [
-        "Genre first, game second: Game02 is the first test of whether the factory actually generates rather than hand-builds. docs/REFERENCE_GAMES.md has the module map for Game02-10 and the licence findings behind it."
+        "Genre first, game second: Game02 is the first test of whether the factory actually generates rather than hand-builds. docs/REFERENCE_GAMES.md has the module map for Game02-10 and the licence findings behind it.",
+        "BLOCKED: the run raised ReviewNotRun: codex exec (implement) exited 1. Output: OpenAI Codex v0.151.0\n--------\nworkdir: C:\\Dory_tycoon\nmodel: gpt-5.6-sol\nprovider: openai\napproval: never\nsandbox: workspace-write [workdir, /tmp, $TMPDIR]\nreasoning effort: none\nreasoning summaries: none\nsession id: 01a08b4c-9b7c-74e3-8585-22fd999c779a\n--------\nuser\nTASK CODEX-IDLE1: Game02 groundwork: the Idle genre and its two modules\n\nGOAL\n  Game02 (Idle Factory Tycoon) is the next game and is blocked on code that does not exist: Assets/GameFactory/Gameplay/Idle/ is an empty folder, and so "
       ],
       "changed_files": [],
       "last_run": "",
       "title_ko": "Game02 기반: Idle 장르 + Producer/UpgradeTree 모듈"
+    },
+    {
+      "id": "CODEX-JUMPGAP1",
+      "title": "Match obstacle spacing to jump trajectory",
+      "owner": "codex",
+      "status": "review",
+      "goal": "Derive minimum obstacle spacing from configured speed, jump impulse and gravity with landing/reaction clearance.",
+      "files": [
+        "Assets/GameFactory/Gameplay/Runner/ObstacleSpawner.cs",
+        "Assets/GameFactory/Gameplay/Runner/RunnerGameInitializer.cs"
+      ],
+      "acceptance": [
+        "Consecutive obstacles allow landing and the next jump at all difficulty settings.",
+        "Generated scene PlayMode tests pass; new APK is verified on device."
+      ],
+      "depends_on": [],
+      "notes": [
+        "2026-09-05: User reported jump and obstacle distances do not match. Existing 4-8 gap was independent of approximately 12.2 units of jump travel."
+      ],
+      "changed_files": [],
+      "last_run": "",
+      "title_ko": "점프 거리와 장애물 간격 조정"
+    },
+    {
+      "id": "CODEX-RUNNERLOOP2",
+      "title": "Add combo, fever, speed progression, patterned pickups, and touch controls",
+      "owner": "codex",
+      "status": "review",
+      "goal": "Strengthen the runner loop with readable two-button controls, escalating speed, combo rewards, fever, patterned pickups, energy pressure, and an original scrolling factory background.",
+      "files": [
+        "Assets/GameFactory/Gameplay/Runner/RunnerCombo.cs",
+        "Assets/GameFactory/Gameplay/Runner/RunnerPlayerController.cs",
+        "Assets/GameFactory/Gameplay/Runner/Coin.cs",
+        "Assets/GameFactory/Gameplay/Runner/CoinSpawner.cs",
+        "Assets/GameFactory/UI/RunnerActionButton.cs",
+        "Assets/GameFactory/UI/GameUIController.cs",
+        "Assets/GameFactory/Editor/SceneGenerator.cs",
+        "Assets/GameFactory/Core/GameSpec/GameSpecData.cs",
+        "Assets/GameFactory/Core/GameSpec/GameSpecValidator.cs",
+        "Assets/Common/Art/Runner/factory_background_v2.png",
+        "GameSpecs/game01.json",
+        "docs/GAME_SPEC.md"
+      ],
+      "acceptance": [
+        "Jump and slide have large separate color buttons and do not also fire world-tap input.",
+        "Pickup patterns, combo multiplier, fever, energy drain, and capped distance-based speed growth work together.",
+        "Generated scene PlayMode tests and the complete Python test suite pass.",
+        "A new Android APK is produced for device review."
+      ],
+      "depends_on": [
+        "CODEX-JUMPGAP1"
+      ],
+      "notes": [
+        "2026-09-09: Benchmarked the Jump/Slide, jelly collection, and obstacle loop described on official CookieRun pages.",
+        "The factory background is original artwork generated with OpenAI ImageGen; Ollama UX review was discarded because the local terminal corrupted the Korean prompt encoding."
+      ],
+      "changed_files": [],
+      "last_run": "2026-09-09",
+      "title_ko": "콤보·피버·속도 성장·패턴 젤리·터치 버튼 추가"
+    },
+    {
+      "id": "CODEX-METAGAME1",
+      "title": "Stages, missions, progression, saves, tutorial, settings, ads and IAP",
+      "owner": "codex",
+      "status": "review",
+      "goal": "Turn the runner prototype into a persistent retention loop with ten stages, daily goals, claimable rewards, player levels, onboarding, settings and production-provider monetization paths.",
+      "files": [
+        "Assets/GameFactory/Core/ProgressionSystem.cs",
+        "Assets/GameFactory/Core/MissionSystem.cs",
+        "Assets/GameFactory/Core/MonetizationService.cs",
+        "Assets/GameFactory/Core/SaveSystem.cs",
+        "Assets/GameFactory/Core/SettingsSystem.cs",
+        "Assets/GameFactory/UI/MetaGameController.cs",
+        "Assets/GameFactory/UI/ShopController.cs",
+        "Assets/GameFactory/Editor/SceneGenerator.cs",
+        "Assets/GameFactory/Gameplay/Runner/RunnerGameInitializer.cs",
+        "Assets/GameFactory/Tests/PlayMode/FactoryRunnerPlayModeTests.cs",
+        "Packages/manifest.json",
+        "docs/METAGAME.md"
+      ],
+      "acceptance": [
+        "Ten selectable stages save independent best scores and unlock sequentially.",
+        "Daily missions, attendance rewards, XP, levels and claimed rewards persist by game id.",
+        "First launch tutorial, sound, vibration and ad privacy settings are usable Korean UI flows.",
+        "Unity IAP products and LevelPlay rewarded/interstitial ads compile with safe development mocks and release credential injection.",
+        "Unity PlayMode and complete Python suites pass and a new Android APK builds."
+      ],
+      "depends_on": [
+        "CODEX-RUNNERLOOP2"
+      ],
+      "notes": [
+        "2026-09-09: Unity IAP 4.14 and LevelPlay 9.5 were chosen from Unity's current official documentation.",
+        "Production dashboard keys, Play Console product setup and device store accounts remain external release configuration.",
+        "2026-09-09 verified: 16 Unity PlayMode tests and 418 Python tests pass; Android APK builds with Unity IAP and LevelPlay native Maven dependencies."
+      ],
+      "changed_files": [],
+      "last_run": "2026-09-09",
+      "title_ko": "스테이지·미션·성장·저장·튜토리얼·설정·광고·결제"
+    },
+    {
+      "id": "CLAUDE-HYDRA1",
+      "title": "Supervise HydraProxy from the panel, and let a team pick its model",
+      "owner": "claude",
+      "status": "todo",
+      "goal": "HydraTeams is built on this machine and now appears in the office view, gated by allow_hydra_proxy. Making it usable needs two things the current panel cannot express.\n\nA SUPERVISED PROCESS, NOT A JOB. Runner in server.py starts a command and waits for it to exit; HydraProxy is a server that never exits, so a start button built on the job runner would leave the panel permanently 'busy'. It needs its own supervisor: start detached, keep the pid, report alive/dead by polling the port, stop on request. Its stdout must NOT be piped into the job log the browser polls - the panel would then be publishing proxy traffic to a web page.\n\nA MODEL PER TEAM. orders.py currently forces every order to Codex (Department.seat_owner returns CODEX). With the proxy up, a team could name its own model, which is what makes the office an honest staffing chart rather than a picture. Keep the allowlist mechanism exactly as it is - the model changes who writes, never which files may be written.\n\nBOTH ARE BLOCKED ON A DECISION, NOT ON CODE. allow_hydra_proxy is false, and the note in company_policy.json says why: the credential question (~/.codex/auth.json is on secrets_never_touched), the billing question (--provider openai is the paid API, which policy forbids; only the chatgpt subscription mode is compatible, and that mode is the one needing --use-codex-auth), and rule 1 (codex_writes_all_code). Do not implement past that flag until the user answers.",
+      "files": [
+        "AI_GAME_COMPANY/company/orchestrator/server.py",
+        "AI_GAME_COMPANY/company/orchestrator/orders.py",
+        "AI_GAME_COMPANY/company/orchestrator/dashboard.py",
+        "AI_GAME_COMPANY/config/company_policy.json",
+        "AI_GAME_COMPANY/tests/**"
+      ],
+      "acceptance": [
+        "The proxy's stdout never reaches the browser-polled job log.",
+        "A dead proxy is reported as dead, from the port, not from a remembered pid.",
+        "allow_hydra_proxy false means nothing starts.",
+        "--provider openai is refused while allow_openai_api_billing is false.",
+        "A team's model choice does not widen its file allowlist."
+      ],
+      "depends_on": [],
+      "notes": [
+        "HydraTeams is MIT (Pickle-Pixel). Local copy patched 2026-09-10 so ~/.codex/auth.json is only read with --use-codex-auth, and the plan type decoded from the token is no longer printed. Original: src/config.ts.orig."
+      ],
+      "changed_files": [],
+      "last_run": "",
+      "title_ko": "패널에서 HydraProxy 관리 + 팀별 모델 지정"
     }
   ]
 }

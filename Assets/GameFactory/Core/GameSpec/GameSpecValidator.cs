@@ -51,6 +51,8 @@ namespace GameFactory.Core.Spec
             ValidateGame(spec.game, errors);
             ValidatePlayer(spec.player, spec.mechanics, errors);
             ValidateLevel(spec.level, errors);
+            ValidateEnergy(spec.energy, errors);
+            ValidateRunnerProgression(spec.runnerProgression, errors);
             ValidateEnemy(spec.enemy, errors);
             ValidateSpecial(spec.special, errors);
 
@@ -124,6 +126,28 @@ namespace GameFactory.Core.Spec
             }
         }
 
+        private static void ValidateRunnerProgression(RunnerProgressionConfig progression, List<string> errors)
+        {
+            if (progression == null)
+            {
+                errors.Add("runnerProgression: section is missing.");
+                return;
+            }
+
+            if (progression.comboWindow <= 0f)
+                errors.Add("runnerProgression.comboWindow must be > 0.");
+            if (progression.feverPickups < 5)
+                errors.Add("runnerProgression.feverPickups must be >= 5.");
+            if (progression.feverDuration <= 0f)
+                errors.Add("runnerProgression.feverDuration must be > 0.");
+            if (progression.maxCoinMultiplier < 1)
+                errors.Add("runnerProgression.maxCoinMultiplier must be >= 1.");
+            if (progression.speedGainPer100m < 0f)
+                errors.Add("runnerProgression.speedGainPer100m must be >= 0.");
+            if (progression.maxSpeedMultiplier < 1f)
+                errors.Add("runnerProgression.maxSpeedMultiplier must be >= 1.");
+        }
+
         private static void ValidateEnemy(EnemyConfig enemy, List<string> errors)
         {
             if (enemy == null)
@@ -135,6 +159,27 @@ namespace GameFactory.Core.Spec
             if (enemy.enabled && enemy.types < 1)
             {
                 errors.Add("enemy.types must be >= 1 when enemy.enabled is true.");
+            }
+        }
+
+        private static void ValidateEnergy(EnergyConfig energy, List<string> errors)
+        {
+            if (energy == null)
+            {
+                errors.Add("energy: section is missing.");
+                return;
+            }
+
+            if (!energy.enabled) return;
+
+            if (energy.drainPerSecond <= 0f)
+            {
+                errors.Add($"energy.drainPerSecond must be > 0 when energy.enabled is true (got {energy.drainPerSecond}).");
+            }
+
+            if (energy.refillPerPickup <= 0f)
+            {
+                errors.Add($"energy.refillPerPickup must be > 0 when energy.enabled is true (got {energy.refillPerPickup}).");
             }
         }
 
