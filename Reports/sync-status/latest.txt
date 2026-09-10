@@ -1,10 +1,10 @@
 ﻿# Auto-sync status
 
-Generated: 2026-09-10 10:10:52
-Outcome: BLOCKED
-Reason: Uncommitted changes to tracked files: M AI_GAME_COMPANY/company/orchestrator/dashboard.py |  M AI_GAME_COMPANY/tests/test_dashboard.py
+Generated: 2026-09-10 10:25:53
+Outcome: FAILED
+Reason: Uncommitted changes to tracked files - stopping. Commit or stash them first: |  | M AI_GAME_COMPANY/company/orchestrator/dashboard.py |  M AI_GAME_COMPANY/tests/test_dashboard.py
 Last-Success: 2026-09-10 08:23:25
-Local-Head: 5740821
+Local-Head: 3f01c82
 Upstream-Head: 646dd7a
 Branch: claude/delete-current-content-mgn4xm
 
