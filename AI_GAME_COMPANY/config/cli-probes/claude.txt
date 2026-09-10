@@ -1,10 +1,10 @@
 ﻿# claude capability probe
-# captured: 2026-09-03 08:34:29
+# captured: 2026-09-10 22:38:05
 ----------------------------------------------------------------------
 resolved path: C:\Users\VASCO-PC03\AppData\Roaming\npm\claude.cmd
 
 ### --version  (exit: )
-2.1.247 (Claude Code)
+2.1.261 (Claude Code)
 
 
 ### --help  (exit: )
@@ -39,9 +39,14 @@ Options:
   --ax-screen-reader                    Render screen-reader friendly output
                                         (flat text, no decorative borders or
                                         animations).
-  --bg, --background                    Start the session as a background agent
-                                        and return immediately (manage with
-                                        `claude agents`)
+  --bg, --background                    Start the session in the background and
+                                        return immediately. Prints the id that
+                                        `claude attach`, `logs`, `stop` and `rm`
+                                        take; `claude agents` lists them. With
+                                        --resume <session-id>, continues that
+                                        session in the background under the same
+                                        ID, or starts a copy and says so when
+                                        the session is already running
   --bare                                Minimal mode: skip hooks, LSP, plugin
                                         sync, attribution, auto-memory,
                                         background prefetches, keychain reads,
@@ -151,6 +156,14 @@ Options:
                                         (choices: "acceptEdits", "auto",
                                         "bypassPermissions", "manual",
                                         "dontAsk", "plan")
+  --permission-prompts <target>         Who answers permission prompts with
+                                        --print: "host" (the SDK host or
+                                        --permission-prompt-tool) or "none"
+                                        (nobody: anything that would prompt is
+                                        denied automatically; the permission
+                                        mode still decides everything else)
+                                        (choices: "host", "none", default:
+                                        "host")
   --plugin-dir <path>                   Load a plugin from a directory or .zip
                                         for this session only (repeatable:
                                         --plugin-dir A --plugin-dir B.zip)
@@ -182,6 +195,21 @@ Options:
                                         stdout for acknowledgment (only works
                                         with --input-format=stream-json and
                                         --output-format=stream-json)
+  --restricted                          Restricted mode: removes the built-in
+                                        tools that run commands or code (Bash,
+                                        PowerShell, REPL and the other
+                                        code-running tools) and WebFetch unless
+                                        --tools names them, and ignores user,
+                                        project and local settings files
+                                        (managed settings and --settings still
+                                        apply; add --strict-mcp-config to skip
+                                        MCP servers too). Also confines the file
+                                        tools to the working directories
+                                        (--add-dir included), refuses
+                                        bypassPermissions, and lets only a
+                                        person or the configured permission
+                                        handler approve writes to settings, git
+                                        and tool-configuration files.
   -r, --resume [value]                  Resume a conversation by session ID, or
                                         open interactive picker with optional
                                         search term
@@ -205,6 +233,24 @@ Options:
   --strict-mcp-config                   Only use MCP servers from --mcp-config,
                                         ignoring all other MCP configurations
   --system-prompt <prompt>              System prompt to use for the session
+  --system-prompt-snapshot <on|off>     Record the system prompt once per
+                                        conversation and reuse it verbatim on
+                                        every request and resume (recommended:
+                                        on). By default it is on for the
+                                        built-in prompt, and passing
+                                        --system-prompt or
+                                        --append-system-prompt turns it off so
+                                        the given text applies fresh each
+                                        launch. on: an existing record in the
+                                        conversation is sent as-is (a later
+                                        launch's different
+                                        --system-prompt/--append-system-prompt
+                                        is ignored until compaction); otherwise
+                                        the prompt is rendered with the append
+                                        included, sent, and recorded. off: never
+                                        record. No effect where system-prompt
+                                        recording is not yet enabled. (choices:
+                                        "on", "off")
   --teleport [session]                  Resume a teleport session, optionally
                                         specify session ID
   --tmux                                Create a tmux session for the worktree
@@ -224,6 +270,10 @@ Options:
 
 Commands:
   agents [options]                      Manage background agents
+  attach <id>                           Open a background session in this
+                                        terminal. <id> is the short id that
+                                        `claude --bg` prints and `claude agents`
+                                        lists
   auth                                  Manage authentication
   auto-mode                             Inspect or reset auto mode classifier
                                         configuration
@@ -239,11 +289,23 @@ Commands:
   install [options] [target]            Install Claude Code native build. Use
                                         [target] to specify version (stable,
                                         latest, or specific version)
+  logs <id>                             Print a background session's recent
+                                        terminal output
   mcp                                   Configure and manage MCP servers
   plugin|plugins                        Manage Claude Code plugins
   project                               Manage Claude Code project state
+  respawn [options] [id]                Restart a background session, or all of
+                                        them with --all, so it runs the current
+                                        Claude Code version
+  rm <id>                               Delete a background session, and its
+                                        worktree when that is safe. Works on
+                                        sessions that have already exited
   setup-token                           Set up a long-lived authentication token
                                         (requires Claude subscription)
+  stop|kill <id>                        Stop a background session. Its
+                                        conversation is kept: `claude attach
+                                        <id>` opens it again, `claude --resume`
+                                        works once it is stopped
   ultrareview [options] [target]        Run a cloud-hosted multi-agent code
                                         review of the current branch (or a PR
                                         number / base branch) and print the

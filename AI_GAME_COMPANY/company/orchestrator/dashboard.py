@@ -149,11 +149,27 @@ def _read_json(path: Path) -> dict[str, Any]:
 
 
 def _licence_status(registry: dict[str, Any]) -> dict[str, str]:
-    return {
-        entry.get("id", ""): entry.get("status", "UNKNOWN")
-        for entry in registry.get("entries", [])
-        if isinstance(entry, dict)
-    }
+    """Every name a registry entry answers to, mapped to its status.
+
+    The aliases matter. An entry's `id` is a slug this project chose
+    ("qwen3-vl"), while Ollama reports the tag it was pulled under
+    ("Qwen3-VL:latest"), and `model_ids` is what bridges the two. Keying on
+    `id` alone made build_agents report "라이선스 UNKNOWN" for a model that
+    `ollama --list` said in the same breath was APPROVED - two code paths
+    answering one question differently, which is worse than either answer.
+    OllamaClient.approved_models already honours model_ids; this makes the
+    renderer agree with it.
+    """
+    statuses: dict[str, str] = {}
+    for entry in registry.get("entries", []):
+        if not isinstance(entry, dict):
+            continue
+        status = entry.get("status", "UNKNOWN")
+        names = [entry.get("id", "")] + list(entry.get("model_ids") or [])
+        for name in names:
+            if name:
+                statuses[name] = status
+    return statuses
 
 
 def read_live_ollama_models(
@@ -442,8 +458,24 @@ def build_agents(profile: dict[str, Any], policy: dict[str, Any],
             # unloadable, and naming only the first failure hides the second.
             if status != "APPROVED":
                 reasons.append(f"라이선스 {status}")
-            if ram_total and size >= ram_total * 0.8:
-                reasons.append(f"{size:.1f} GB 모델 / 전체 RAM {ram_total:.1f} GB - 적재 불가")
+            # HardwareProfile.model_fit, not a rule of its own. This branch
+            # used `size >= ram_total * 0.8`, which passed a 5.7 GB model that
+            # `ollama --use` then refused on a 4.6 GB budget - so the office
+            # said 작업 가능 for a model the command would not load. One
+            # authority, and the panel and the CLI now give one answer.
+            # model_fit budgets against FREE memory, and free memory is a
+            # momentary reading. With no reading at all it defaults to 0, and
+            # a budget of -2 GB would mark every model unloadable - which
+            # would be this page inventing a hardware verdict from a missing
+            # field. No reading means 확인 불가, per the rule the whole
+            # dashboard runs on.
+            has_free = (profile.get("hardware", {}) or {}).get("ramFreeGb") is not None
+            if not has_free:
+                reasons.append("RAM 확인 불가: 프로필에 ramFreeGb 가 없습니다")
+            else:
+                fit, fit_reason = HardwareProfile(profile).model_fit(size)
+                if fit not in ("VIABLE", "LIMITED"):
+                    reasons.append(f"RAM {fit}: {fit_reason}")
             agents.append(Agent(
                 f"Ollama · {model_id}", "로컬 추론",
                 BLOCKED if reasons else READY,
@@ -1693,16 +1725,21 @@ CONNECT_RECIPES: dict[str, dict[str, Any]] = {
         "commands": ["codex login"],
         "action": ("codex-doctor", "진단 실행"),
     },
+    # 2026-09-10: Qwen3-VL:latest is pulled and its licence is APPROVED
+    # (Apache-2.0, read from `ollama show --license`). What blocks it is RAM,
+    # so the steps say that rather than repeating the licence advice.
     "Ollama (로컬 LLM)": {
         "fixable": True,
-        "summary": "모델이 하나도 없습니다. RAM 15.7 GB 이므로 3B급 이하만 올라갑니다.",
-        "steps": ["쓰려는 모델의 라이선스를 직접 확인합니다. "
-                  "'Qwen이니까 괜찮다' 는 근거가 아닙니다 (정책 8절).",
-                  "LICENSE_REGISTRY.json 에 그 모델 항목을 APPROVED 로 추가합니다.",
-                  "받습니다. 자동 설치는 정책(never_auto_install)이 막고 있어 "
-                  "버튼으로 제공하지 않습니다.",
-                  "아래 버튼으로 설치·라이선스·RAM 적합성을 확인합니다."],
-        "commands": ["ollama pull llama3.2:3b"],
+        "summary": "Qwen3-VL 라이선스는 통과했습니다(Apache-2.0). 막는 것은 RAM 입니다 — "
+                   "8.8B 는 5.7 GB 인데 예산은 4.6 GB (가용 6.6 GB - 여유 2 GB).",
+        "steps": ["작은 태그를 받는 것이 확실합니다. 4B 는 약 3 GB 로 여유 안에 들어오고 "
+                  "vision 기능은 그대로입니다.",
+                  "또는 지금 것을 쓰려면 약 1.2 GB 를 비웁니다. 브라우저와 에디터를 "
+                  "닫으면 대개 그 정도가 나옵니다.",
+                  "라이선스는 이미 등록돼 있어 같은 계열의 다른 태그도 통과합니다.",
+                  "받은 뒤 아래 버튼으로 설치·라이선스·RAM 을 함께 확인합니다."],
+        "commands": ["ollama pull qwen3-vl:4b",
+                     "python -m company.orchestrator.main ollama --use qwen3-vl:4b"],
         "action": ("ollama-list", "설치된 모델 확인"),
     },
     "HydraTeams (모델 라우팅)": {

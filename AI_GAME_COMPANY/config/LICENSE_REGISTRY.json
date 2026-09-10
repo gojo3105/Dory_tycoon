@@ -1,7 +1,7 @@
 {
   "_comment": "AI GAME COMPANY license registry (master prompt section 8). Every AI model, asset, sound, texture and 3D model used by any game is registered here. Section 38: an entry with status UNKNOWN must never ship inside a released APK.",
   "_version": 1,
-  "_lastUpdated": "2026-09-02",
+  "_lastUpdated": "2026-09-10",
   "_statusValues": [
     "APPROVED",
     "REJECTED",
@@ -389,6 +389,30 @@
       ],
       "status": "UNKNOWN",
       "notes": "The owner supplied these deliberately and asked for them to be applied, so they are in the tree and wired up. What is NOT established is the licence, and section 8 says 'it looks free' is not evidence. Before game01 is published, the owner needs to say where this pack came from and under what terms; if it is a paid or attribution licence, either the attribution goes in the credits screen or the art comes back out. Recorded as UNKNOWN rather than APPROVED so that decision cannot be skipped by accident."
+    },
+    {
+      "id": "qwen3-vl",
+      "name": "Qwen3-VL (vision-language, served locally by Ollama)",
+      "type": "ai_model",
+      "model_ids": [
+        "Qwen3-VL",
+        "Qwen3-VL:latest",
+        "qwen3-vl",
+        "qwen3-vl:latest"
+      ],
+      "source": "Pulled into local Ollama 0.33.3 by the project owner on 2026-09-10. Never sent anywhere: ollama_local_only is true and the client refuses a non-loopback endpoint.",
+      "version": "8.8B parameters, Q4_K_M quantisation, 262144 context, 6.1 GB on disk (ollama show)",
+      "license": "Apache-2.0",
+      "commercial_use": true,
+      "attribution_required": false,
+      "redistribution_rules": "Weights stay on this machine and are never bundled into the APK, so redistribution does not arise. Apache-2.0 would permit it with the notice if it ever did.",
+      "verified_at": "2026-09-10",
+      "verified_by": "claude-code",
+      "games": [
+        "game01"
+      ],
+      "status": "APPROVED",
+      "notes": "Licence read from the model's OWN shipped file, not inferred: `ollama show Qwen3-VL --license` prints the Apache License 2.0 text in full. Section 8 is explicit that 'it is a Qwen' is not evidence, and the registry already carries gemma4:26b as UNKNOWN for exactly that reason. Capabilities reported by ollama: completion, vision, tools, thinking - the vision half is the reason to prefer it over a text-only model here, since this project's open questions are about art on screen. RAM IS THE REAL LIMIT, NOT THE LICENCE: 6.1 GB of weights against 15.71 GB total, of which about 8.8 GB is already held by Windows and the editor, leaves 6.87 GB free - under the project's own free-minus-2GB budget of 4.87 GB. It does load and run (llama-server was observed at 6.8 GB resident), but it leaves under 1 GB free while loaded, which is the thrashing HardwareProfile.model_fit exists to refuse. A smaller Qwen3-VL tag (4B, roughly 3 GB) would fit with headroom."
     }
   ],
   "pending_verification": [

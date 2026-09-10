@@ -1,5 +1,5 @@
 ﻿# adb capability probe
-# captured: 2026-09-03 08:34:36
+# captured: 2026-09-10 22:38:08
 ----------------------------------------------------------------------
 resolved path: C:\Program Files\Unity\Hub\Editor\6000.5.9f1\Editor\Data\PlaybackEngines\AndroidPlayer\SDK\platform-tools\adb.exe
 

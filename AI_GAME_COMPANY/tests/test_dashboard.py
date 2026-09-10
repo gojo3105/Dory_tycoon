@@ -51,7 +51,10 @@ Generated: 2026-08-29 22:00:28
 def profile(**overrides):
     base = {
         "machineName": "TEST-PC",
-        "hardware": {"ramTotalGb": 15.71},
+        # ramFreeGb as well as total: detect-environment.ps1 always writes
+        # both, and model_fit budgets against free. A fixture with only the
+        # total was quietly testing a machine shape that cannot exist.
+        "hardware": {"ramTotalGb": 15.71, "ramFreeGb": 9.5},
         "tools": {
             "claude": {"installed": True, "version": "2.1.247"},
             "codex": {"installed": True, "version": "codex-cli 0.151.0"},
@@ -195,7 +198,10 @@ class AgentStateTests(unittest.TestCase):
         agent = find(self.agents(prof=prof), "Ollama · gemma4")
         self.assertEqual(dash.BLOCKED, agent.state)
         self.assertIn("라이선스 UNKNOWN", agent.detail)
-        self.assertIn("적재 불가", agent.detail)
+        # Asserted on the verdict rather than the sentence: the reason text
+        # comes from HardwareProfile.model_fit now, so pinning the wording
+        # here would just couple this test to that message.
+        self.assertIn("NOT_VIABLE", agent.detail)
 
     def test_an_approved_model_that_fits_is_ready(self):
         prof = profile(ollamaApi={"reachable": True, "models": [

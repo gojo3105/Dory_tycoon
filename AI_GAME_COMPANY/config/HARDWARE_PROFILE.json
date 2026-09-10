@@ -1,5 +1,5 @@
 ﻿{
-    "generatedAt":  "2026-09-03 08:34:39",
+    "generatedAt":  "2026-09-10 22:38:11",
     "generatedBy":  "AI_GAME_COMPANY/tools/detect-environment.ps1",
     "repoPath":  "C:\\Dory_tycoon",
     "machineName":  "DESKTOP-A7IU1E9",
@@ -10,8 +10,8 @@
                      "cpuCores":  10,
                      "cpuThreads":  12,
                      "ramTotalGb":  15.71,
-                     "ramFreeGb":  2.27,
-                     "systemDriveFreeGb":  103.89,
+                     "ramFreeGb":  6.57,
+                     "systemDriveFreeGb":  60.86,
                      "gpus":  [
                                   {
                                       "name":  "Intel(R) Iris(R) Xe Graphics",
@@ -59,7 +59,7 @@
                                  "name":  "claude",
                                  "installed":  true,
                                  "path":  "C:\\Users\\VASCO-PC03\\AppData\\Roaming\\npm\\claude.cmd",
-                                 "version":  "2.1.247 (Claude Code)",
+                                 "version":  "2.1.261 (Claude Code)",
                                  "status":  "OK",
                                  "notes":  [
                                                "Using .cmd shim instead of the .ps1 one (directly launchable)."
@@ -79,7 +79,7 @@
                                  "name":  "ollama",
                                  "installed":  true,
                                  "path":  "C:\\Users\\VASCO-PC03\\AppData\\Local\\Programs\\Ollama\\ollama.exe",
-                                 "version":  "ollama version is 0.33.2",
+                                 "version":  "ollama version is 0.33.3",
                                  "status":  "OK",
                                  "notes":  [
 
@@ -110,13 +110,26 @@
                       "url":  "http://localhost:11434",
                       "reachable":  true,
                       "models":  [
-
+                                     {
+                                         "name":  "Qwen3-VL:latest",
+                                         "sizeGb":  5.72,
+                                         "parameterSize":  "8.8B",
+                                         "quantization":  "Q4_K_M",
+                                         "family":  "qwen3vl"
+                                     },
+                                     {
+                                         "name":  "gemma4:26b",
+                                         "sizeGb":  17.33,
+                                         "parameterSize":  "25.2B",
+                                         "quantization":  "Q4_K_M",
+                                         "family":  "gemma4"
+                                     }
                                  ],
                       "loadedModels":  [
 
                                        ],
                       "error":  null,
-                      "responseMs":  2485
+                      "responseMs":  2255
                   },
     "unity":  {
                   "requiredByProject":  "6000.5.9f1",

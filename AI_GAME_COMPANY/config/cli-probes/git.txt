@@ -1,5 +1,5 @@
 ﻿# git capability probe
-# captured: 2026-09-03 08:34:26
+# captured: 2026-09-10 22:38:03
 ----------------------------------------------------------------------
 resolved path: C:\Program Files\Git\cmd\git.exe
 
