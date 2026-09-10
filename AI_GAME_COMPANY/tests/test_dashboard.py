@@ -302,7 +302,7 @@ class RenderTests(unittest.TestCase):
         after = page.split(f"<h2>{heading}</h2>", 1)[1]
         return after.split("</section>", 1)[0]
 
-    def test_served_board_has_buttons_only_for_open_codex_tasks(self):
+    def test_served_board_is_a_read_only_audit_view(self):
         page = self.task_page([
             {"id": "C-TODO", "title": "todo", "owner": "codex", "status": "todo"},
             {"id": "C-WIP", "title": "wip", "owner": "codex", "status": "in_progress"},
@@ -312,14 +312,21 @@ class RenderTests(unittest.TestCase):
             {"id": "CLAUDE-TODO", "title": "claude", "owner": "claude", "status": "todo"},
         ])
 
-        for task_id in ("C-TODO", "C-WIP", "C-BLOCKED", "C-REVIEW"):
-            self.assertIn(f'data-arg-value="{task_id}"', page)
-        self.assertNotIn('data-arg-value="C-DONE"', page)
-        self.assertNotIn('data-arg-value="CLAUDE-TODO"', page)
         board = self.section(page, "공유 작업판")
-        self.assertEqual(4, board.count('class="btn task-run"'))
-        self.assertEqual(1, board.count(">작업 시작</button>"))
-        self.assertEqual(3, board.count(">다시 실행</button>"))
+        for task_id in ("C-TODO", "C-WIP", "C-BLOCKED", "C-REVIEW",
+                        "C-DONE", "CLAUDE-TODO"):
+            self.assertIn(task_id, board)
+        self.assertNotIn('class="btn task-run"', board)
+        self.assertNotIn('data-act="team-run"', board)
+
+    def test_the_queue_is_the_only_task_execution_surface(self):
+        page = self.task_page([
+            {"id": "C-TODO", "title": "todo", "owner": "codex", "status": "todo"},
+        ])
+        queue = self.section(page, "작업 대기열")
+        board = self.section(page, "공유 작업판")
+        self.assertIn('data-arg-value="C-TODO"', queue)
+        self.assertNotIn('data-arg-value="C-TODO"', board)
 
     def test_static_board_has_no_task_start_buttons(self):
         page = self.task_page([
@@ -353,12 +360,78 @@ class RenderTests(unittest.TestCase):
 
     def test_an_unmapped_agent_is_rendered_in_the_etc_department(self):
         snapshot = dash.collect(REPO)
+        snapshot.company_roles = []
         snapshot.agents.append(dash.Agent(
             "Future Assistant", "새 역할", dash.UNKNOWN, "아직 매핑되지 않음"))
         html_out = dash.render(snapshot)
         self.assertIn("Future Assistant", html_out)
         self.assertIn("기타", html_out)
         self.assertIn("office-agent--etc", html_out)
+
+    def test_virtual_office_agents_walk_when_idle(self):
+        agents = [dash.Agent("Claude Code", "개발", dash.READY, "사용 가능")]
+        html_out = dash._virtual_office_html(agents, "data:image/jpeg;base64,test")
+        self.assertIn("office-avatar--walking", html_out)
+        self.assertIn('data-agent="Claude Code"', html_out)
+        self.assertIn("office-avatar-person", html_out)
+        self.assertNotIn("<circle", html_out)
+
+    def test_virtual_office_agent_sits_at_a_desk_while_working(self):
+        agents = [dash.Agent("Codex CLI", "개발", dash.GATED, "로그인 필요")]
+        html_out = dash._virtual_office_html(
+            agents, "data:image/jpeg;base64,test", working_prefix="Codex")
+        self.assertIn("office-avatar--working", html_out)
+        self.assertIn("office-avatar-workstation", html_out)
+        self.assertNotIn("office-avatar--walking", html_out)
+
+    def test_collect_loads_the_twelve_company_roles(self):
+        snapshot = dash.collect(REPO)
+        self.assertEqual(12, len(snapshot.company_roles))
+        self.assertEqual("ceo", snapshot.company_roles[0].id)
+        self.assertEqual("빌드출시부", snapshot.company_roles[-1].department)
+
+    def test_company_runtime_uses_taskboard_status_and_dependencies(self):
+        roles = dash.collect(REPO).company_roles
+        tasks = [
+            {"id": "DESIGN", "agent_role": "game_director", "status": "todo",
+             "title_ko": "게임 설계", "depends_on": ["CEO"]},
+            {"id": "CEO", "agent_role": "ceo", "status": "done",
+             "title_ko": "목표 확정", "depends_on": []},
+            {"id": "QA", "agent_role": "qa_engineer", "status": "todo",
+             "title_ko": "검증", "depends_on": ["CODE"]},
+        ]
+        runtime = {item["role"].id: item for item in
+                   dash._company_role_runtime(roles, tasks)}
+        self.assertEqual("DONE", runtime["ceo"]["state"])
+        self.assertEqual("PLANNING", runtime["game_director"]["state"])
+        self.assertEqual("WAITING", runtime["qa_engineer"]["state"])
+        self.assertEqual("IDLE", runtime["release_engineer"]["state"])
+
+    def test_company_office_has_twelve_real_role_avatars(self):
+        roles = dash.collect(REPO).company_roles
+        html_out = dash._company_office_html(
+            roles, [], "data:image/jpeg;base64,test")
+        self.assertEqual(12, html_out.count('class="office-avatar '))
+        self.assertIn("CEO", html_out)
+        self.assertIn("Build / Release Engineer", html_out)
+        self.assertIn("배정된 작업 없음", html_out)
+        self.assertIn('class="company-detail-fold"', html_out)
+
+    def test_company_avatars_are_anchored_to_the_three_room_floors(self):
+        roles = dash.collect(REPO).company_roles
+        html_out = dash._company_office_html(
+            roles, [], "data:image/jpeg;base64,test")
+        self.assertEqual(4, html_out.count("--from-y:34.0%"))
+        self.assertEqual(4, html_out.count("--from-y:58.4%"))
+        self.assertEqual(4, html_out.count("--from-y:85.4%"))
+        for start, end in ((17.5, 26.5), (36.5, 45.5),
+                           (52.5, 61.5), (71.5, 80.5)):
+            self.assertEqual(3, html_out.count(f"--from-x:{start:.1f}%"))
+            self.assertEqual(3, html_out.count(f"--to-x:{end:.1f}%"))
+        self.assertIn(".virtual-office-stage{position:relative; overflow:hidden;}",
+                      dash.CSS)
+        self.assertIn(".office-avatar{width:32px; height:40px", dash.CSS)
+        self.assertNotIn("@keyframes office-avatar-step", dash.CSS)
 
     def test_shortens_a_path_to_its_filename(self):
         self.assertEqual("SceneGenerator.cs",
@@ -400,8 +473,8 @@ class RenderTests(unittest.TestCase):
         self.assertTrue(all(i["src"].startswith("data:") or i["note"] for i in art))
         for item in art:
             if item["src"]:
-                self.assertTrue(item["src"].startswith("data:image/png"),
-                                f"{item['name']} lost its alpha to a JPEG")
+                self.assertTrue(item["src"].startswith(("data:image/png", "data:image/jpeg")),
+                                f"{item['name']} is not an embedded image")
 
 class ArtPlanTests(unittest.TestCase):
     """Why the gallery is shorter than the plan - three distinct reasons."""
@@ -710,20 +783,20 @@ class LiveAgentTests(unittest.TestCase):
                 "output": "running codex exec", "done": done,
                 "exit_code": exit_code, "progress": summary.as_dict()}
 
-    def test_a_codex_run_draws_codex_working_even_though_it_is_gated(self):
+    def test_an_unassigned_legacy_codex_run_does_not_fake_a_company_role(self):
         page = self.page(live_job=self.running_codex())
-        seat = page.split('href="#agent-codex-cli"', 1)[0]
-        self.assertIn("office-agent--working", seat)
-        self.assertIn("Codex CLI - 작업 중", page)
+        self.assertNotIn('office-agent--working"', page)
+        self.assertIn("Codex CLI", page)
 
     def test_a_finished_job_stops_claiming_the_agent_is_working(self):
         page = self.page(live_job=self.running_codex(done=True, exit_code=0))
         self.assertNotIn('office-agent--working"', page)
 
-    def test_without_a_job_a_gated_agent_says_what_it_waits_for(self):
+    def test_without_a_job_the_company_roles_report_their_real_idle_state(self):
         page = self.page(live_job=None)
         self.assertNotIn('office-agent--working"', page)
-        self.assertIn("대기 중 · 사람 확인 필요", page)
+        self.assertIn("IDLE · 대기", page)
+        self.assertIn("배정된 작업 없음", page)
 
     def test_the_four_roster_labels_are_unchanged(self):
         # The caption is the office character's; the roster keeps the plain
@@ -849,9 +922,11 @@ class KoreanTitleTests(unittest.TestCase):
         page = self.page()
         self.assertIn("Only English", RenderTests.section(page, "작업 대기열"))
 
-    def test_the_dropdown_uses_the_korean_title_too(self):
+    def test_there_is_no_duplicate_codex_task_dropdown(self):
         page = self.page()
-        self.assertIn("K-1 · 한국어 제목", page)
+        self.assertNotIn('id="task"', page)
+        self.assertIn('data-arg-value="K-1"',
+                      RenderTests.section(page, "작업 대기열"))
 
     def test_every_committed_task_has_a_korean_title(self):
         # The board is what the page shows; an untranslated task is the one
