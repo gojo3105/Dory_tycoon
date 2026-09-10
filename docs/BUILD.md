@@ -56,6 +56,24 @@ Editor에서 직접 실행할 때는:
 (`Assets/GeneratedGames/<id>/Scenes/<id>.unity`)이 없으면 즉시 예외를 던지고 실패한다 - 먼저
 `GameFactoryGenerator`를 실행해야 한다.
 
+## AI 관제 대시보드 APK
+
+Unity 메뉴에서 `Game Factory > Generate > AI Dashboard Scene`을 실행한 뒤
+`Game Factory > Build > AI Dashboard (APK)`를 선택하면
+`Builds/dashboard/APK/DoryAIDashboard.apk`가 생성된다. 배치 빌드는 다음과 같다.
+
+```powershell
+& "$env:UNITY_PATH" -batchmode -nographics -projectPath . `
+  -executeMethod GameFactory.Editor.BuildDashboard.BuildFromCommandLine `
+  -logFile Logs/dashboard-build.log -quit
+```
+
+APK는 Android WebView로 실행 중인 관제 서버를 연다. Android 에뮬레이터에서는
+기본 주소가 `http://10.0.2.2:8765/`이고, 실제 기기에서는 `DashboardWebViewController`
+의 주소를 PC의 같은 Wi-Fi LAN 주소(예: `http://192.168.0.10:8765/`)로 바꾼 뒤
+다시 빌드해야 한다. PC 서버는 휴대폰에서 접근할 수 있도록 LAN 바인딩과 방화벽 규칙을
+별도로 허용해야 하며, 인터넷에 공개하지 않는다.
+
 ## Bundle ID (Android Application Id)
 
 `BuildAndroid`는 게임마다 `com.gamefactory.<game_id>` 형태의 bundle id를 자동으로 만든다
