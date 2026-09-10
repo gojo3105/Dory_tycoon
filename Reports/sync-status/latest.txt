@@ -1,10 +1,10 @@
 ﻿# Auto-sync status
 
-Generated: 2026-09-10 22:25:49
+Generated: 2026-09-10 22:40:51
 Outcome: BLOCKED
-Reason: Uncommitted changes to tracked files: M Reports/dashboard.html
+Reason: Uncommitted changes to tracked files: M AI_GAME_COMPANY/company/orchestrator/dashboard.py |  M AI_GAME_COMPANY/config/HARDWARE_PROFILE.json |  M AI_GAME_COMPANY/config/LICENSE_REGISTRY.json |  M AI_GAME_COMPANY/config/cli-probes/adb.txt |  M AI_GAME_COMPANY/config/cli-probes/blender.txt |  M AI_GAME_COMPANY/config/cli-probes/claude.txt |  M AI_GAME_COMPANY/config/cli-probes/codex.txt |  M AI_GAME_COMPANY/config/cli-probes/git.txt |  M AI_GAME_COMPANY/config/cli-probes/node.txt |  M AI_GAME_COMPANY/config/cli-probes/ollama.txt |  M AI_GAME_COMPANY/config/cli-probes/python.txt |  M Reports/dashb...
 Last-Success: 2026-09-10 08:23:25
-Local-Head: 1a89ef8
+Local-Head: 2db6c5e
 Upstream-Head: 646dd7a
 Branch: claude/delete-current-content-mgn4xm
 
