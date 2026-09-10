@@ -220,8 +220,7 @@ class Runner:
             return False, "허용되지 않는 형식의 id 입니다."
 
         if action.needs == "task":
-            ids = {t.id for t in self.board().tasks
-                   if t.owner == "codex" and t.status not in ("done", "canceled")}
+            ids = {t.id for t in self.board().tasks if t.owner == "codex"}
             if arg not in ids:
                 return False, f"작업판에 Codex 소유의 '{arg}' 작업이 없습니다."
         elif action.needs == "game":
@@ -428,7 +427,7 @@ class Handler(BaseHTTPRequestHandler):
         if not self._origin_ok():
             self._json(403, {"error": "cross-site 요청은 거부됩니다."})
             return
-        if self.path not in ("/run", "/order", "/board"):
+        if self.path not in ("/run", "/order"):
             self._json(404, {"error": "not found"})
             return
 
@@ -438,8 +437,6 @@ class Handler(BaseHTTPRequestHandler):
 
         if self.path == "/order":
             self._order(payload)
-        elif self.path == "/board":
-            self._board(payload)
         else:
             self._run_action(payload)
 
@@ -535,40 +532,6 @@ class Handler(BaseHTTPRequestHandler):
             "steps": [ACTIONS[a].label for a, _ in pairs],
             "duplicate_of": placed.duplicate_of,
         })
-
-    def _board(self, payload: dict[str, Any]) -> None:
-        """Apply one of the fixed task-board mutations from the control page."""
-        task_id = str(payload.get("task", ""))
-        operation = str(payload.get("operation", ""))
-        if not SAFE_ID.match(task_id):
-            self._json(400, {"error": "허용되지 않는 작업 id 입니다."})
-            return
-        if operation not in ("complete", "cancel", "delete"):
-            self._json(400, {"error": "허용되지 않는 작업판 동작입니다."})
-            return
-        live = self.runner.current
-        if live and not live.done and live.action == "team-run" and live.arg == task_id:
-            self._json(409, {"error": "지금 실행 중인 작업은 먼저 끝날 때까지 바꿀 수 없습니다."})
-            return
-
-        board = self.runner.board()
-        try:
-            task = board.get(task_id)
-            if operation == "delete":
-                board.remove(task_id)
-                message = f"{task_id} 작업을 삭제했습니다."
-            elif operation == "cancel":
-                board.cancel(task_id)
-                message = f"{task_id} 작업을 취소했습니다."
-            else:
-                task.status = "done"
-                task.notes.append("완료 처리: 관제 화면에서 사용자가 확인했습니다.")
-                board.save()
-                message = f"{task_id} 작업을 완료 처리했습니다."
-        except (KeyError, ValueError):
-            self._json(404, {"error": f"작업판에 '{task_id}' 작업이 없습니다."})
-            return
-        self._json(200, {"task": task_id, "operation": operation, "message": message})
 
 
 def make_handler(runner: Runner, token: str) -> type[Handler]:

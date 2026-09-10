@@ -1034,7 +1034,6 @@ section{margin-top:44px;}
 .tag{font-size:11px; font-weight:600; letter-spacing:0.05em; padding:2px 8px;
      border-radius:2px; background:var(--st-soft); color:var(--st); white-space:nowrap;}
 .s-todo{--st:var(--unknown); --st-soft:var(--unknown-soft);}
-.s-canceled{--st:var(--muted); --st-soft:var(--surface-2);}
 .s-in_progress{--st:var(--accent); --st-soft:var(--accent-soft);}
 .s-review{--st:var(--gate); --st-soft:var(--gate-soft);}
 .s-done{--st:var(--ok); --st-soft:var(--ok-soft);}
@@ -1516,8 +1515,6 @@ def _queue_item(index: int, task: dict[str, Any], served: bool,
         action = (f'<div class="q-act"><button class="btn" type="button" '
                   f'data-act="team-run" data-arg-value="{e(task.get("id", ""))}"'
                   f'{disabled}>{button}</button></div>')
-    if served and not running:
-        action += _board_actions(task, compact=True)
 
     return f"""        <div class="q-item {kind}">
           <span class="q-seat" aria-hidden="true">{e(seat)}</span>
@@ -1609,7 +1606,7 @@ def _task_row(task: dict[str, Any], served: bool = False,
     status = str(task.get("status", "todo"))
     css = "s-blocked-tag" if status == "blocked" else f"s-{status}"
     label = {"todo": "대기", "in_progress": "진행 중", "review": "검토 필요",
-             "blocked": "막힘", "canceled": "취소", "done": "완료"}.get(status, status)
+             "blocked": "막힘", "done": "완료"}.get(status, status)
 
     paths = task.get("files", []) or []
     files = " · ".join(_short_path(p) for p in paths[:4])
@@ -1630,8 +1627,6 @@ def _task_row(task: dict[str, Any], served: bool = False,
                   f'<button class="btn task-run" type="button" data-act="team-run" '
                   f'data-arg-value="{e(task.get("id", ""))}"{disabled}>'
                   f'{button_label}</button>{blockers}</div>')
-    if served:
-        action += _board_actions(task)
     original = str(task.get("title", ""))
     hover = f' title="{e(original)}"' if task.get("title_ko") and original else ""
     return f"""        <div class="task">
@@ -1642,24 +1637,6 @@ def _task_row(task: dict[str, Any], served: bool = False,
           <div class="id mono">{e(task.get('id', ''))}</div>
           <div class="files mono">{e(files)}</div>{action}
         </div>"""
-
-
-def _board_actions(task: dict[str, Any], compact: bool = False) -> str:
-    """Controls that mutate the shared board, only on the served page."""
-    status = str(task.get("status", ""))
-    task_id = e(task.get("id", ""))
-    buttons = []
-    if status == "review":
-        buttons.append(('complete', "완료 처리"))
-    elif status in ("todo", "in_progress", "blocked"):
-        buttons.append(('cancel', "취소"))
-    buttons.append(('delete', "삭제"))
-    cls = " board-actions board-actions--compact" if compact else " board-actions"
-    return (f'<div class="{cls.strip()}">' +
-            "".join(f'<button class="btn ghost board-action" type="button" '
-                    f'data-board-act="{operation}" data-task="{task_id}">'
-                    f'{label}</button>' for operation, label in buttons) +
-            '</div>')
 
 
 SYNC_OUTCOME_LABEL = {
@@ -2065,7 +2042,6 @@ def _control_html(snapshot: Snapshot, token: str,
     const busy = document.getElementById('busy');
     const live = document.getElementById('live');
     const buttons = [...document.querySelectorAll('.btn[data-act]')];
-    const boardButtons = [...document.querySelectorAll('.board-action')];
     const send = document.getElementById('order-send');
     let poll = null;
 
@@ -2168,33 +2144,6 @@ def _control_html(snapshot: Snapshot, token: str,
 
     buttons.forEach(b => b.addEventListener('click', () => start(b)));
 
-    async function boardAction(button) {{
-      const operation = button.dataset.boardAct;
-      const task = button.dataset.task;
-      const verb = button.textContent.trim();
-      if (operation === 'delete' && !confirm(task + ' 작업을 삭제할까요?')) return;
-      button.disabled = true;
-      try {{
-        const res = await fetch('/board', {{
-          method: 'POST',
-          headers: {{ 'Content-Type': 'application/json' }},
-          body: JSON.stringify({{ token: TOKEN, operation, task }})
-        }});
-        const data = await res.json();
-        if (!res.ok) {{
-          term.textContent = '거부됨: ' + (data.error || res.status);
-          button.disabled = false;
-          return;
-        }}
-        term.textContent = data.message || (verb + ' 완료');
-        setTimeout(() => location.reload(), 400);
-      }} catch (err) {{
-        term.textContent = '서버에 연결할 수 없습니다: ' + err;
-        button.disabled = false;
-      }}
-    }}
-    boardButtons.forEach(b => b.addEventListener('click', () => boardAction(b)));
-
     // ---- the order box ----
     const dept = document.getElementById('order-dept');
     const scope = document.getElementById('order-scope');
@@ -2285,16 +2234,14 @@ def render(snapshot: Snapshot, control_token: str | None = None,
     if control_token is None:
         live_job = None
 
-    visible_agents = [agent for agent in snapshot.agents
-                      if agent.state not in (BLOCKED, UNKNOWN)]
-    counts = {state: sum(1 for a in visible_agents if a.state == state)
+    counts = {state: sum(1 for a in snapshot.agents if a.state == state)
               for state in (READY, GATED, BLOCKED, UNKNOWN)}
 
     working_prefix = (progress_mod.agent_prefix_for(str(live_job.get("action", "")))
                       if live_job and not (live_job.get("progress") or {}).get("done")
                       else "")
-    office = _office_html(visible_agents, working_prefix)
-    roster = "\n".join(_agent_row(agent) for agent in visible_agents)
+    office = _office_html(snapshot.agents, working_prefix)
+    roster = "\n".join(_agent_row(agent) for agent in snapshot.agents)
 
     task_models = [Task.from_dict(task) for task in snapshot.tasks]
     task_board = TaskBoard(path=Path(), tasks=task_models)
@@ -2373,7 +2320,7 @@ def render(snapshot: Snapshot, control_token: str | None = None,
     if snapshot.missing:
         files = "".join(f"<code>{e(path)}</code> " for path in snapshot.missing)
         missing_block = (f'<div class="warn"><b>읽지 못한 파일이 있습니다.</b> {files}<br>'
-                         "그만큼 이 페이지의 상태는 근거 없음으로 표시됩니다 - "
+                         "그만큼 이 페이지의 상태는 비어 있거나 '확인 불가'로 표시됩니다 - "
                          "빈 칸을 정상으로 바꿔 읽지 마세요.</div>")
 
     machine = snapshot.profile.get("machineName", "?")
@@ -2419,7 +2366,7 @@ def render(snapshot: Snapshot, control_token: str | None = None,
 
   <div class="verdict">
     <b>{counts[READY]}개 작업 가능</b>
-    <span>{counts[GATED]}개 대기</span>
+    <span>{counts[GATED]}개 대기 · {counts[BLOCKED]}개 사용 불가 · {counts[UNKNOWN]}개 확인 불가</span>
     <span>설치된 것과 실제로 돌아가는 것은 다릅니다. 아래 각 줄은 그 판단의 근거 파일을 함께 표시합니다.</span>
   </div>
   {missing_block}

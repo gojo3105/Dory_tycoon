@@ -51,9 +51,8 @@ TODO = "todo"
 IN_PROGRESS = "in_progress"
 REVIEW = "review"
 BLOCKED = "blocked"
-CANCELED = "canceled"
 DONE = "done"
-STATUSES = (TODO, IN_PROGRESS, REVIEW, BLOCKED, CANCELED, DONE)
+STATUSES = (TODO, IN_PROGRESS, REVIEW, BLOCKED, DONE)
 
 
 class TaskNotFound(KeyError):
@@ -166,20 +165,6 @@ class TaskBoard:
             if task.id == task_id:
                 return task
         raise TaskNotFound(f"no task '{task_id}' on {self.path}")
-
-    def remove(self, task_id: str) -> None:
-        """Remove a task permanently after the caller has checked its state."""
-        task = self.get(task_id)
-        self.tasks.remove(task)
-        self.save()
-
-    def cancel(self, task_id: str) -> Task:
-        """Keep a visible history entry while taking a task out of the queue."""
-        task = self.get(task_id)
-        task.status = CANCELED
-        task.notes.append("취소됨: 관제 화면에서 사용자가 취소했습니다.")
-        self.save()
-        return task
 
     def open_for(self, owner: str) -> list[Task]:
         return [t for t in self.tasks
