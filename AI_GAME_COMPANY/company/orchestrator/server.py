@@ -407,6 +407,18 @@ class Handler(BaseHTTPRequestHandler):
         if self.path.startswith("/artifact"):
             self._artifact()
             return
+        if self.path == "/api/status":
+            job = self.runner.current
+            self._json(200, {
+                "busy": bool(job and not job.done),
+                "job": job.snapshot() if job else None,
+            })
+            return
+        if self.path == "/board":
+            self._json(200, {
+                "tasks": [task.to_dict() for task in self.runner.board().tasks],
+            })
+            return
         if self.path in ("/", "/index.html"):
             snapshot = dash.collect(self.runner.repo_root, live_ollama=True)
             # Read-only: the renderer is handed the current job so the page
@@ -444,7 +456,7 @@ class Handler(BaseHTTPRequestHandler):
             self._discard_body()
             self._json(403, {"error": "cross-site 요청은 거부됩니다."})
             return
-        if self.path not in ("/run", "/order", "/plan-game", "/create-game"):
+        if self.path not in ("/run", "/order", "/plan-game", "/create-game", "/board"):
             self._discard_body()
             self._json(404, {"error": "not found"})
             return
@@ -455,6 +467,8 @@ class Handler(BaseHTTPRequestHandler):
 
         if self.path == "/order":
             self._order(payload)
+        elif self.path == "/board":
+            self._board(payload)
         elif self.path == "/plan-game":
             self._plan_game(payload)
         elif self.path == "/create-game":

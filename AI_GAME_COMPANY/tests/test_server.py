@@ -185,6 +185,26 @@ class LiveServerTests(unittest.TestCase):
         self.assertIn("AI 제어", page)
         self.assertIn("const TOKEN", page)
 
+    def test_status_compatibility_endpoint_returns_runner_state(self):
+        status, body = self.get("/api/status")
+        self.assertEqual(200, status)
+        payload = json.loads(body)
+        self.assertFalse(payload["busy"])
+        self.assertIsNone(payload["job"])
+
+    def test_board_compatibility_endpoint_uses_existing_board_controls(self):
+        status, body = self.get("/board")
+        self.assertEqual(200, status)
+        self.assertIn("tasks", json.loads(body))
+
+        status, payload = self.post({
+            "token": self.token,
+            "task": "MISSING",
+            "operation": "delete",
+        }, path="/board")
+        self.assertEqual(404, status)
+        self.assertIn("작업판", payload["error"])
+
     def test_the_static_file_has_no_control_panel(self):
         # The published/written copy has nothing to POST to. Buttons there
         # would be controls that silently do nothing.
