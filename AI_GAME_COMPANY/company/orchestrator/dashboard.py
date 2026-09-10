@@ -75,7 +75,6 @@ STATE_LABEL = {
 DEPARTMENT_BY_PREFIX = {
     "Claude Code": "dev",
     "Codex CLI": "dev",
-    "HydraTeams": "dev",
     "Gemini": "design",
     "Stable Diffusion": "design",
     "Qwen-Image": "design",
@@ -149,27 +148,11 @@ def _read_json(path: Path) -> dict[str, Any]:
 
 
 def _licence_status(registry: dict[str, Any]) -> dict[str, str]:
-    """Every name a registry entry answers to, mapped to its status.
-
-    The aliases matter. An entry's `id` is a slug this project chose
-    ("qwen3-vl"), while Ollama reports the tag it was pulled under
-    ("Qwen3-VL:latest"), and `model_ids` is what bridges the two. Keying on
-    `id` alone made build_agents report "라이선스 UNKNOWN" for a model that
-    `ollama --list` said in the same breath was APPROVED - two code paths
-    answering one question differently, which is worse than either answer.
-    OllamaClient.approved_models already honours model_ids; this makes the
-    renderer agree with it.
-    """
-    statuses: dict[str, str] = {}
-    for entry in registry.get("entries", []):
-        if not isinstance(entry, dict):
-            continue
-        status = entry.get("status", "UNKNOWN")
-        names = [entry.get("id", "")] + list(entry.get("model_ids") or [])
-        for name in names:
-            if name:
-                statuses[name] = status
-    return statuses
+    return {
+        entry.get("id", ""): entry.get("status", "UNKNOWN")
+        for entry in registry.get("entries", [])
+        if isinstance(entry, dict)
+    }
 
 
 def read_live_ollama_models(
@@ -458,24 +441,8 @@ def build_agents(profile: dict[str, Any], policy: dict[str, Any],
             # unloadable, and naming only the first failure hides the second.
             if status != "APPROVED":
                 reasons.append(f"라이선스 {status}")
-            # HardwareProfile.model_fit, not a rule of its own. This branch
-            # used `size >= ram_total * 0.8`, which passed a 5.7 GB model that
-            # `ollama --use` then refused on a 4.6 GB budget - so the office
-            # said 작업 가능 for a model the command would not load. One
-            # authority, and the panel and the CLI now give one answer.
-            # model_fit budgets against FREE memory, and free memory is a
-            # momentary reading. With no reading at all it defaults to 0, and
-            # a budget of -2 GB would mark every model unloadable - which
-            # would be this page inventing a hardware verdict from a missing
-            # field. No reading means 확인 불가, per the rule the whole
-            # dashboard runs on.
-            has_free = (profile.get("hardware", {}) or {}).get("ramFreeGb") is not None
-            if not has_free:
-                reasons.append("RAM 확인 불가: 프로필에 ramFreeGb 가 없습니다")
-            else:
-                fit, fit_reason = HardwareProfile(profile).model_fit(size)
-                if fit not in ("VIABLE", "LIMITED"):
-                    reasons.append(f"RAM {fit}: {fit_reason}")
+            if ram_total and size >= ram_total * 0.8:
+                reasons.append(f"{size:.1f} GB 모델 / 전체 RAM {ram_total:.1f} GB - 적재 불가")
             agents.append(Agent(
                 f"Ollama · {model_id}", "로컬 추론",
                 BLOCKED if reasons else READY,
@@ -534,31 +501,6 @@ def build_agents(profile: dict[str, Any], policy: dict[str, Any],
         if present else
         "정책상 차단되어 있고, 환경에 키도 없습니다. 비용이 발생하는 경로가 없습니다.",
         "", [profile_evidence, policy_evidence]))
-
-    # --- HydraTeams: the proxy that would let other models be teammates ---
-    # Reported, not started. HydraProxy is a long-running server and the
-    # Runner in server.py waits for a job to exit, so a start button built on
-    # the job runner would leave the panel permanently busy (CLAUDE-HYDRA1).
-    hydra_dir = str(policy.get("hydra_proxy_dir") or "")
-    hydra_built = bool(hydra_dir) and (Path(hydra_dir) / "dist" / "index.js").is_file()
-    hydra_evidence = "config/company_policy.json"
-    if policy.get("allow_hydra_proxy") is not True:
-        agents.append(Agent(
-            "HydraTeams (모델 라우팅)", "다른 모델을 팀원으로", BLOCKED,
-            "정책 allow_hydra_proxy 가 true 가 아닙니다. "
-            + ("빌드는 되어 있습니다. " if hydra_built else "빌드도 아직 없습니다. ")
-            + "켜기 전에 결정할 것: ~/.codex/auth.json 사용 여부, "
-              "구독(chatgpt) 대 유료 API(openai), 규칙 1(코드는 Codex) 변경 여부.",
-            "", [hydra_evidence]))
-    elif not hydra_built:
-        agents.append(Agent(
-            "HydraTeams (모델 라우팅)", "다른 모델을 팀원으로", GATED,
-            f"{hydra_dir} 에 dist/index.js 가 없습니다. npm run build 가 필요합니다.",
-            "", [hydra_evidence]))
-    else:
-        agents.append(Agent(
-            "HydraTeams (모델 라우팅)", "다른 모델을 팀원으로", READY,
-            f"빌드됨: {hydra_dir}/dist/index.js", "", [hydra_evidence]))
 
     return agents
 
@@ -983,7 +925,7 @@ section{margin-top:44px;}
 .agent-hotspot-text span{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
   font-size:8.5px; color:rgba(255,255,255,.72);}
 .office-avatar{--avatar-shirt:var(--skin,var(--accent)); position:absolute; z-index:3;
-  width:52px; height:72px; left:var(--from-x); top:var(--from-y);
+  width:40px; height:50px; left:var(--from-x); top:var(--from-y);
   transform:translate(-50%,-100%); pointer-events:none;
   filter:drop-shadow(0 7px 5px rgba(0,0,0,.38));
   transition:left .9s ease,top .9s ease,transform .9s ease;}
@@ -992,7 +934,7 @@ section{margin-top:44px;}
 .office-avatar--walking .office-avatar-person{animation:none;}
 .office-avatar--still{left:var(--from-x); top:var(--from-y); filter:grayscale(.65) opacity(.78);}
 .office-avatar--working{left:var(--desk-x); top:var(--desk-y); transform:translate(-50%,-100%);}
-.office-avatar--working .office-avatar-person{transform:translateY(5px) scale(.92); transform-origin:32px 58px;}
+.office-avatar--working .office-avatar-person{transform:translateY(3px) scale(.92); transform-origin:16px 34px;}
 .office-avatar--working .office-avatar-leg{opacity:0;}
 .office-avatar--working .office-avatar-workstation{display:block;}
 .office-avatar-workstation{display:none;}
@@ -1002,6 +944,7 @@ section{margin-top:44px;}
 .office-avatar-shirt{fill:var(--avatar-shirt); stroke:#162535; stroke-width:1.5;}
 .office-avatar-limb{fill:none; stroke:#162535; stroke-width:5; stroke-linecap:round;}
 .office-avatar-eye{fill:#10202d;}
+.office-avatar-cheek{fill:#E99A91; opacity:.8;}
 .office-avatar-chair{fill:#1d3444; stroke:#8fb6ca; stroke-width:1.3;}
 .office-avatar-desk{fill:#9f6942; stroke:#3d2417; stroke-width:1.5;}
 .office-avatar-screen{fill:#12384b; stroke:#77d7ef; stroke-width:1.5;}
@@ -1129,46 +1072,6 @@ section{margin-top:44px;}
 @keyframes office-alert{50%{transform:scale(1.14) translateY(-2px);}}
 @keyframes office-waiting{50%{transform:translateY(-3px);}}
 @keyframes office-unknown{50%{opacity:.25;}}
-
-/* ---- connect helper ----
-   One card per integration that is not working, under the office because
-   that is where a grey desk raises the question. A card that cannot be
-   fixed says so rather than listing steps that will not help. */
-.connect > summary{color:var(--gate);}
-.conn-note{margin:4px 4px 14px; padding:10px 12px; background:var(--gate-soft);
-  border-left:3px solid var(--gate); border-radius:2px; font-size:12px;
-  line-height:1.7; color:var(--ink-2);}
-.conn-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:14px;}
-.conn{padding:14px 16px; background:var(--surface); border:1px solid var(--line);
-  border-left:3px solid var(--st); border-radius:3px;}
-.conn-top{display:flex; justify-content:space-between; align-items:baseline; gap:10px;}
-.conn-top b{font-size:13.5px; color:var(--ink);}
-.conn-badge{font-size:11px; color:var(--st); white-space:nowrap;}
-.conn-why{margin:8px 0 0; font-size:12.5px; line-height:1.7; color:var(--muted);}
-.conn-hard{margin:8px 0 0; font-size:12.5px; font-weight:600; color:var(--blocked);}
-.conn-steps{margin:10px 0 0; padding-left:20px; font-size:12.5px; line-height:1.8;
-  color:var(--ink-2);}
-.conn-cmd{display:flex; gap:8px; align-items:center; margin-top:10px;
-  padding:8px 10px; background:var(--sunk); border-radius:2px;}
-.conn-cmd code{flex:1; min-width:0; overflow-x:auto; font-size:12px; color:var(--ink);}
-.conn-cmd .btn{padding:5px 11px; font-size:11.5px;}
-.conn > .btn{margin-top:12px;}
-
-/* ---- the fold ----
-   Four sections carry the flow: office, studio, order box, progress. The
-   other eight are evidence you go looking for, not things you act on, and
-   left open they pushed the flow off the top of the screen. Collapsed by
-   default; a <details> keeps them one click away and findable by Ctrl+F,
-   which a tab strip would not. */
-.more{margin-top:26px; border-top:1px solid var(--line); padding-top:6px;}
-.more > summary{cursor:pointer; list-style:none; padding:12px 4px;
-  font-size:12.5px; letter-spacing:.04em; color:var(--muted); font-weight:600;}
-.more > summary::-webkit-details-marker{display:none;}
-.more > summary::before{content:'B8'; display:inline-block; margin-right:8px;
-  transition:transform .15s ease;}
-.more[open] > summary::before{transform:rotate(90deg);}
-.more > summary:hover{color:var(--ink);}
-.more > summary:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
 
 /* ---- queue ----
    The board section shows everything including finished work. This shows only
@@ -1526,13 +1429,14 @@ section{scroll-margin-top:12px; margin-top:22px; padding:14px; background:#FFFDF
   transform:translate(-50%,-54%); outline:2px solid #FFF3A8;}
 .agent-photo-dot{width:18px; height:18px; flex-basis:18px; border-radius:0;
   border:2px solid #fff; box-shadow:none;}
-.office-avatar{width:48px; height:66px; image-rendering:pixelated;
-  filter:drop-shadow(3px 3px 0 rgba(27,48,58,.45));}
+.office-avatar{width:32px; height:40px; image-rendering:pixelated;
+  filter:drop-shadow(2px 2px 0 rgba(27,48,58,.38));}
 .office-avatar svg{shape-rendering:crispEdges; image-rendering:pixelated;}
 .virtual-office-vignette{display:none;}
 .virtual-office-legend{left:8px; bottom:8px; padding:5px; color:#fff; background:#28485B;
   border:2px solid #DCEBF0; border-radius:0; backdrop-filter:none; font-size:8px;}
-.minecraft-office{border-color:#423729; outline:4px solid #78A34B; background:#77BCE8;}
+.minecraft-office{max-width:940px; margin:0 auto; border-color:#423729;
+  outline:3px solid #78A34B; background:#77BCE8;}
 .minecraft-office .virtual-office-stage{background:#77BCE8;}
 .company-zone{max-width:29%; overflow:hidden; text-overflow:ellipsis;}
 .company-legend{max-width:94%;}
@@ -1567,6 +1471,93 @@ footer{margin-top:28px; padding:14px; background:#D8EAF0; border:2px dotted #789
   .mast{grid-template-columns:94px minmax(0,1fr)}.stamp{grid-column:1/-1;text-align:left}
   .mini-owner{grid-row:span 2}.mini-owner-avatar{height:54px}.mini-owner-avatar span{font-size:38px}
   .company-role-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* ---- refined workspace UI ---- */
+body{background:#DDEBF0; background-image:radial-gradient(circle at 15% 5%,#F7FCFD 0 8%,transparent 34%),
+  linear-gradient(135deg,rgba(64,127,151,.07) 25%,transparent 25% 75%,rgba(64,127,151,.07) 75%);
+  background-size:auto,24px 24px; font-family:'Noto Sans KR','Malgun Gothic',sans-serif;}
+.wrap{max-width:1280px; margin:24px auto 48px; padding:18px 22px 40px; background:#EEF6F8;
+  border:1px solid #A8C1CC; outline:0; border-radius:18px;
+  box-shadow:0 22px 60px rgba(45,82,98,.18);}
+.mast{gap:20px; padding:18px; border:1px solid #C5D8DF; border-radius:14px;
+  background:linear-gradient(135deg,#FFFFFF 0%,#F7FBFC 72%,#E5F2F6 100%);
+  box-shadow:0 8px 24px rgba(56,93,108,.09);}
+.mast h1{font-family:'Noto Sans KR',sans-serif; font-size:26px; letter-spacing:-.04em;
+  color:#1F617B; text-shadow:none;}
+.mini-owner{border:1px solid #B8CDD5; border-radius:10px; background:#F9FCFD;
+  box-shadow:none;}
+.mini-owner-avatar{border:0; border-radius:8px; background:#E3F0F4;}
+.mini-tabs{position:sticky; z-index:40; top:10px; right:auto; display:flex; gap:6px;
+  margin:14px 0; padding:6px; width:max-content; max-width:100%;
+  border:1px solid rgba(137,169,182,.7); border-radius:12px;
+  background:rgba(247,252,253,.90); box-shadow:0 8px 22px rgba(45,82,98,.13);
+  backdrop-filter:blur(12px);}
+.mini-tabs a,.mini-tabs a:first-child{width:auto; padding:8px 14px; color:#486373;
+  background:transparent; border:0; border-radius:8px; box-shadow:none;
+  font:700 12px 'Noto Sans KR',sans-serif; letter-spacing:0;}
+.mini-tabs a:hover,.mini-tabs a:focus-visible{transform:none; color:#174F69; background:#DCEEF4; outline:0;}
+.overview-grid{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin:14px 0;}
+.overview-grid article{display:grid; grid-template-columns:1fr auto; gap:2px 10px; align-items:end;
+  padding:14px 16px; border:1px solid #C8DAE1; border-radius:12px; background:#FFFFFF;
+  box-shadow:0 5px 16px rgba(55,91,106,.07);}
+.overview-grid span{color:#667E8B; font-size:12px; font-weight:700;}
+.overview-grid b{grid-row:1/3; grid-column:2; color:#1C6784; font-size:26px; line-height:1;}
+.overview-grid small{color:#8799A3; font-size:10px;}
+.factory-flow{display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:8px;
+  margin:0 auto 14px; max-width:940px;}
+.factory-step{position:relative; display:grid; gap:2px; min-width:0; padding:11px 12px 11px 42px;
+  border:1px solid #C7DCE3; border-radius:10px; background:linear-gradient(180deg,#FFFFFF,#F2F8FA);}
+.factory-step:not(:last-child)::after{content:'›'; position:absolute; z-index:2; right:-8px; top:50%;
+  translate:50% -50%; display:grid; place-items:center; width:18px; height:18px;
+  border-radius:50%; color:#FFFFFF; background:#5E9CB3; font-weight:800;}
+.factory-step i{position:absolute; left:11px; top:12px; display:grid; place-items:center; width:23px; height:23px;
+  border-radius:7px; color:#FFFFFF; background:#2F7C98; font:700 10px 'JetBrains Mono',monospace;}
+.factory-step b{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#31596B; font-size:11px;}
+.factory-step span{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#7A909B; font-size:9px;}
+.verdict{margin-top:0; padding:12px 16px; border:1px solid #C5D9E1; border-left:4px solid #2E86A7;
+  border-radius:10px; background:#F9FCFD; box-shadow:none;}
+.verdict b{font-size:14px;}.verdict span{font-size:12px;}
+section{margin-top:18px; padding:18px; border:1px solid #C7D9E0; border-radius:14px;
+  background:#FFFFFF; box-shadow:0 7px 20px rgba(55,91,106,.07);}
+.head{margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid #E1EAED;}
+.head h2{padding:0; border:0; background:transparent; color:#294F61;
+  font-family:'Noto Sans KR',sans-serif; font-size:15px; letter-spacing:-.02em;}
+.head .note{font-size:11px;}
+.fold{border:1px solid #D7E4E9; border-radius:10px; overflow:hidden; background:#F9FCFD;}
+.fold summary{cursor:pointer; list-style:none; padding:13px 15px; color:#3A6275;
+  font-size:12px; font-weight:700; user-select:none;}
+.fold summary::-webkit-details-marker{display:none;}
+.fold summary::after{content:'＋'; float:right; color:#6E93A4; font-size:16px; line-height:1;}
+.fold[open] summary{border-bottom:1px solid #D7E4E9; background:#EFF7F9;}
+.fold[open] summary::after{content:'−';}
+.fold-body{margin:0; padding:12px;}
+.fold-body.roster,.fold-body.board,.fold-body.log{padding:0; border:0; border-radius:0;}
+.control-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+.control-row{grid-template-columns:110px minmax(0,1fr); border:1px solid #D6E3E8;
+  border-radius:10px!important; background:#F7FAFB;}
+.ctl,.studio{border:1px solid #D4E1E6; border-radius:12px!important; background:#FBFDFE;}
+.btn{border:1px solid #2E708B; border-radius:8px; box-shadow:none; background:#2E7E9C;
+  color:#FFFFFF; font-family:'Noto Sans KR',sans-serif; text-transform:none;}
+.btn.ghost{background:#FFFFFF; color:#315D70; border-color:#B9CFD8;}
+.btn:hover{filter:none; background:#1F6985; color:#FFFFFF;}
+.btn:active{transform:translateY(1px); box-shadow:none;}
+input,select,textarea{border:1px solid #BFD2DA!important; border-radius:8px!important;
+  font-family:'Noto Sans KR',sans-serif!important;}
+.company-role-grid{gap:6px; padding:8px; background:#4B453D;}
+.company-role-card{padding:10px; border-width:1px; border-radius:5px;}
+.company-role-card b{font-size:12px;}
+.company-detail-fold{background:#4B453D;}
+.company-detail-fold summary{cursor:pointer; list-style:none; padding:10px 12px; color:#F8E8BA;
+  background:#3D3933; font-size:10px; font-weight:700; text-align:center;}
+.company-detail-fold summary::-webkit-details-marker{display:none;}
+.company-detail-fold summary::after{content:'  ＋'; color:#9FD1E0;}
+.company-detail-fold[open] summary::after{content:'  −';}
+footer{border:0; border-radius:10px; background:#E4F0F3; color:#6B818C;}
+@media(max-width:840px){.overview-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .control-grid{grid-template-columns:1fr}.mini-tabs{width:100%; overflow-x:auto}
+  .factory-flow{grid-template-columns:1fr 1fr}.factory-step::after{display:none}}
+@media(max-width:520px){.overview-grid{grid-template-columns:1fr 1fr}.overview-grid article{padding:11px}
+  .overview-grid b{font-size:22px}.mini-tabs a{padding:8px 10px}.wrap{margin:0;border-radius:0}}
 """
 
 
@@ -1704,141 +1695,6 @@ def _character_svg(department: str, state: str) -> str:
         '<path class="office-stand" d="M88.5 54v6M81 60h15"/></g></svg>')
 
 
-# How each unconnected integration gets connected. Written here rather than
-# in prose on the page so every step is one a person can actually run, and so
-# an entry that CANNOT be fixed says so instead of offering a false hope -
-# Qwen-Image needs more RAM than the machine has, and no button changes that.
-#
-# NOTHING HERE TAKES A SECRET. Keys are a HUMAN_GATE in company_policy.json
-# and go in the environment, never into this page: a value typed into a form
-# would travel in an HTTP body and could land in the panel's own log, which
-# is exactly what _secrets_note forbids.
-#
-# `action` names a FIXED server action (server.ACTIONS). It is never a
-# command string from this table - section 10 again.
-CONNECT_RECIPES: dict[str, dict[str, Any]] = {
-    "Codex CLI": {
-        "fixable": True,
-        "summary": "로그인만 하면 됩니다. 사람이 직접 해야 하는 단계입니다 (HUMAN_GATE).",
-        "steps": ["터미널에서 로그인합니다. 브라우저가 열립니다.",
-                  "끝나면 아래 진단으로 확인합니다."],
-        "commands": ["codex login"],
-        "action": ("codex-doctor", "진단 실행"),
-    },
-    # 2026-09-10: Qwen3-VL:latest is pulled and its licence is APPROVED
-    # (Apache-2.0, read from `ollama show --license`). What blocks it is RAM,
-    # so the steps say that rather than repeating the licence advice.
-    "Ollama (로컬 LLM)": {
-        "fixable": True,
-        "summary": "Qwen3-VL 라이선스는 통과했습니다(Apache-2.0). 막는 것은 RAM 입니다 — "
-                   "8.8B 는 5.7 GB 인데 예산은 4.6 GB (가용 6.6 GB - 여유 2 GB).",
-        "steps": ["작은 태그를 받는 것이 확실합니다. 4B 는 약 3 GB 로 여유 안에 들어오고 "
-                  "vision 기능은 그대로입니다.",
-                  "또는 지금 것을 쓰려면 약 1.2 GB 를 비웁니다. 브라우저와 에디터를 "
-                  "닫으면 대개 그 정도가 나옵니다.",
-                  "라이선스는 이미 등록돼 있어 같은 계열의 다른 태그도 통과합니다.",
-                  "받은 뒤 아래 버튼으로 설치·라이선스·RAM 을 함께 확인합니다."],
-        "commands": ["ollama pull qwen3-vl:4b",
-                     "python -m company.orchestrator.main ollama --use qwen3-vl:4b"],
-        "action": ("ollama-list", "설치된 모델 확인"),
-    },
-    "HydraTeams (모델 라우팅)": {
-        "fixable": True,
-        "summary": "빌드는 끝났습니다. 정책 플래그 하나와 결정 세 가지가 남았습니다.",
-        "steps": ["~/.codex/auth.json 을 쓸지 정합니다. "
-                  "secrets_never_touched 목록에 있는 파일입니다.",
-                  "구독(chatgpt, $0) 과 유료 API(openai, 과금) 중 고릅니다. "
-                  "유료는 allow_openai_api_billing 이 막고 있습니다.",
-                  "규칙 1(코드는 Codex) 을 바꿀지 정합니다.",
-                  "정한 뒤 company_policy.json 의 allow_hydra_proxy 를 true 로 바꿉니다."],
-        "commands": [],
-        "action": None,
-    },
-    "Blender": {
-        "fixable": False,
-        "summary": "설치는 되어 있습니다. 사용자가 할 일이 아니라 개발이 남았습니다.",
-        "steps": ["blender_runner.py 가 아직 없어서 부를 코드가 없습니다.",
-                  "명령창에서 기획팀에 지시하거나 작업판에 등록하면 Codex 가 만듭니다."],
-        "commands": [],
-        "action": None,
-    },
-    "Qwen-Image": {
-        "fixable": False,
-        "summary": "이 PC 에서는 못 씁니다. 라이선스가 아니라 RAM 이 모자랍니다.",
-        "steps": ["가중치가 약 18.5 GB 인데 이 PC 전체 RAM 이 15.7 GB 입니다.",
-                  "다른 프로그램을 다 꺼도 올라가지 않습니다. RAM 을 늘리는 것 "
-                  "말고는 방법이 없습니다.",
-                  "이미지 생성은 이미 되는 Stable Diffusion 1.5 를 쓰세요."],
-        "commands": [],
-        "action": None,
-    },
-    "유료 API (OpenAI · Anthropic · Google 등)": {
-        "fixable": False,
-        "summary": "고장이 아니라 의도된 차단입니다. 켜면 실제 요금이 나갑니다.",
-        "steps": ["company_policy.json 의 allow_paid_api 와 "
-                  "allow_openai_api_billing 이 막고 있습니다.",
-                  "지금은 Codex 구독과 Gemini 무료 등급으로 돌고 있어 추가 비용이 "
-                  "없습니다. 켜기 전에 그 비용을 감수할 이유가 있는지 먼저 정하세요."],
-        "commands": [],
-        "action": None,
-    },
-}
-
-
-def _connect_html(snapshot: Snapshot, served: bool) -> str:
-    """A card per unconnected integration: why, and what to do about it.
-
-    Collapsed, and placed under the office because the office is where a grey
-    desk raises the question. Buttons appear only on a served page and only
-    for actions the server already has.
-    """
-    stuck = [a for a in snapshot.agents if a.state != READY]
-    if not stuck:
-        return ""
-
-    cards = []
-    for agent in stuck:
-        recipe = CONNECT_RECIPES.get(agent.name)
-        badge = {GATED: "대기", BLOCKED: "사용 불가", UNKNOWN: "확인 불가"}.get(
-            agent.state, agent.state)
-        if recipe is None:
-            cards.append(
-                f'<div class="conn s-{e(agent.state)}"><div class="conn-top">'
-                f'<b>{e(agent.name)}</b><span class="conn-badge">{e(badge)}</span></div>'
-                f'<p class="conn-why">{e(agent.detail)}</p>'
-                '<p class="conn-why">연결 방법이 아직 정리돼 있지 않습니다.</p></div>')
-            continue
-
-        steps = "".join(f"<li>{e(line)}</li>" for line in recipe["steps"])
-        cmds = "".join(
-            f'<div class="conn-cmd"><code>{e(c)}</code>'
-            f'<button type="button" class="btn ghost copy" data-copy="{e(c)}">복사</button></div>'
-            for c in recipe["commands"])
-        act = ""
-        if served and recipe.get("action"):
-            name, label = recipe["action"]
-            act = (f'<button class="btn" type="button" data-act="{e(name)}">'
-                   f'{e(label)}</button>')
-        verdict = ("" if recipe["fixable"]
-                   else '<p class="conn-hard">이 PC 에서는 지금 연결할 수 없습니다.</p>')
-        cards.append(
-            f'<div class="conn s-{e(agent.state)}"><div class="conn-top">'
-            f'<b>{e(agent.name)}</b><span class="conn-badge">{e(badge)}</span></div>'
-            f'<p class="conn-why">{e(recipe["summary"])}</p>'
-            f'{verdict}<ol class="conn-steps">{steps}</ol>{cmds}{act}</div>')
-
-    return f"""  <details class="more connect">
-    <summary>연동 안 된 AI {len(stuck)}개 — 연결하는 법</summary>
-    <div class="conn-note">키는 이 페이지에 입력하지 않습니다. 환경 변수나 터미널에서만
-      넣습니다 — 입력창에 친 값은 요청 본문으로 흘러가고 이 패널 로그에 남을 수 있습니다.</div>
-    <div class="conn-grid">
-{chr(10).join(cards)}
-    </div>
-  </details>
-
-"""
-
-
 def _office_caption(agent: Agent, working: bool) -> str:
     """What the character says under its feet.
 
@@ -1909,39 +1765,43 @@ def _office_html(agents: list[Agent], working_prefix: str = "") -> str:
 
 
 def _office_avatar_svg() -> str:
-    """A block-built 16-bit person that can walk or sit without assets."""
-    return '''<svg class="office-avatar-pixel" viewBox="0 0 32 48"
+    """A compact, big-headed pixel avatar that can walk or sit."""
+    return '''<svg class="office-avatar-pixel" viewBox="0 0 32 40"
       shape-rendering="crispEdges" aria-hidden="true">
-      <rect class="office-avatar-shadow" x="7" y="44" width="18" height="3"></rect>
+      <rect class="office-avatar-shadow" x="8" y="38" width="16" height="2"></rect>
       <g class="office-avatar-workstation">
-        <rect class="office-avatar-chair" x="8" y="27" width="16" height="16"></rect>
+        <rect class="office-avatar-chair" x="8" y="25" width="16" height="13"></rect>
       </g>
       <g class="office-avatar-person">
-        <rect class="office-avatar-leg office-avatar-pants" x="9" y="34" width="5" height="9"></rect>
-        <rect class="office-avatar-leg office-avatar-pants" x="18" y="34" width="5" height="9"></rect>
-        <rect class="office-avatar-leg office-avatar-shoe" x="7" y="42" width="7" height="3"></rect>
-        <rect class="office-avatar-leg office-avatar-shoe" x="18" y="42" width="7" height="3"></rect>
-        <rect class="office-avatar-shirt" x="8" y="23" width="16" height="13"></rect>
-        <rect class="office-avatar-shirt" x="5" y="25" width="3" height="10"></rect>
-        <rect class="office-avatar-shirt" x="24" y="25" width="3" height="10"></rect>
-        <rect class="office-avatar-skin" x="6" y="33" width="3" height="3"></rect>
-        <rect class="office-avatar-skin" x="23" y="33" width="3" height="3"></rect>
-        <rect class="office-avatar-skin" x="9" y="8" width="14" height="14"></rect>
-        <rect class="office-avatar-skin" x="7" y="12" width="2" height="6"></rect>
-        <rect class="office-avatar-skin" x="23" y="12" width="2" height="6"></rect>
-        <rect class="office-avatar-hair" x="9" y="5" width="14" height="5"></rect>
-        <rect class="office-avatar-hair" x="7" y="8" width="4" height="7"></rect>
-        <rect class="office-avatar-hair" x="21" y="8" width="4" height="7"></rect>
-        <rect class="office-avatar-eye" x="12" y="14" width="2" height="2"></rect>
-        <rect class="office-avatar-eye" x="18" y="14" width="2" height="2"></rect>
-        <rect class="office-avatar-mouth" x="14" y="19" width="4" height="1"></rect>
+        <rect class="office-avatar-leg office-avatar-pants" x="10" y="31" width="4" height="6"></rect>
+        <rect class="office-avatar-leg office-avatar-pants" x="18" y="31" width="4" height="6"></rect>
+        <rect class="office-avatar-leg office-avatar-shoe" x="8" y="36" width="6" height="2"></rect>
+        <rect class="office-avatar-leg office-avatar-shoe" x="18" y="36" width="6" height="2"></rect>
+        <rect class="office-avatar-shirt" x="8" y="22" width="16" height="10"></rect>
+        <rect class="office-avatar-shirt" x="5" y="24" width="3" height="7"></rect>
+        <rect class="office-avatar-shirt" x="24" y="24" width="3" height="7"></rect>
+        <rect class="office-avatar-skin" x="5" y="29" width="3" height="3"></rect>
+        <rect class="office-avatar-skin" x="24" y="29" width="3" height="3"></rect>
+        <rect class="office-avatar-skin" x="7" y="7" width="18" height="16"></rect>
+        <rect class="office-avatar-skin" x="5" y="12" width="2" height="6"></rect>
+        <rect class="office-avatar-skin" x="25" y="12" width="2" height="6"></rect>
+        <rect class="office-avatar-hair" x="7" y="4" width="18" height="5"></rect>
+        <rect class="office-avatar-hair" x="5" y="7" width="5" height="7"></rect>
+        <rect class="office-avatar-hair" x="22" y="7" width="5" height="7"></rect>
+        <rect class="office-avatar-hair" x="9" y="3" width="4" height="2"></rect>
+        <rect class="office-avatar-hair" x="20" y="3" width="3" height="2"></rect>
+        <rect class="office-avatar-eye" x="11" y="13" width="2" height="3"></rect>
+        <rect class="office-avatar-eye" x="19" y="13" width="2" height="3"></rect>
+        <rect class="office-avatar-cheek" x="8" y="17" width="3" height="2"></rect>
+        <rect class="office-avatar-cheek" x="21" y="17" width="3" height="2"></rect>
+        <rect class="office-avatar-mouth" x="14" y="19" width="4" height="2"></rect>
       </g>
       <g class="office-avatar-workstation">
-        <rect class="office-avatar-screen" x="20" y="25" width="10" height="9"></rect>
-        <rect class="office-avatar-screen-stand" x="24" y="34" width="2" height="3"></rect>
-        <rect class="office-avatar-desk" x="2" y="36" width="28" height="5"></rect>
-        <rect class="office-avatar-desk" x="4" y="41" width="3" height="7"></rect>
-        <rect class="office-avatar-desk" x="25" y="41" width="3" height="7"></rect>
+        <rect class="office-avatar-screen" x="20" y="24" width="10" height="8"></rect>
+        <rect class="office-avatar-screen-stand" x="24" y="32" width="2" height="3"></rect>
+        <rect class="office-avatar-desk" x="2" y="34" width="28" height="4"></rect>
+        <rect class="office-avatar-desk" x="4" y="38" width="3" height="2"></rect>
+        <rect class="office-avatar-desk" x="25" y="38" width="3" height="2"></rect>
       </g>
     </svg>'''
 
@@ -2115,7 +1975,10 @@ def _company_office_html(roles: list[RegisteredAgent],
           {legend}
         </div>
       </div>
-      <div class="company-role-grid">{"".join(cards)}</div>
+      <details class="company-detail-fold">
+        <summary>부서별 작업 상세 보기</summary>
+        <div class="company-role-grid">{"".join(cards)}</div>
+      </details>
     </div>'''
 
 
@@ -2427,15 +2290,11 @@ def _task_row(task: dict[str, Any], served: bool = False,
         files += f" 외 {len(paths) - 4}개"
 
     action = ""
-    # One inline button, and only where nothing else offers one. The queue
-    # owns todo/in_progress; the picker in AI 제어 covers review. That leaves
-    # blocked, which is the status you actually re-run once its cause is
-    # fixed. Before this the board drew a button per task and the page
-    # carried 27 of them, 17 for review alone - a wall of identical controls
-    # for the one action a review task does not normally need.
-    if served and task.get("owner") == "codex" and status == "blocked":
+    if (served and task.get("owner") == "codex"
+            and status in ("todo", "in_progress", "blocked", "review")):
         unmet = unmet_dependencies or []
         disabled = ' disabled data-blocked="true"' if unmet else ""
+        button_label = "작업 시작" if status == "todo" else "다시 실행"
         blockers = ""
         if unmet:
             ids = ", ".join(e(dependency) for dependency in unmet)
@@ -2444,7 +2303,7 @@ def _task_row(task: dict[str, Any], served: bool = False,
                   f'<button class="btn task-run" type="button" data-act="team-run" '
                   f'data-arg-value="{e(task.get("id", ""))}" '
                   f'data-agent-role="{e(task.get("agent_role", ""))}"{disabled}>'
-                  f'다시 실행</button>{blockers}</div>')
+                  f'{button_label}</button>{blockers}</div>')
     original = str(task.get("title", ""))
     hover = f' title="{e(original)}"' if task.get("title_ko") and original else ""
     return f"""        <div class="task">
@@ -2673,7 +2532,7 @@ def _studio_html(snapshot: Snapshot) -> str:
     next_game = next((game["id"] for game in snapshot.games if not game["spec"]), "새 슬롯 없음")
     return f"""  <section class="studio-section" id="studio">
     <div class="head">
-      <h2>도리 AI 게임 스튜디오</h2>
+      <h2>새 게임 생산 요청</h2>
       <span class="note">다음 생성 슬롯 · {e(next_game)}</span>
     </div>
     <div class="studio">
@@ -2796,7 +2655,7 @@ def _order_html(snapshot: Snapshot) -> str:
 
     return f"""  <section>
     <div class="head">
-      <h2>명령창</h2>
+      <h2>제작 지시</h2>
       <span class="note">한 줄로 지시하면 담당 팀이 일합니다 · 최대 {orders.MAX_ORDER_CHARS}자</span>
     </div>
     <div class="ctl">
@@ -2834,13 +2693,8 @@ def _control_html(snapshot: Snapshot, token: str,
     Artifact - has nothing to POST to, so it must not show buttons at all.
     A control that does nothing is worse than an absent one.
     """
-    # Every re-runnable codex task in one picker. review is included on
-    # purpose: those used to carry 17 inline buttons on the board, which is
-    # the repetition this picker replaces. done is not re-runnable and is
-    # deliberately absent.
     codex_open = [t for t in snapshot.tasks
-                  if t.get("owner") == "codex"
-                  and t.get("status") in ("todo", "in_progress", "review", "blocked")]
+                  if t.get("owner") == "codex" and t.get("status") in ("todo", "in_progress")]
     task_options = "".join(
         f'<option value="{e(t["id"])}">{e(t["id"])} · {e(task_title(t))}</option>'
         for t in codex_open) or '<option value="">넘길 작업이 없습니다</option>'
@@ -2920,42 +2774,26 @@ def _control_html(snapshot: Snapshot, token: str,
 
     return f"""  <section>
     <div class="head">
-      <h2>AI 제어</h2>
-      <span class="note">이 PC에서 실행됩니다 · 커밋과 푸시는 하지 않습니다</span>
+      <h2>개발 도구</h2>
+      <span class="note">빌드·진단·새로고침만 모았습니다</span>
     </div>
     <div class="ctl">
       <div class="control-grid">
         <div class="control-row">
-          <div class="control-name">Codex</div>
-          <div class="control-body"><div class="combo">
-            <select id="task" aria-label="Codex에게 넘길 작업">{task_options}</select>
-            <button class="btn" data-act="team-run" data-arg="task">Codex 실행</button>
-          </div><button class="btn ghost" data-act="codex-doctor">진단</button></div>
-        </div>
-        <div class="control-row">
-          <div class="control-name">Unity</div>
+          <div class="control-name">Unity 빌드</div>
           <div class="control-body"><div class="combo">
             <select id="game" aria-label="빌드할 게임">{game_options}</select>
             <button class="btn" data-act="build" data-arg="game">빌드</button>
           </div></div>
         </div>
-        <div class="control-row"><div class="control-name">Ollama</div>
-          <div class="control-body">{ollama_control}<span class="control-note">다운로드 기능 없음</span></div>
+        <div class="control-row"><div class="control-name">점검</div>
+          <div class="control-body">
+            <button class="btn ghost" data-act="codex-doctor">Codex 진단</button>
+            <button class="btn ghost" data-act="git-status">변경 파일</button>
+            <button class="btn ghost" data-act="dashboard">새로고침</button>
+            <span id="busy"></span>
+          </div>
         </div>
-        <div class="control-row"><div class="control-name">로컬 이미지 생성</div>
-          <div class="control-body">{image_control}</div>
-        </div>
-        <div class="control-row"><div class="control-name">Gemini</div>
-          <div class="control-body">{gemini_control}</div>
-        </div>
-        <div class="control-row"><div class="control-name">Blender</div>
-          <div class="control-body">{blender_control}</div>
-        </div>
-      </div>
-      <div class="acts">
-        <button class="btn ghost" data-act="git-status">변경된 파일</button>
-        <button class="btn ghost" data-act="dashboard">새로고침</button>
-        <span id="busy"></span>
       </div>
       <div id="live">{live_panel}</div>
       <pre class="term" id="term" aria-live="polite"></pre>
@@ -3100,22 +2938,6 @@ def _control_html(snapshot: Snapshot, token: str,
     }}
 
     buttons.forEach(b => b.addEventListener('click', () => start(b)));
-
-    // Copy buttons in the connect helper. Not a control that runs anything -
-    // it puts a command on the clipboard so it can be pasted into a terminal,
-    // which is where the login and the model pull have to happen anyway.
-    document.querySelectorAll('.copy[data-copy]').forEach(b => {{
-      b.addEventListener('click', async () => {{
-        try {{
-          await navigator.clipboard.writeText(b.dataset.copy);
-          const was = b.textContent;
-          b.textContent = '복사됨';
-          setTimeout(() => {{ b.textContent = was; }}, 1200);
-        }} catch (err) {{
-          b.textContent = '복사 실패';
-        }}
-      }});
-    }});
 
     // ---- AI game creator ----
     function creatorBody() {{
@@ -3308,6 +3130,12 @@ def render(snapshot: Snapshot, control_token: str | None = None,
     task_board = TaskBoard(path=Path(), tasks=task_models)
     unmet_by_id = {task.id: task_board.unmet_dependencies(task)
                    for task in task_models if task.owner == "codex" and task.status != "done"}
+    open_work = sum(task.status in ("todo", "in_progress") for task in task_models)
+    review_work = sum(task.status in ("review", "blocked") for task in task_models)
+    company_runtime = _company_role_runtime(
+        snapshot.company_roles, snapshot.tasks, live_job)
+    active_roles = sum(item["state"] in ("PLANNING", "WORKING", "REVIEWING")
+                       for item in company_runtime)
 
     queue = _queue_html(snapshot.tasks, unmet_by_id,
                         served=control_token is not None, live_job=live_job)
@@ -3316,7 +3144,10 @@ def render(snapshot: Snapshot, control_token: str | None = None,
     for owner, label in (("claude", "Claude"), ("codex", "Codex")):
         owned = [t for t in snapshot.tasks if t.get("owner") == owner]
         rows = "\n".join(
-            _task_row(t, served=control_token is not None,
+            # The queue above is the one execution surface. The full board is
+            # an audit/history view, so repeating run buttons here only made
+            # the same action appear twice.
+            _task_row(t, served=False,
                       unmet_dependencies=unmet_by_id.get(str(t.get("id", "")), []))
             for t in owned) or \
             '<div class="task"><span class="files">배정된 작업이 없습니다.</span></div>'
@@ -3392,7 +3223,6 @@ def render(snapshot: Snapshot, control_token: str | None = None,
     # server: the static copy has nothing to POST to, and section 10's rule
     # that a control which cannot act should not be drawn covers a text box
     # every bit as much as a button.
-    connect = _connect_html(snapshot, served=control_token is not None)
     control = (_studio_html(snapshot) + _order_html(snapshot)
                + _control_html(snapshot, control_token, live_job)
                if control_token else "")
@@ -3409,7 +3239,7 @@ def render(snapshot: Snapshot, control_token: str | None = None,
     mode = ("제어 가능 · 이 PC의 로컬 서버" if control_token
             else "읽기 전용 · 제어는 PC에서 'orchestrator serve' 로 엽니다")
 
-    return f"""<title>도리 AI 팀 미니홈피</title>
+    return f"""<title>도리 AI 게임 자동화 공장</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700&family=Noto+Sans+KR:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>{CSS}</style>
 
@@ -3418,12 +3248,12 @@ def render(snapshot: Snapshot, control_token: str | None = None,
     <aside class="mini-owner" aria-label="미니홈피 주인">
       <span class="mini-today">TODAY {len(snapshot.tasks)} · TOTAL {shot_count}</span>
       <div class="mini-owner-avatar"><span aria-hidden="true">🦔</span></div>
-      <b>도리 사장실</b>
-      <span>AI GAME CLUB</span>
+      <b>도리 공장장실</b>
+      <span>AI GAME FACTORY</span>
     </aside>
     <div class="mini-title">
-      <h1>도리 AI 팀 미니홈피</h1>
-      <div class="sub">도리의 AI 팀 미니홈피 · 오늘도 새 게임 만드는 중</div>
+      <h1>도리 AI 게임 자동화 공장</h1>
+      <div class="sub">아이디어 입력부터 기획 · 제작 · 검증 · APK까지 한 번에</div>
     </div>
     <div class="stamp mono">
       생성 {e(snapshot.generated_at)}<br>
@@ -3433,11 +3263,18 @@ def render(snapshot: Snapshot, control_token: str | None = None,
     </div>
   </header>
   <nav class="mini-tabs" aria-label="미니홈피 메뉴">
-    <a href="#top">HOME</a>
-    <a href="#miniroom">MINIROOM</a>
-    <a href="#studio">GAME</a>
-    <a href="#profile">AI TEAM</a>
+    <a href="#miniroom">사무실</a>
+    <a href="#studio">게임 생성</a>
+    <a href="#work">작업</a>
+    <a href="#status">현황</a>
   </nav>
+
+  <div class="overview-grid" aria-label="핵심 현황">
+    <article><span>AI 부서</span><b>{len(snapshot.company_roles)}</b><small>{active_roles}개 활동 중</small></article>
+    <article><span>진행 대기</span><b>{open_work}</b><small>검토·차단 {review_work}개</small></article>
+    <article><span>검증 빌드</span><b>{len(snapshot.builds)}</b><small>실제 APK 기준</small></article>
+    <article><span>Unity 오류</span><b>{snapshot.errors.get("compile", "-")}</b><small>컴파일 기준</small></article>
+  </div>
 
   <div class="verdict">
     <b>연동 도구 {counts[READY]}개 작업 가능</b>
@@ -3447,34 +3284,40 @@ def render(snapshot: Snapshot, control_token: str | None = None,
   {missing_block}
   <section id="miniroom">
     <div class="head">
-      <h2>12부서 AI 팀 가상 사무실</h2>
+      <h2>12부서 AI 제작 공장</h2>
       <span class="note">AGENTS.json + TASKBOARD 실제 상태 · 대기 중 순찰, 작업 중 책상 착석</span>
+    </div>
+    <div class="factory-flow" aria-label="게임 자동화 생산 라인">
+      <div class="factory-step"><i>01</i><b>아이디어</b><span>게임 요청 입력</span></div>
+      <div class="factory-step"><i>02</i><b>AI 기획</b><span>규칙·성장 설계</span></div>
+      <div class="factory-step"><i>03</i><b>자동 제작</b><span>코드·UI·아트</span></div>
+      <div class="factory-step"><i>04</i><b>품질 검증</b><span>Unity 테스트</span></div>
+      <div class="factory-step"><i>05</i><b>출시 준비</b><span>APK 산출</span></div>
     </div>
     {office}
   </section>
-{connect}
 {control}
-
-  <section id="progress">
-    <div class="head">
-      <h2>진행 확인</h2>
-      <span class="note">지금 돌고 있는 것과 다음 차례 · 실행 버튼은 여기에만 있습니다</span>
-    </div>
-    <div class="queue">
-{queue}
-    </div>
-  </section>
-
-  <details class="more">
-    <summary>자세히 — 연동 상태 · 작업판 · 파이프라인 · 이미지 · 기록</summary>
 
   <section id="profile">
     <div class="head">
       <h2>연동된 AI</h2>
       <span class="note">근거 = 이 상태를 읽어온 파일</span>
     </div>
-    <div class="roster">
+    <details class="fold">
+      <summary>연동 도구 {len(snapshot.agents)}개 상세 보기</summary>
+      <div class="fold-body roster">
 {roster}
+      </div>
+    </details>
+  </section>
+
+  <section id="work">
+    <div class="head">
+      <h2>작업 대기열</h2>
+      <span class="note">진행 중과 대기만 · 완료와 검토는 아래 작업판에 있습니다</span>
+    </div>
+    <div class="queue">
+{queue}
     </div>
   </section>
 
@@ -3483,10 +3326,13 @@ def render(snapshot: Snapshot, control_token: str | None = None,
       <h2>PC 연결</h2>
       <span class="note">이 두 파일이 PC에서 Claude로 오는 유일한 통로입니다 · 없으면 확인 불가</span>
     </div>
-    <div class="grid2">
-      {_link_panel_sync(snapshot.sync_status)}
-      {_link_panel_run(snapshot.last_run)}
-    </div>
+    <details class="fold">
+      <summary>동기화와 최근 실행 기록 보기</summary>
+      <div class="fold-body grid2">
+        {_link_panel_sync(snapshot.sync_status)}
+        {_link_panel_run(snapshot.last_run)}
+      </div>
+    </details>
   </section>
 
   <section>
@@ -3494,12 +3340,15 @@ def render(snapshot: Snapshot, control_token: str | None = None,
       <h2>공유 작업판</h2>
       <span class="note">AI_GAME_COMPANY/config/TASKBOARD.json · 완료는 빌드 통과 후 사람이 정합니다</span>
     </div>
-    <div class="board">
+    <details class="fold">
+      <summary>전체 작업 기록 {len(snapshot.tasks)}개 보기</summary>
+      <div class="fold-body board">
 {chr(10).join(lanes)}
-    </div>
+      </div>
+    </details>
   </section>
 
-  <section>
+  <section id="status">
     <div class="head">
       <h2>파이프라인</h2>
       <span class="note">디스크의 실제 파일만 셉니다</span>
@@ -3526,12 +3375,16 @@ def render(snapshot: Snapshot, control_token: str | None = None,
       <h2>이미지</h2>
       <span class="note">{shot_count}장 · 파일에 들어 있는 그대로</span>
     </div>
+    <details class="fold">
+      <summary>이미지 {shot_count}장과 아트 계획 보기</summary>
+      <div class="fold-body">
 {_gallery_html(snapshot.gallery)}
-
-    <div class="gal-wrap">
-      <div class="h"><b>계획 대비 실제</b><span>{e(plan_note)}</span></div>
+        <div class="gal-wrap">
+          <div class="h"><b>계획 대비 실제</b><span>{e(plan_note)}</span></div>
 {_art_plan_html(snapshot.art_plan)}
-    </div>
+        </div>
+      </div>
+    </details>
   </section>
 
   <section>
@@ -3546,9 +3399,12 @@ def render(snapshot: Snapshot, control_token: str | None = None,
 
   <section>
     <div class="head"><h2>최근 작업</h2></div>
-    <div class="log mono">
+    <details class="fold">
+      <summary>Git 변경 기록 보기</summary>
+      <div class="fold-body log mono">
 {log}
-    </div>
+      </div>
+    </details>
   </section>
 
   <section>
@@ -3556,11 +3412,13 @@ def render(snapshot: Snapshot, control_token: str | None = None,
       <h2>사람만 할 수 있는 일</h2>
       <span class="note">이 목록에 없는 것은 자동으로 진행합니다</span>
     </div>
-    <div class="panel">
-      {gate_items}
-    </div>
+    <details class="fold">
+      <summary>사람 승인이 필요한 항목 {len(gates)}개 보기</summary>
+      <div class="fold-body panel">
+        {gate_items}
+      </div>
+    </details>
   </section>
-  </details>
 
   <footer>
     이 페이지는 <code>python -m company.orchestrator.main dashboard</code> 로 다시 생성합니다.

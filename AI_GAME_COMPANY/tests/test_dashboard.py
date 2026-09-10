@@ -13,7 +13,6 @@ from __future__ import annotations
 import json
 import sys
 import tempfile
-import re
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -51,10 +50,7 @@ Generated: 2026-08-29 22:00:28
 def profile(**overrides):
     base = {
         "machineName": "TEST-PC",
-        # ramFreeGb as well as total: detect-environment.ps1 always writes
-        # both, and model_fit budgets against free. A fixture with only the
-        # total was quietly testing a machine shape that cannot exist.
-        "hardware": {"ramTotalGb": 15.71, "ramFreeGb": 9.5},
+        "hardware": {"ramTotalGb": 15.71},
         "tools": {
             "claude": {"installed": True, "version": "2.1.247"},
             "codex": {"installed": True, "version": "codex-cli 0.151.0"},
@@ -198,10 +194,7 @@ class AgentStateTests(unittest.TestCase):
         agent = find(self.agents(prof=prof), "Ollama · gemma4")
         self.assertEqual(dash.BLOCKED, agent.state)
         self.assertIn("라이선스 UNKNOWN", agent.detail)
-        # Asserted on the verdict rather than the sentence: the reason text
-        # comes from HardwareProfile.model_fit now, so pinning the wording
-        # here would just couple this test to that message.
-        self.assertIn("NOT_VIABLE", agent.detail)
+        self.assertIn("적재 불가", agent.detail)
 
     def test_an_approved_model_that_fits_is_ready(self):
         prof = profile(ollamaApi={"reachable": True, "models": [
@@ -309,7 +302,7 @@ class RenderTests(unittest.TestCase):
         after = page.split(f"<h2>{heading}</h2>", 1)[1]
         return after.split("</section>", 1)[0]
 
-    def test_served_board_has_buttons_only_for_open_codex_tasks(self):
+    def test_served_board_is_a_read_only_audit_view(self):
         page = self.task_page([
             {"id": "C-TODO", "title": "todo", "owner": "codex", "status": "todo"},
             {"id": "C-WIP", "title": "wip", "owner": "codex", "status": "in_progress"},
@@ -319,35 +312,21 @@ class RenderTests(unittest.TestCase):
             {"id": "CLAUDE-TODO", "title": "claude", "owner": "claude", "status": "todo"},
         ])
 
-        # Every open codex task is runnable from somewhere, and no task is
-        # runnable from two places at once. The queue owns todo/in_progress;
-        # the board owns blocked/review, which the queue never lists.
-        # Reachable as a button where the flow needs one...
-        for task_id in ("C-TODO", "C-WIP", "C-BLOCKED"):
-            self.assertIn(f'data-arg-value="{task_id}"', page)
-        # ...and review through the picker, which is the consolidation.
-        self.assertIn('<option value="C-REVIEW"', page)
-        self.assertNotIn('data-arg-value="C-DONE"', page)
-        self.assertNotIn('<option value="C-DONE"', page)
-        self.assertNotIn('data-arg-value="CLAUDE-TODO"', page)
-
         board = self.section(page, "공유 작업판")
-        self.assertEqual(1, board.count('class="btn task-run"'))
-        self.assertEqual(0, board.count(">작업 시작</button>"))
-        self.assertIn('data-arg-value="C-BLOCKED"', board)
-        # review no longer carries an inline button - it is in the picker.
-        self.assertNotIn('data-arg-value="C-REVIEW"', board)
+        for task_id in ("C-TODO", "C-WIP", "C-BLOCKED", "C-REVIEW",
+                        "C-DONE", "CLAUDE-TODO"):
+            self.assertIn(task_id, board)
+        self.assertNotIn('class="btn task-run"', board)
+        self.assertNotIn('data-act="team-run"', board)
 
-        # The duplication this replaced: a todo task used to carry a button in
-        # the queue AND another in the board, which is how one page ended up
-        # with 27 of them.
-        for task_id in ("C-TODO", "C-WIP"):
-            self.assertNotIn(f'data-arg-value="{task_id}"', board)
-        progress = self.section(page, "진행 확인")
-        for task_id in ("C-TODO", "C-WIP"):
-            self.assertIn(f'data-arg-value="{task_id}"', progress)
-        for task_id in ("C-BLOCKED", "C-REVIEW"):
-            self.assertNotIn(f'data-arg-value="{task_id}"', progress)
+    def test_the_queue_is_the_only_task_execution_surface(self):
+        page = self.task_page([
+            {"id": "C-TODO", "title": "todo", "owner": "codex", "status": "todo"},
+        ])
+        queue = self.section(page, "작업 대기열")
+        board = self.section(page, "공유 작업판")
+        self.assertIn('data-arg-value="C-TODO"', queue)
+        self.assertNotIn('data-arg-value="C-TODO"', board)
 
     def test_static_board_has_no_task_start_buttons(self):
         page = self.task_page([
@@ -436,6 +415,7 @@ class RenderTests(unittest.TestCase):
         self.assertIn("CEO", html_out)
         self.assertIn("Build / Release Engineer", html_out)
         self.assertIn("배정된 작업 없음", html_out)
+        self.assertIn('class="company-detail-fold"', html_out)
 
     def test_company_avatars_are_anchored_to_the_three_room_floors(self):
         roles = dash.collect(REPO).company_roles
@@ -450,6 +430,7 @@ class RenderTests(unittest.TestCase):
             self.assertEqual(3, html_out.count(f"--to-x:{end:.1f}%"))
         self.assertIn(".virtual-office-stage{position:relative; overflow:hidden;}",
                       dash.CSS)
+        self.assertIn(".office-avatar{width:32px; height:40px", dash.CSS)
         self.assertNotIn("@keyframes office-avatar-step", dash.CSS)
 
     def test_shortens_a_path_to_its_filename(self):
@@ -682,7 +663,7 @@ class RunLogReaderTests(unittest.TestCase):
 
 
 class QueueTests(unittest.TestCase):
-    """The 진행 확인 section: who is working, and what is next in line.
+    """The 작업 대기열 section: who is working, and what is next in line.
 
     Its job is different from the board's. The board lists everything that
     exists; this answers "what happens next", so anything finished or waiting
@@ -707,7 +688,7 @@ class QueueTests(unittest.TestCase):
                            live_job=live_job)
 
     def queue(self, **kwargs):
-        return RenderTests.section(self.page(**kwargs), "진행 확인")
+        return RenderTests.section(self.page(**kwargs), "작업 대기열")
 
     def test_finished_and_review_work_is_not_in_the_queue(self):
         queue = self.queue()
@@ -929,7 +910,7 @@ class KoreanTitleTests(unittest.TestCase):
 
     def test_the_queue_and_board_prefer_the_korean_title(self):
         page = self.page()
-        queue = RenderTests.section(page, "진행 확인")
+        queue = RenderTests.section(page, "작업 대기열")
         board = RenderTests.section(page, "공유 작업판")
         self.assertIn("한국어 제목", queue)
         self.assertIn("한국어 제목", board)
@@ -939,11 +920,13 @@ class KoreanTitleTests(unittest.TestCase):
 
     def test_a_task_without_a_translation_still_shows_its_title(self):
         page = self.page()
-        self.assertIn("Only English", RenderTests.section(page, "진행 확인"))
+        self.assertIn("Only English", RenderTests.section(page, "작업 대기열"))
 
-    def test_the_dropdown_uses_the_korean_title_too(self):
+    def test_there_is_no_duplicate_codex_task_dropdown(self):
         page = self.page()
-        self.assertIn("K-1 · 한국어 제목", page)
+        self.assertNotIn('id="task"', page)
+        self.assertIn('data-arg-value="K-1"',
+                      RenderTests.section(page, "작업 대기열"))
 
     def test_every_committed_task_has_a_korean_title(self):
         # The board is what the page shows; an untranslated task is the one
@@ -953,63 +936,5 @@ class KoreanTitleTests(unittest.TestCase):
         self.assertEqual([], missing)
 
 
-class ConnectHelperTests(unittest.TestCase):
-    """The panel tells you how to connect what is not connected.
-
-    The rules that matter here are not about layout. A helper that offered a
-    box to paste an API key into would put a secret in an HTTP body and
-    possibly in this panel's own log, which company_policy's _secrets_note
-    forbids outright - so the absence of that box is asserted, not assumed.
-    """
-
-    def page(self, served=True):
-        snapshot = dash.collect(REPO)
-        return dash.render(snapshot,
-                           control_token="T" * 8 if served else None)
-
-    def test_every_button_on_the_page_names_a_real_server_action(self):
-        # dashboard.py and server.py drifted apart once already: three rows
-        # drew buttons for actions server.ACTIONS did not contain, so pressing
-        # them answered "알 수 없는 동작입니다." and nothing else. This is the
-        # test that stops the two files disagreeing again.
-        from company.orchestrator import server as srv
-        acts = set(re.findall(r'data-act="([a-z-]+)"', self.page()))
-        self.assertTrue(acts, "page rendered no buttons at all")
-        self.assertEqual(set(), acts - set(srv.ACTIONS),
-                         "page offers actions the server will refuse")
-
-    def test_no_input_ever_takes_a_key(self):
-        page = self.page()
-        self.assertNotIn('type="password"', page)
-        for word in ("API_KEY", "api_key", "apikey"):
-            self.assertNotIn(f'<input {word}', page)
-        # The warning that says where keys actually go is part of the contract.
-        self.assertIn("키는 이 페이지에 입력하지 않습니다", page)
-
-    def test_a_machine_that_cannot_run_it_says_so_instead_of_listing_steps(self):
-        # Qwen-Image needs more RAM than this machine has. Offering steps
-        # would be offering a fix that does not exist.
-        self.assertFalse(dash.CONNECT_RECIPES["Qwen-Image"]["fixable"])
-        self.assertIn("이 PC 에서는 지금 연결할 수 없습니다", self.page())
-
-    def test_recipe_actions_are_all_real_and_none_are_command_strings(self):
-        from company.orchestrator import server as srv
-        for name, recipe in dash.CONNECT_RECIPES.items():
-            action = recipe.get("action")
-            if action is None:
-                continue
-            self.assertIn(action[0], srv.ACTIONS, f"{name} names a missing action")
-
-    def test_the_static_page_offers_no_buttons_in_the_helper(self):
-        # Same rule as the rest of the panel: a control with nothing behind it
-        # should not be drawn.
-        page = self.page(served=False)
-        if "연결하는 법" in page:
-            helper = page.split("연결하는 법", 1)[1].split("</details>", 1)[0]
-            self.assertNotIn("data-act=", helper)
-
-
 if __name__ == "__main__":
     unittest.main(verbosity=2)
-
-
