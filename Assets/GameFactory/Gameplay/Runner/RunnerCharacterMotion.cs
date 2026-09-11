@@ -87,6 +87,8 @@ namespace GameFactory.Gameplay.Runner
         private RunnerPlayerController controller;
         private Animator animator;
         private SpriteRenderer bodyRenderer;
+        private Sprite normalSprite;
+        private Sprite slideSprite;
         private static readonly int GroundedParameter = Animator.StringToHash("Grounded");
         private static readonly int SlidingParameter = Animator.StringToHash("Sliding");
         private static readonly int RunSpeedParameter = Animator.StringToHash("RunSpeed");
@@ -128,6 +130,13 @@ namespace GameFactory.Gameplay.Runner
         public void SetBody(SpriteRenderer body)
         {
             bodyRenderer = body;
+            normalSprite = body != null ? body.sprite : null;
+        }
+
+        /// <summary>Wires the generated crouching image for non-rig characters.</summary>
+        public void SetSlideSprite(Sprite sprite)
+        {
+            slideSprite = sprite;
         }
 
         /// <summary>
@@ -148,6 +157,7 @@ namespace GameFactory.Gameplay.Runner
             if (controller == null) controller = GetComponentInParent<RunnerPlayerController>();
             if (bodyRenderer == null) bodyRenderer = GetComponent<SpriteRenderer>();
             if (animator == null) animator = GetComponentInChildren<Animator>();
+            if (normalSprite == null && bodyRenderer != null) normalSprite = bodyRenderer.sprite;
 
             spriteHalfHeight = bodyRenderer != null && bodyRenderer.sprite != null
                 ? bodyRenderer.sprite.bounds.extents.y * baseScale.y
@@ -178,6 +188,7 @@ namespace GameFactory.Gameplay.Runner
             bool grounded = controller.IsGrounded;
             bool dead = controller.IsDead;
 
+            UpdateBodySprite();
             DriveAnimator(grounded, dead);
 
             if (grounded && !wasGrounded) landTimer = landRecovery;
@@ -298,6 +309,13 @@ namespace GameFactory.Gameplay.Runner
             float speed = dead ? 0f
                 : Mathf.Abs(controller.HorizontalVelocity) / Mathf.Max(0.01f, referenceRunSpeed);
             animator.SetFloat(RunSpeedParameter, Mathf.Clamp(speed, 0f, 2.5f));
+        }
+
+        private void UpdateBodySprite()
+        {
+            if (bodyRenderer == null || animator != null || controller == null) return;
+            Sprite target = controller.IsSliding && slideSprite != null ? slideSprite : normalSprite;
+            if (target != null && bodyRenderer.sprite != target) bodyRenderer.sprite = target;
         }
 
         private void CreateLimbs(SpriteRenderer bodyRenderer)

@@ -8,7 +8,7 @@ namespace GameFactory.Gameplay.Runner
     {
         [SerializeField] private GameObject coinPrefab;
         [SerializeField] private Transform player;
-        [SerializeField] private float spawnAheadDistance = 12f;
+        [SerializeField] private float spawnAheadDistance = 8f;
         [SerializeField] private float coinY = 1f;
         [SerializeField] private float spacing = 3f;
 

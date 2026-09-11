@@ -52,11 +52,11 @@ namespace GameFactory.Editor
             PlayerSettings.applicationIdentifier = "com.gamefactory.dorydashboard";
             PlayerSettings.defaultInterfaceOrientation = UIOrientation.Portrait;
             PlayerSettings.Android.forceInternetPermission = true;
-            PlayerSettings.Android.bundleVersionCode = 2;
+            PlayerSettings.Android.bundleVersionCode = 3;
 
             string outputFolder = Path.Combine("Builds", "dashboard", "APK");
             Directory.CreateDirectory(outputFolder);
-            string outputPath = Path.Combine(outputFolder, "DoryAIDashboard-v2.apk");
+            string outputPath = Path.Combine(outputFolder, "DoryAIDashboard-v3.apk");
             BuildReport report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
             {
                 scenes = new[] { scenePath },

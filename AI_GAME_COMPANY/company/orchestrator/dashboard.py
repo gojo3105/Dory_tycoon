@@ -2744,11 +2744,9 @@ def _control_html(snapshot: Snapshot, token: str,
         and snapshot.licences.get("stable-diffusion-v1-5") == "APPROVED"
     )
     if image_allowed:
-        # Allowed by policy and licence, but see _UNWIRED: there is no
-        # 'image-generate' action on the server, so the button is not drawn.
         image_control = (
-            '<span class="control-note">정책·라이선스 통과 (stable-diffusion-v1-5)</span>'
-            f'{_UNWIRED}')
+            '<button class="btn" data-act="image-generate">슬라이드 이미지 생성</button>'
+            '<span class="control-note">로컬 Stable Diffusion · CPU에서는 오래 걸릴 수 있음</span>')
     elif not snapshot.image_adapter:
         image_control = '<span class="control-note">generate-sprite.py 없음</span>'
     else:
@@ -2785,6 +2783,9 @@ def _control_html(snapshot: Snapshot, token: str,
             <select id="game" aria-label="빌드할 게임">{game_options}</select>
             <button class="btn" data-act="build" data-arg="game">빌드</button>
           </div></div>
+        </div>
+        <div class="control-row"><div class="control-name">캐릭터 디자인</div>
+          <div class="control-body">{image_control}</div>
         </div>
         <div class="control-row"><div class="control-name">점검</div>
           <div class="control-body">

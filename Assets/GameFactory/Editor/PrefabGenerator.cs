@@ -108,6 +108,7 @@ namespace GameFactory.Editor
             // Dropping player.png in later overrides this with no code change,
             // and the generator never writes to that path.
             Sprite playerSprite = FindLicensedSprite("player") ?? DoriSpriteGenerator.EnsureSprite();
+            Sprite slideSprite = FindLicensedSprite("player_slide");
             Vector2 bodySize;
 
             RunnerCharacterMotion motion = null;
@@ -146,6 +147,7 @@ namespace GameFactory.Editor
 
                 motion = visual.AddComponent<RunnerCharacterMotion>();
                 motion.SetBody(sr);
+                motion.SetSlideSprite(slideSprite);
                 bodySize = SpriteWorldSize(playerSprite, Vector2.one * 0.9f);
             }
             else

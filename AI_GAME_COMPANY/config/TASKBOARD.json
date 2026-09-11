@@ -996,6 +996,35 @@
       "changed_files": [],
       "last_run": "",
       "title_ko": "패널에서 HydraProxy 관리 + 팀별 모델 지정"
+    },
+    {
+      "id": "ORDER-20260911-01",
+      "title": "[gameplay] 캐릭터와 코인 또는 장애물 까지 거리 수정.",
+      "owner": "codex",
+      "status": "review",
+      "goal": "캐릭터와 코인 또는 장애물 까지 거리 수정.",
+      "files": [
+        "Assets/GameFactory/Gameplay/**",
+        "Assets/GameFactory/Core/**",
+        "Assets/GameFactory/Modules/**"
+      ],
+      "acceptance": [
+        "Every C# file you touch still compiles by inspection: check each type, namespace, method signature and component name against the file that defines it.",
+        "No value that belongs in the GameSpec JSON is hardcoded.",
+        "You changed nothing outside the file list above."
+      ],
+      "depends_on": [],
+      "notes": [
+        "제어판 명령창에서 게임개발팀으로 접수. 지시 원문은 goal 에 그대로 있습니다.",
+        "ORDERED VIA CONTROL PANEL - the goal above is the user's own words, not a specification written for you. If it is ambiguous, say what you assumed in your final message rather than guessing silently.",
+        "BLOCKED: the run raised ReviewNotRun: codex exec (implement) exited 1. Output: OpenAI Codex v0.151.0\n--------\nworkdir: C:\\Users\\VASCO-PC03\\source\\repos\\Dory_tycoon.worktrees\\check-repo-status-and-continue-modifications\nmodel: gpt-5.6-sol\nprovider: openai\napproval: never\nsandbox: workspace-write [workdir, /tmp, $TMPDIR]\nreasoning effort: none\nreasoning summaries: none\nsession id: 01a0900e-5db1-7571-86bc-d9699f805f88\n--------\nuser\nTASK ORDER-20260911-01: [gameplay] 캐릭터와 코인 또는 장애물 까지 거리 수정.\n\nGOAL\n  캐릭터와 코인 또는 장애물 까지 거리 수정.\n\nFILES YOU MAY CHANGE - staying inside this list is p"
+      ],
+      "changed_files": [
+        "Assets/GameFactory/Gameplay/Runner/CoinSpawner.cs",
+        "Assets/GameFactory/Gameplay/Runner/ObstacleSpawner.cs"
+      ],
+      "last_run": "2026-09-11T19:45:00Z",
+      "title_ko": "캐릭터와 코인 또는 장애물 까지 거리 수정."
     }
   ]
 }

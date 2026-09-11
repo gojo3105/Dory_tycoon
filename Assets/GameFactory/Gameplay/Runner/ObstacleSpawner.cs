@@ -21,10 +21,10 @@ namespace GameFactory.Gameplay.Runner
         [SerializeField] private GameObject obstaclePrefab;
         [SerializeField] private GameObject overheadPrefab;
         [SerializeField] private Transform player;
-        // Deliberately further ahead than the coin spawner's 12. Obstacles
+        // Deliberately further ahead than the coin spawner's 8. Obstacles
         // have to exist before coins are placed, or a coin gets dropped inside
         // a hanging bar - drawn as a reward, sitting in something that kills.
-        [SerializeField] private float spawnAheadDistance = 16f;
+        [SerializeField] private float spawnAheadDistance = 10f;
         [SerializeField] private float groundY;
         [SerializeField] private float overheadY = 1.5f;
         [SerializeField] private float minGap = 4f;

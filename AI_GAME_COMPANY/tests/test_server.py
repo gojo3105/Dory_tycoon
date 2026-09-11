@@ -107,6 +107,14 @@ class ArgumentGuardTests(unittest.TestCase):
     def test_an_action_without_an_argument_needs_no_validation(self):
         self.assertEqual((True, ""), self.guard("git-status", ""))
 
+    def test_local_image_generation_uses_fixed_safe_arguments(self):
+        ok, why = self.guard("image-generate", "ignored")
+        self.assertEqual((True, ""), (ok, why))
+        argv = srv.ACTIONS["image-generate"].build(REPO, "ignored")
+        self.assertIn("generate-sprite.py", " ".join(argv))
+        self.assertIn("player_slide.png", " ".join(argv))
+        self.assertIn("--steps 8", " ".join(argv))
+
     def test_unknown_action_is_refused_before_anything_runs(self):
         job, why = self.runner.start("rm -rf /", "")
         self.assertIsNone(job)

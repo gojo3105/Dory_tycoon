@@ -120,6 +120,19 @@ ACTIONS: dict[str, Action] = {
         lambda root, arg: [_python(), "-m", "company.orchestrator.main",
                            "ollama", "--list"],
         timeout=120),
+    "image-generate": Action(
+        "로컬 AI 슬라이드 이미지 생성",
+        lambda root, arg: [
+            _python(), str(root / "AI_GAME_COMPANY" / "tools" / "generate-sprite.py"),
+            "img2img",
+            "--init", str(root / "Assets" / "Common" / "Art" / "Runner" / "player.png"),
+            "--pose", "low crouched sliding pose under an overhead obstacle, body horizontal and compact, facing right, feet extended forward, arms tucked back, full character visible",
+            "--strength", "0.62",
+            "--steps", "8",
+            "--size", "256",
+            "--out", str(root / "Assets" / "Common" / "Art" / "Runner" / "player_slide.png"),
+        ],
+        timeout=1800),
     "git-status": Action(
         "변경된 파일",
         lambda root, arg: ["git", "status", "--short", "--untracked-files=all"],
@@ -226,6 +239,14 @@ class Runner:
     def valid_arg(self, action: Action, arg: str) -> tuple[bool, str]:
         """Is this id real, and is it safe to put on a command line?"""
         if not action.needs:
+            if action is ACTIONS["image-generate"]:
+                policy_path = self.company_root / "config" / "company_policy.json"
+                try:
+                    policy = json.loads(policy_path.read_text(encoding="utf-8-sig"))
+                except (OSError, json.JSONDecodeError):
+                    return False, "로컬 이미지 생성 정책을 읽을 수 없습니다."
+                if policy.get("allow_local_image_generation") is not True:
+                    return False, "정책이 로컬 이미지 생성을 허용하지 않습니다."
             return True, ""
         if not SAFE_ID.match(arg or ""):
             return False, "허용되지 않는 형식의 id 입니다."
