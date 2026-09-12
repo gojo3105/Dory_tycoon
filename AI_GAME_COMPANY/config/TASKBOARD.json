@@ -120,38 +120,6 @@
       "title_ko": "거리/코인 분리 PlayMode 테스트"
     },
     {
-      "id": "CODEX-ANIM1",
-      "title": "Give the character arms and legs that move",
-      "owner": "codex",
-      "status": "review",
-      "goal": "The character is one sprite with squash/stretch and a bob. The user asked whether the arms and legs move - they do not. Add procedural limbs that run while grounded and hold a pose in the air, driven from the existing RunnerCharacterMotion so no new Update loop is introduced.",
-      "files": [
-        "Assets/GameFactory/Gameplay/Runner/RunnerCharacterMotion.cs"
-      ],
-      "acceptance": [
-        "Limbs are child GameObjects created at runtime by this component - do NOT change PrefabGenerator, and do not require any new art file.",
-        "They swing in opposite phase (left arm with right leg) at a rate tied to the same cycle the existing bob uses, so the gait reads as one motion.",
-        "In the air they stop cycling and hold a jump pose, and they return to the run cycle on landing.",
-        "The limbs are drawn BEHIND the body sprite, and they never affect the collider - the collider is on the root and this component only touches the Visual child.",
-        "No allocation per frame: create the limb objects once, then only set transform values in Update."
-      ],
-      "depends_on": [],
-      "notes": [
-        "Read the whole of RunnerCharacterMotion.cs first. It already tracks grounded state and vertical velocity from RunnerPlayerController, and it already compensates the foot position when the sprite squashes - reuse those, do not recompute them.",
-        "Sorting: a SpriteRenderer child needs a lower sortingOrder than the body to draw behind it.",
-        "Keep it subtle. This is a 136x192 sprite on a phone; limbs that swing far read as broken, not lively.",
-        "2026-09-03 00:47 UTC: Codex RAN THIS TASK and finished (Reports/runs/20260903T004724...txt). The run then died with UnicodeEncodeError: cp949 while PRINTING the summary - an em dash in Codex's message that the Korean Windows console cannot encode. run_task had already saved REVIEW, but Codex's edits from that run were then swept into the PC stash named 'codex RUNLOG1 attempt' on 2026-09-05 (git stash push -u before pulling upstream). That stash holds finished work from FOUR runs - do not drop it. Export with `git stash show -p > Reports/codex-attempts.diff`, commit, push, and Claude will review and merge what is good.",
-        "2026-09-05: Codex's finished ANIM1 code RECOVERED from the PC stash (Reports/codex-attempts.diff) and applied to this branch by Claude. Read against the acceptance criteria: four limb GameObjects created once in CreateLimbs from one shared 1x1 sprite (no art file); diagonal pairs share a phase (left arm with right leg); airborne holds a jump pose and the run cycle resumes on landing; sortingOrder = body - 1 so limbs draw behind; Update only sets four localRotations - no per-frame allocation; nothing touches PrefabGenerator or a collider. No UnityEditor reference, no obsolete API. REVIEW, not DONE: NOT compiled - the first `orchestrator build` after this lands is the check, and the 136x192 sprite must be looked at on a device for limb size (limbSwing 13 deg was Codex's choice of 'subtle').",
-        "2026-09-05 11:18: COMPILES. RunnerCharacterMotion.cs was on the build PC when `orchestrator test playmode` ran, and PlayMode cannot run without compiling the whole assembly - so the limb code has no compile errors and did not break the 11 existing tests. Still review for one reason only: nobody has watched the limbs move on a 136x192 sprite. limbSwing is 13 degrees; if it reads as broken rather than lively, that number is the one to change.",
-        "2026-09-05: Device acceptance FAILED: user sees a sliding still image, not limb motion. Replacing occluded procedural bars with local deformation of the existing illustrated paws. Review pending new build and device check."
-      ],
-      "changed_files": [
-        "Assets/GameFactory/Gameplay/Runner/RunnerCharacterMotion.cs"
-      ],
-      "last_run": "",
-      "title_ko": "캐릭터 팔다리 움직임"
-    },
-    {
       "id": "CODEX-GEMINI1",
       "title": "Gemini design adapter (free tier only, never escalates)",
       "owner": "codex",
@@ -183,51 +151,6 @@
       "changed_files": [],
       "last_run": "",
       "title_ko": "Gemini 디자인 어댑터 (무료 등급 전용)"
-    },
-    {
-      "id": "CODEX-OFFICE1",
-      "title": "Department office view on the dashboard",
-      "owner": "codex",
-      "status": "review",
-      "goal": "Add one section to the dashboard that draws the connected AI as characters sitting in company departments, where each character's movement encodes that AI's real status. docs/OFFICE_VIEW_SPEC.md is the specification - read it first and follow it; it fixes the department mapping, the status-to-behaviour table and the constraints.",
-      "files": [
-        "AI_GAME_COMPANY/company/orchestrator/dashboard.py",
-        "AI_GAME_COMPANY/tests/test_dashboard.py",
-        "Reports/dashboard.html"
-      ],
-      "acceptance": [
-        "docs/OFFICE_VIEW_SPEC.md is followed: the department mapping table, the four status behaviours, the floorplan layout with 외주 outside the building, and the 'do not' list at the end.",
-        "Adds a Gemini row to the agent roster in build_agents, so the design department is not drawn empty: state READY only if a key is present in the env var named by policy gemini_api_key_env, otherwise GATED naming initial_gemini_login as the gate, and BLOCKED if policy allow_gemini_design is not true. Evidence is config/company_policy.json. Report only whether a key is present - never its value.",
-        "Reads only the existing Snapshot.agents - no new file is parsed and no new data source is added.",
-        "An agent whose name matches no prefix in the mapping lands in a 기타 department rather than being dropped from the page.",
-        "Animation is CSS keyframes only. No JavaScript animation loop and no external library.",
-        "Every colour comes from an existing --token. No new colour is introduced, and no colour is defined only inside a @media or [data-theme] block.",
-        "Under prefers-reduced-motion: reduce all movement stops, and status is still readable from colour and posture alone.",
-        "The section renders in the static file too (it is display-only, unlike the control panel), and produces no horizontal page scroll at 360px wide.",
-        "Each character carries a title/aria-label of its name and status, and links to the matching roster row.",
-        "A test asserts every state in dash.STATE_LABEL has a distinct visual class in the office CSS - if two statuses render identically the section is decoration, not information.",
-        "A test asserts an unmapped agent name still appears in the rendered HTML.",
-        "Regenerate Reports/dashboard.html with `python -m company.orchestrator.main dashboard` and leave the result in the working tree. That regenerated file is the only proof the section renders at all, since there is no other way to see it from here."
-      ],
-      "depends_on": [],
-      "notes": [
-        "Read dashboard.py fully first. It already has: the four status constants (READY/GATED/BLOCKED/UNKNOWN), the token palette in CSS, the e() escaping helper, and the section markup pattern. Reuse them.",
-        "Characters are procedural inline SVG. Do NOT add image files or any new licensed asset - v1 must work with zero assets. Keep the character drawing in one function so real art can replace it later.",
-        "This page is left open for a long time, so an always-running JS animation is a battery cost with no benefit.",
-        "Do not invent numbers. No progress percentages, no utilisation figures - this dashboard's rule is that anything without evidence reads as 확인 불가.",
-        "The Gemini roster row goes here rather than in CODEX-GEMINI1 because dashboard.py is in this task's allowlist and not in that one's. Do not edit gemini_client.py from here.",
-        "Reports/dashboard.html is a TRACKED file and is in your allowlist for exactly this reason: you should regenerate it to check your work, and without it listed that correct action would have been reported as going outside the allowlist.",
-        "User confirmed 2026-09-02 that the HTML UI's visual direction is 'office' and that Codex builds it. docs/OFFICE_VIEW_SPEC.md is the brief. If the whole page should later be restyled to match, that is a follow-up - do not widen this task to a full redesign, since the information density of the roster and the pipeline sections is what makes the page useful.",
-        "2026-09-02 RUN: Codex finished this task and reported that all 46 dashboard tests pass and that it regenerated Reports/dashboard.html. The run was then thrown away by a bug in codex_runner._exec (the usage-limit check ran before the output file was read), so the CLI reported CODEX_LIMITED with exit code 4 and this board was left saying in_progress. The bug is fixed - a limit only fails a run that also produced nothing usable. Status set to review BY HAND, not by a run: the code is in the working tree on the build PC, so do NOT re-run this task and spend quota on work that is already done.",
-        "Committed as e1ade1b. changed_files below was read back from that commit, not recorded by a run. REVIEW, not DONE - the section renders in the regenerated Reports/dashboard.html and its tests pass, but nobody has looked at the page in a browser."
-      ],
-      "changed_files": [
-        "AI_GAME_COMPANY/company/orchestrator/dashboard.py",
-        "AI_GAME_COMPANY/tests/test_dashboard.py",
-        "Reports/dashboard.html"
-      ],
-      "last_run": "",
-      "title_ko": "대시보드 부서 사무실 뷰"
     },
     {
       "id": "CODEX-BG1",
