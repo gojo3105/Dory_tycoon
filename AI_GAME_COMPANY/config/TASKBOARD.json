@@ -120,39 +120,6 @@
       "title_ko": "거리/코인 분리 PlayMode 테스트"
     },
     {
-      "id": "CODEX-GEMINI1",
-      "title": "Gemini design adapter (free tier only, never escalates)",
-      "owner": "codex",
-      "status": "review",
-      "goal": "Add company/orchestrator/gemini_client.py so design work can be requested from Gemini's free tier. Model it on the two adapters already in this repo - ollama_client.py and codex_runner.py - which enforce their cost rules in code rather than in prose. Text prompts return text; image prompts return PNG bytes the caller writes under AI_GAME_COMPANY/generated/.",
-      "files": [
-        "AI_GAME_COMPANY/company/orchestrator/gemini_client.py",
-        "AI_GAME_COMPANY/tests/test_gemini_client.py"
-      ],
-      "acceptance": [
-        "Reads the API key ONLY from the env var named by policy gemini_api_key_env (GEMINI_API_KEY). Never from GOOGLE_API_KEY, which stays on blocked_env_keys, and never from a file in the repo.",
-        "The key value is never logged, printed, put in an exception message, or written to disk. A status helper may report that a key is PRESENT or ABSENT and nothing more - copy the 'names only' idiom from CodexRunner.stripped_keys.",
-        "Raises a PolicyViolation (from company.orchestrator.policy) before any network call when policy allow_gemini_design is not true. Test that no request is attempted in that case.",
-        "Refuses any model id that is not in the policy's gemini_free_tier_models list, with its own exception type. This is the free-tier gate and it must be checked before the request, not after.",
-        "On HTTP 429 or a quota/rate-limit response, raises a GeminiLimited exception - the same 'degrade, never spend' shape as CodexLimited. It must NOT retry against another model, another tier, or a billed project.",
-        "An HTTP error, an empty response, or a response that is not the expected content type raises rather than returning something falsy. A generation that did not happen is never reported as a generation that produced nothing.",
-        "Uses only the Python standard library (urllib.request). Do not add a dependency - google-generativeai is not installed and must not be added.",
-        "Network calls are injectable so the tests need no key and no network: follow the 'runner' test seam CodexRunner uses.",
-        "Tests cover: the policy gate, the free-model gate, key absence, a 429 degrading, a malformed response raising, and that the key never appears in any exception text or status string."
-      ],
-      "depends_on": [],
-      "notes": [
-        "Endpoint shape, verified from this container on 2026-09-02: GET https://generativelanguage.googleapis.com/v1beta/models returns 403 PERMISSION_DENIED with 'Please use API Key' when unauthenticated - so the host is reachable and only the key is missing. Use that same host.",
-        "Google's own pricing/rate-limit page (ai.google.dev) is BLOCKED by this environment's egress proxy, so the free tier could not be confirmed from a first-party source. Do not write a comment claiming specific free quotas. Write the code so that exceeding quota fails loudly instead.",
-        "Do NOT call the API during the tests. There is no key here and a test that needs one is a test that never runs.",
-        "Login/key setup is a HUMAN_GATE (initial_gemini_login in company_policy.json). Report it, never perform it.",
-        "2026-09-02 RUN: done and committed as e1ade1b, in the same commit as CODEX-OFFICE1 and CODEX-OLLAMA1. Status set BY HAND for the same reason - the codex_runner bug left the board stale. Verified from the commit: the key is read only through the env var named by policy gemini_api_key_env, key_status reports PRESENT/ABSENT and never a value, allow_gemini_design raises PolicyViolation before any request, a model outside gemini_free_tier_models raises GeminiModelNotAllowed, 429 raises GeminiLimited with no retry against another model or tier, and the transport is injectable urllib with no new dependency. test_gemini_client.py: 17 tests, all pass. REVIEW, not DONE - no key exists yet (initial_gemini_login is still an open HUMAN_GATE), so not one line of this has spoken to Google. The free tier itself is still unconfirmed from a first-party source: ai.google.dev is blocked by this container's egress proxy."
-      ],
-      "changed_files": [],
-      "last_run": "",
-      "title_ko": "Gemini 디자인 어댑터 (무료 등급 전용)"
-    },
-    {
       "id": "CODEX-BG1",
       "title": "ParallaxBackground so the level can have background art",
       "owner": "codex",
@@ -184,41 +151,6 @@
       ],
       "last_run": "C:\\Dory_tycoon\\AI_GAME_COMPANY\\logs\\codex-runs\\implement-20260905-095156-712da1.txt",
       "title_ko": "ParallaxBackground 배경 아트 레이어"
-    },
-    {
-      "id": "CODEX-BOARD1",
-      "title": "Three bugs in the board runner, found by running it for real",
-      "owner": "codex",
-      "status": "review",
-      "goal": "The first real `team run` reported CODEX-ART1 as BLOCKED even though Codex had done the work correctly. Three separate defects in teamwork.py caused or contributed to that, all of them mine. Fix all three.",
-      "files": [
-        "AI_GAME_COMPANY/company/orchestrator/teamwork.py",
-        "AI_GAME_COMPANY/tests/test_teamwork.py"
-      ],
-      "acceptance": [
-        "(1) TOOL CHURN MUST NOT BLOCK A TASK. Packages/packages-lock.json is tracked, is not gitignored, and Unity rewrites it whenever the editor re-resolves packages. It changed during the run, so it landed in `after - before`, matched no allowlist, and blocked the task. Add a module-level tuple of paths that are regenerated by tools rather than authored by an agent - Packages/packages-lock.json at minimum - and exclude them from the outside-allowlist check. Report them separately in TaskRun instead of dropping them silently, so a real change there is still visible.",
-        "(2) save() MUST NOT CLOBBER HAND-EDITED FIELDS. It hardcodes _comment and _version into the payload on every write, so a comment edited by hand in the JSON is silently reverted the first time run_task saves. Preserve unknown top-level keys and any existing _comment; only write the default when the file had none. A board that cannot be annotated by hand is not the shared, human-readable handoff it is supposed to be.",
-        "(3) The concurrent-work warning in build_prompt should track the tree, not the status field. It currently names every in_progress/review task as 'being edited right now', which for already-committed work is false and warns Codex off stable files. List a task only when at least one of its declared files is actually dirty, and name those files. Reuse the existing changed_paths() helper and Task.covers() rather than adding new matching logic.",
-        "build_prompt keeps working when git is unavailable or the path is not a repo: fall back to the status-based behaviour rather than raising. A prompt builder must not be able to fail the run.",
-        "Tests for each: a tool-churn path does not block a task while a real stray file still does; a hand-edited _comment survives a save/load round trip; a committed REVIEW task is omitted from the warning while a dirty one is included with its filenames; and the no-git fallback.",
-        "Existing tests in test_teamwork.py still pass - test_the_prompt_warns_about_concurrent_work may need its fixture to dirty a file rather than only set a status."
-      ],
-      "depends_on": [],
-      "notes": [
-        "Read teamwork.py fully first. changed_paths() already handles renames and untracked files, and Task.covers() already matches a path against a task's allowlist patterns.",
-        "Keep it cheap: build_prompt runs once per run, so one git call is fine, but do not call git once per task.",
-        "Do NOT gitignore Packages/packages-lock.json to make the symptom go away. Unity projects are supposed to commit it so package versions stay pinned; the fix is that the allowlist check should know the difference between a tool regenerating a file and an agent editing one.",
-        "A SPEC-WRITING RULE worth keeping, recorded here because _comment gets overwritten until defect (2) is fixed: when a task edits a GENERATOR, the generator's committed OUTPUT belongs in that task's allowlist too, or verifying the change reads as going out of bounds. That is why Reports/dashboard.html is listed on CODEX-OFFICE1.",
-        "2026-09-03: DONE BY CLAUDE, not Codex, in the same pass. (1) TOOL_OWNED_PATHS tuple with Packages/packages-lock.json; run_task splits tool churn out of the diff before the allowlist check and reports it on TaskRun.tool_churn, which main.py prints separately. (2) TaskBoard keeps every non-'tasks' top-level key in .meta and save() writes them back, defaulting _comment/_version only when absent - so the note above about _comment being overwritten is now history. (3) concurrent_work() lists another agent's task only when one of its declared files is dirty, names the files, and falls back to the status-based reading when git cannot answer. build_prompt takes an optional repo_root; run_task and the dry-run pass it. 8 new tests; the pre-existing concurrent-work test still passes unchanged because it exercises the fallback.",
-        "REVIEW, not DONE: the tool-churn path has not yet been exercised by a real run with the Unity Editor open, which is the exact condition that produced the false BLOCKED on CODEX-ART1."
-      ],
-      "changed_files": [
-        "AI_GAME_COMPANY/company/orchestrator/teamwork.py",
-        "AI_GAME_COMPANY/company/orchestrator/main.py",
-        "AI_GAME_COMPANY/tests/test_teamwork.py"
-      ],
-      "last_run": "",
-      "title_ko": "작업판 러너 버그 3건 수정"
     },
     {
       "id": "CODEX-TESTCMD1",
@@ -710,7 +642,7 @@
       "id": "CODEX-BGWIRE2",
       "title": "Build the parallax background in the generated scene from the supplied layers",
       "owner": "codex",
-      "status": "todo",
+      "status": "cancelled",
       "goal": "ParallaxBackground.cs exists and nothing creates it, so the game has been running against a flat colour. The art is now here: 21 layers under Assets/Common/Art/Runner/Background/, documented with their intended depth order in that folder's README.md.\n\nHave SceneGenerator build the layers and hand ParallaxBackground its references, following this project's split: structural wiring in a SetReferences-style method at edit time, numbers through Configure at runtime. Scroll factors belong in the GameSpec, not hardcoded - that is why CODEX-BGWIRE1 was blocked, so add the field to GameSpecData.cs and GameSpecValidator.cs and document it in docs/GAME_SPEC.md as part of this task.\n\nDepth order matters and is not guessable from the filenames: sky is the only layer with no transparency and goes backmost; the files ending _front are darker and belong IN FRONT of the player, not behind. The README gives the full order and a suggested scroll factor per layer.",
       "files": [
         "Assets/GameFactory/Editor/SceneGenerator.cs",
@@ -730,7 +662,8 @@
         "CODEX-ARTIMPORT1"
       ],
       "notes": [
-        "This supersedes CODEX-BGWIRE1, which was blocked because the scroll-speed field it needed was outside its allowlist. The allowlist here includes the GameSpec files for that reason."
+        "This supersedes CODEX-BGWIRE1, which was blocked because the scroll-speed field it needed was outside its allowlist. The allowlist here includes the GameSpec files for that reason.",
+        "CANCELLED: stopped from the dashboard."
       ],
       "changed_files": [],
       "last_run": "",
@@ -740,7 +673,7 @@
       "id": "CODEX-UIART1",
       "title": "Swap the UI to the supplied pack: buttons, popup window, coin counter",
       "owner": "codex",
-      "status": "todo",
+      "status": "cancelled",
       "goal": "Eight UI sprites arrived in Assets/Common/Art/UI/Pack/ and nothing uses them yet, so the game still shows the Kenney buttons while the world around them is the new night pack. Point them at the UI:\n  big_button1/2.png (379x204) - the wide buttons: Play, Restart, Home.\n  button_play / button_pause / button_menu / yes_button (165x183) - square     icon buttons. These already CONTAIN their icon, so do not put a text     label on top of one.\n  window_popup.png (734x717) - the dialog frame behind Game Over and Shop.\n  coin_counter.png (430x140) - the HUD coin pill. The coin is drawn into the     left of it, so the number sits in the purple area to its right.\n\nMeasure the 9-slice borders off the actual files and put them in SharedArtImporter's UiBorders table the way the existing entries were measured - do not guess a border, and do not stretch a rounded corner.",
       "files": [
         "Assets/GameFactory/UI/**",
@@ -756,43 +689,12 @@
         "CODEX-ARTIMPORT1"
       ],
       "notes": [
-        "The old Kenney buttons stay in Assets/Common/Art/UI/ and stay in art-mapping.json - they are the fallback if this swap is reverted."
+        "The old Kenney buttons stay in Assets/Common/Art/UI/ and stay in art-mapping.json - they are the fallback if this swap is reverted.",
+        "CANCELLED: stopped from the dashboard."
       ],
       "changed_files": [],
       "last_run": "",
       "title_ko": "UI를 새 팩으로 교체 (버튼·팝업창·코인 카운터)"
-    },
-    {
-      "id": "CODEX-IDLE1",
-      "title": "Game02 groundwork: the Idle genre and its two modules",
-      "owner": "codex",
-      "status": "blocked",
-      "goal": "Game02 (Idle Factory Tycoon) is the next game and is blocked on code that does not exist: Assets/GameFactory/Gameplay/Idle/ is an empty folder, and so are Modules/Producer and Modules/UpgradeTree (which have no folder yet).\n\nBuild the genre, not the game. Three pieces:\n  Gameplay/Idle/IdleGameInitializer.cs - the genre entry point, matching the shape RunnerGameInitializer already has.\n  Modules/Producer/ - one production line: a rate, an accumulator, and OFFLINE catch-up. Offline is the whole genre: on resume, compute what accumulated from the saved timestamp rather than ticking in Update. Cap it (the GameSpec says how long), and never trust the device clock going backwards - a clock moved back must produce zero, not negative.\n  Modules/UpgradeTree/ - levels with a cost curve, read from the GameSpec.\n\nEvery number belongs in the GameSpec: base rate, cost curve, offline cap, tap bonus. Add the fields to GameSpecData.cs and GameSpecValidator.cs and document them in docs/GAME_SPEC.md, together, per CLAUDE.md section 5.\n\nReference reading: Particle Clicker (MIT, github.com/particle-clicker/particle-clicker) shows the upgrade curve and offline handling. READ it, do not port it - it is JavaScript, and docs/REFERENCE_GAMES.md explains why porting is the wrong move here.\n\nNo scene or prefab generator yet - that is a separate task once the genre compiles and its EditMode tests pass.",
-      "files": [
-        "Assets/GameFactory/Gameplay/Idle/**",
-        "Assets/GameFactory/Modules/Producer/**",
-        "Assets/GameFactory/Modules/UpgradeTree/**",
-        "Assets/GameFactory/Core/GameSpec/GameSpecData.cs",
-        "Assets/GameFactory/Core/GameSpec/GameSpecValidator.cs",
-        "Assets/GameFactory/Tests/**",
-        "GameSpecs/game02.json",
-        "docs/GAME_SPEC.md"
-      ],
-      "acceptance": [
-        "Offline accumulation is computed from a saved timestamp, not from Update ticks.",
-        "A clock moved backwards yields zero accumulation, never negative.",
-        "The offline cap, base rate, cost curve and tap bonus all come from the GameSpec.",
-        "EditMode tests cover the offline maths, including the backwards-clock case.",
-        "Runtime scripts reference no UnityEditor type."
-      ],
-      "depends_on": [],
-      "notes": [
-        "Genre first, game second: Game02 is the first test of whether the factory actually generates rather than hand-builds. docs/REFERENCE_GAMES.md has the module map for Game02-10 and the licence findings behind it.",
-        "BLOCKED: the run raised ReviewNotRun: codex exec (implement) exited 1. Output: OpenAI Codex v0.151.0\n--------\nworkdir: C:\\Dory_tycoon\nmodel: gpt-5.6-sol\nprovider: openai\napproval: never\nsandbox: workspace-write [workdir, /tmp, $TMPDIR]\nreasoning effort: none\nreasoning summaries: none\nsession id: 01a08b4c-9b7c-74e3-8585-22fd999c779a\n--------\nuser\nTASK CODEX-IDLE1: Game02 groundwork: the Idle genre and its two modules\n\nGOAL\n  Game02 (Idle Factory Tycoon) is the next game and is blocked on code that does not exist: Assets/GameFactory/Gameplay/Idle/ is an empty folder, and so "
-      ],
-      "changed_files": [],
-      "last_run": "",
-      "title_ko": "Game02 기반: Idle 장르 + Producer/UpgradeTree 모듈"
     },
     {
       "id": "CODEX-JUMPGAP1",
