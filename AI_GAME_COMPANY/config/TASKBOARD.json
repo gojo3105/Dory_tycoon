@@ -1025,6 +1025,210 @@
       ],
       "last_run": "2026-09-11T19:45:00Z",
       "title_ko": "캐릭터와 코인 또는 장애물 까지 거리 수정."
+    },
+    {
+      "id": "PLAN-game02-01",
+      "title": "[game02] 핵심 루프와 성공 조건을 정한다",
+      "owner": "codex",
+      "status": "blocked",
+      "goal": "Game02 아이들 공장 타이쿤을 만든다. 방치해도 자원이 쌓이고, 설비를 업그레이드해 생산량을 늘리는 핵심 루프.\n\n이 작업은 그중 '핵심 루프와 성공 조건을 정한다' 단계다. 프로젝트: game02.",
+      "files": [
+        "docs/**"
+      ],
+      "acceptance": [
+        "이 단계의 결과가 다음 단계에서 쓸 수 있는 상태다.",
+        "수정 허용 파일 목록 밖은 건드리지 않았다."
+      ],
+      "depends_on": [],
+      "notes": [
+        "manager.build_plan 이 'Game02 아이들 공장 타이쿤을 만든다. 방치해도 자원이 쌓이고, 설비를 업그레이드해 생산량을 늘리는 핵심 루프.' 한 문장에서 만든 계획의 1/7 단계.",
+        "BLOCKED: the run raised CodexLimited: Codex subscription limit reached and the run produced nothing usable. Policy on_codex_limit forbids escalating to a paid API - fall back to ['local_ai_review', 'claude_final_review']. Output: OpenAI Codex v0.151.0\n--------\nworkdir: C:\\Users\\VASCO-PC03\\source\\repos\\Dory_tycoon.worktrees\\check-repo-status-and-continue-modifications\nmodel: gpt-5.6-sol\nprovider: openai\napproval: never\nsandbox: workspace-write [workdir, /tmp, $TMPDIR]\nreasoning effort: none\nreasoning summaries: none\nsession i"
+      ],
+      "changed_files": [],
+      "last_run": "",
+      "title_ko": "핵심 루프와 성공 조건을 정한다",
+      "agent_role": "game_director",
+      "department": "게임기획부",
+      "task_type": "game_design",
+      "handoff_from": "producer",
+      "handoff_to": "technical_director",
+      "priority": 50
+    },
+    {
+      "id": "PLAN-game02-02",
+      "title": "[game02] 생성기와 GameSpec 구조를 정한다",
+      "owner": "codex",
+      "status": "todo",
+      "goal": "Game02 아이들 공장 타이쿤을 만든다. 방치해도 자원이 쌓이고, 설비를 업그레이드해 생산량을 늘리는 핵심 루프.\n\n이 작업은 그중 '생성기와 GameSpec 구조를 정한다' 단계다. 프로젝트: game02.",
+      "files": [
+        "docs/**"
+      ],
+      "acceptance": [
+        "이 단계의 결과가 다음 단계에서 쓸 수 있는 상태다.",
+        "수정 허용 파일 목록 밖은 건드리지 않았다."
+      ],
+      "depends_on": [
+        "PLAN-game02-01"
+      ],
+      "notes": [
+        "manager.build_plan 이 'Game02 아이들 공장 타이쿤을 만든다. 방치해도 자원이 쌓이고, 설비를 업그레이드해 생산량을 늘리는 핵심 루프.' 한 문장에서 만든 계획의 2/7 단계."
+      ],
+      "changed_files": [],
+      "last_run": "",
+      "title_ko": "생성기와 GameSpec 구조를 정한다",
+      "agent_role": "technical_director",
+      "department": "기술기획실",
+      "task_type": "architecture",
+      "handoff_from": "game_director",
+      "handoff_to": "gameplay_engineer",
+      "priority": 50
+    },
+    {
+      "id": "PLAN-game02-03",
+      "title": "[game02] 게임플레이를 구현한다",
+      "owner": "codex",
+      "status": "todo",
+      "goal": "Game02 아이들 공장 타이쿤을 만든다. 방치해도 자원이 쌓이고, 설비를 업그레이드해 생산량을 늘리는 핵심 루프.\n\n이 작업은 그중 '게임플레이를 구현한다' 단계다. 프로젝트: game02.",
+      "files": [
+        "Assets/GameFactory/Gameplay/**",
+        "Assets/GameFactory/Modules/**"
+      ],
+      "acceptance": [
+        "이 단계의 결과가 다음 단계에서 쓸 수 있는 상태다.",
+        "수정 허용 파일 목록 밖은 건드리지 않았다."
+      ],
+      "depends_on": [
+        "PLAN-game02-02"
+      ],
+      "notes": [
+        "manager.build_plan 이 'Game02 아이들 공장 타이쿤을 만든다. 방치해도 자원이 쌓이고, 설비를 업그레이드해 생산량을 늘리는 핵심 루프.' 한 문장에서 만든 계획의 3/7 단계."
+      ],
+      "changed_files": [],
+      "last_run": "",
+      "title_ko": "게임플레이를 구현한다",
+      "agent_role": "gameplay_engineer",
+      "department": "게임개발부",
+      "task_type": "gameplay_code",
+      "handoff_from": "technical_director",
+      "handoff_to": "ui_ux_engineer",
+      "priority": 50
+    },
+    {
+      "id": "PLAN-game02-04",
+      "title": "[game02] 화면과 조작 UI를 붙인다",
+      "owner": "codex",
+      "status": "todo",
+      "goal": "Game02 아이들 공장 타이쿤을 만든다. 방치해도 자원이 쌓이고, 설비를 업그레이드해 생산량을 늘리는 핵심 루프.\n\n이 작업은 그중 '화면과 조작 UI를 붙인다' 단계다. 프로젝트: game02.",
+      "files": [
+        "Assets/GameFactory/UI/**"
+      ],
+      "acceptance": [
+        "이 단계의 결과가 다음 단계에서 쓸 수 있는 상태다.",
+        "수정 허용 파일 목록 밖은 건드리지 않았다."
+      ],
+      "depends_on": [
+        "PLAN-game02-03"
+      ],
+      "notes": [
+        "manager.build_plan 이 'Game02 아이들 공장 타이쿤을 만든다. 방치해도 자원이 쌓이고, 설비를 업그레이드해 생산량을 늘리는 핵심 루프.' 한 문장에서 만든 계획의 4/7 단계."
+      ],
+      "changed_files": [],
+      "last_run": "",
+      "title_ko": "화면과 조작 UI를 붙인다",
+      "agent_role": "ui_ux_engineer",
+      "department": "UIUX개발부",
+      "task_type": "ui_code",
+      "handoff_from": "gameplay_engineer",
+      "handoff_to": "qa_engineer",
+      "priority": 50
+    },
+    {
+      "id": "PLAN-game02-05",
+      "title": "[game02] 테스트를 만든다",
+      "owner": "codex",
+      "status": "todo",
+      "goal": "Game02 아이들 공장 타이쿤을 만든다. 방치해도 자원이 쌓이고, 설비를 업그레이드해 생산량을 늘리는 핵심 루프.\n\n이 작업은 그중 '테스트를 만든다' 단계다. 프로젝트: game02.",
+      "files": [
+        "Assets/GameFactory/Tests/**"
+      ],
+      "acceptance": [
+        "이 단계의 결과가 다음 단계에서 쓸 수 있는 상태다.",
+        "수정 허용 파일 목록 밖은 건드리지 않았다."
+      ],
+      "depends_on": [
+        "PLAN-game02-04"
+      ],
+      "notes": [
+        "manager.build_plan 이 'Game02 아이들 공장 타이쿤을 만든다. 방치해도 자원이 쌓이고, 설비를 업그레이드해 생산량을 늘리는 핵심 루프.' 한 문장에서 만든 계획의 5/7 단계."
+      ],
+      "changed_files": [],
+      "last_run": "",
+      "title_ko": "테스트를 만든다",
+      "agent_role": "qa_engineer",
+      "department": "품질보증부",
+      "task_type": "test",
+      "handoff_from": "ui_ux_engineer",
+      "handoff_to": "quality_reviewer",
+      "priority": 50
+    },
+    {
+      "id": "PLAN-game02-06",
+      "title": "[game02] 구현을 검토한다",
+      "owner": "codex",
+      "status": "todo",
+      "goal": "Game02 아이들 공장 타이쿤을 만든다. 방치해도 자원이 쌓이고, 설비를 업그레이드해 생산량을 늘리는 핵심 루프.\n\n이 작업은 그중 '구현을 검토한다' 단계다. 프로젝트: game02.",
+      "files": [
+        "docs/**"
+      ],
+      "acceptance": [
+        "이 단계의 결과가 다음 단계에서 쓸 수 있는 상태다.",
+        "수정 허용 파일 목록 밖은 건드리지 않았다."
+      ],
+      "depends_on": [
+        "PLAN-game02-05"
+      ],
+      "notes": [
+        "manager.build_plan 이 'Game02 아이들 공장 타이쿤을 만든다. 방치해도 자원이 쌓이고, 설비를 업그레이드해 생산량을 늘리는 핵심 루프.' 한 문장에서 만든 계획의 6/7 단계."
+      ],
+      "changed_files": [],
+      "last_run": "",
+      "title_ko": "구현을 검토한다",
+      "agent_role": "quality_reviewer",
+      "department": "기술감사실",
+      "task_type": "code_review",
+      "handoff_from": "qa_engineer",
+      "handoff_to": "release_engineer",
+      "priority": 50
+    },
+    {
+      "id": "PLAN-game02-07",
+      "title": "[game02] 빌드하고 APK를 확인한다",
+      "owner": "codex",
+      "status": "todo",
+      "goal": "Game02 아이들 공장 타이쿤을 만든다. 방치해도 자원이 쌓이고, 설비를 업그레이드해 생산량을 늘리는 핵심 루프.\n\n이 작업은 그중 '빌드하고 APK를 확인한다' 단계다. 프로젝트: game02.",
+      "files": [
+        "docs/**",
+        "Reports/**"
+      ],
+      "acceptance": [
+        "이 단계의 결과가 다음 단계에서 쓸 수 있는 상태다.",
+        "수정 허용 파일 목록 밖은 건드리지 않았다."
+      ],
+      "depends_on": [
+        "PLAN-game02-06"
+      ],
+      "notes": [
+        "manager.build_plan 이 'Game02 아이들 공장 타이쿤을 만든다. 방치해도 자원이 쌓이고, 설비를 업그레이드해 생산량을 늘리는 핵심 루프.' 한 문장에서 만든 계획의 7/7 단계."
+      ],
+      "changed_files": [],
+      "last_run": "",
+      "title_ko": "빌드하고 APK를 확인한다",
+      "agent_role": "release_engineer",
+      "department": "빌드출시부",
+      "task_type": "build",
+      "handoff_from": "quality_reviewer",
+      "handoff_to": "ceo",
+      "priority": 50
     }
   ]
 }
