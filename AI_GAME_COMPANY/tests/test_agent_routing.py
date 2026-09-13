@@ -107,6 +107,23 @@ class RefusalTests(unittest.TestCase):
                          files=["Assets/GameFactory/Gameplay/Player.cs"]),
                     registry())
 
+    def test_a_read_only_role_may_write_documents(self):
+        # can_modify_code is about CODE. A design or review role has to be
+        # able to write its output down, or every planning task would finish
+        # having changed nothing and run_task would call it BLOCKED.
+        resolved = dispatcher.dispatch(
+            Task(id="T", title="설계", agent_role="technical_director",
+                 task_type="architecture", files=["docs/**"]),
+            registry())
+        self.assertEqual("technical_director", resolved.agent_id)
+
+    def test_production_paths_are_what_count_not_the_task_type(self):
+        self.assertTrue(dispatcher.writes_production_code(["Assets/x.cs"]))
+        self.assertTrue(dispatcher.writes_production_code(["GameSpecs/game02.json"]))
+        self.assertFalse(dispatcher.writes_production_code(["docs/PLAN.md"]))
+        self.assertFalse(dispatcher.writes_production_code(["Reports/x.txt"]))
+        self.assertFalse(dispatcher.writes_production_code([]))
+
     def test_a_read_only_role_may_still_take_work_that_writes_nothing(self):
         resolved = dispatcher.dispatch(
             Task(id="T", title="review the diff", agent_role="quality_reviewer"),
@@ -120,7 +137,8 @@ class RefusalTests(unittest.TestCase):
         bad = [
             Task(id="T", title="x", agent_role="nope"),
             Task(id="T", title="x", agent_role="art_director", task_type="gameplay_code"),
-            Task(id="T", title="x", agent_role="ceo", files=["a.cs"]),
+            Task(id="T", title="x", agent_role="ceo",
+                 files=["Assets/GameFactory/Core/GameManager.cs"]),
             Task(id="T", title="zzzzz"),
         ]
         for task in bad:

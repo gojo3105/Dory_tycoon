@@ -335,6 +335,60 @@ def _board() -> TaskBoard:
     return TaskBoard.load(CONFIG_DIR / "TASKBOARD.json")
 
 
+def _team_order(args: argparse.Namespace, board: TaskBoard) -> int:
+    """`team order --goal "..."` - one sentence becomes a chain of tasks.
+
+    Prints the plan before writing it, which is section 7 step 9. It does NOT
+    then run anything: the plan lands on the board as todo and the existing
+    `team run --task <id>` executes it, one at a time, with every guard that
+    path already has.
+    """
+    from company.orchestrator import manager
+    from company.orchestrator.agent_registry import AgentRegistry
+
+    goal = (args.goal or "").strip()
+    if not goal:
+        print("REFUSED: --goal 이 필요합니다. 예: team order --goal \"Game02 만들어.\"")
+        return 2
+    project = (args.project or args.game or "").strip()
+
+    try:
+        registry = AgentRegistry.load(CONFIG_DIR / "AGENTS.json")
+    except Exception as exc:  # noqa: BLE001
+        print(f"REFUSED: AGENTS.json 을 읽을 수 없습니다 - {exc}")
+        return 2
+
+    try:
+        plan = manager.build_plan(board, registry, goal, project)
+        manager.validate(plan, registry)
+    except Exception as exc:  # noqa: BLE001 - message is the whole point
+        print(f"REFUSED: {exc}")
+        return 2
+
+    print(f"=== PLAN: {plan.project} ===")
+    print(f"  목표: {plan.objective.objective}")
+    for line in plan.objective.success:
+        print(f"  성공 조건: {line}")
+    print()
+    for index, task in enumerate(plan.tasks, start=1):
+        print(f"  {index}. {task.id}  {task.agent_role} / {task.task_type}")
+        print(f"     {task.title_ko}")
+        print(f"     files: {', '.join(task.files)}")
+        if task.depends_on:
+            print(f"     after: {', '.join(task.depends_on)}")
+    for warning in plan.warnings:
+        print(f"  WARNING: {warning}")
+
+    if args.dry_run:
+        print("\n--dry-run: 작업판에 쓰지 않았습니다.")
+        return 0
+
+    manager.commit_plan(board, plan)
+    print(f"\n작업판에 {len(plan.tasks)}개 추가: {board.path}")
+    print(f"다음: python -m company.orchestrator.main team run --task {plan.tasks[0].id}")
+    return 0
+
+
 def cmd_team(args: argparse.Namespace) -> int:
     """The shared board Claude and Codex both work from.
 
@@ -343,6 +397,9 @@ def cmd_team(args: argparse.Namespace) -> int:
     on the CLI being available.
     """
     board = _board()
+
+    if args.action == "order":
+        return _team_order(args, board)
 
     if not board.tasks:
         print(f"No tasks on {board.path}.")
@@ -734,9 +791,13 @@ def main(argv: list[str] | None = None) -> int:
     dashboard.set_defaults(func=cmd_dashboard)
 
     team = sub.add_parser("team", help="the shared board Claude and Codex both work from")
-    team.add_argument("action", choices=["board", "run"],
+    team.add_argument("action", choices=["board", "run", "order"],
                       help="board: print who is doing what. run: hand a task to Codex")
     team.add_argument("--task", default=None, help="task id, for 'run'")
+    team.add_argument("--goal", default=None,
+                      help="one sentence, for 'order' (e.g. \"Game02 만들어.\")")
+    team.add_argument("--project", default=None,
+                      help="project the order is for, for 'order' (default: --game)")
     team.add_argument("--game", default="game01",
                       help="game id used in the follow-up build suggestion")
     team.add_argument("--model", default=None, help="override the Codex model")

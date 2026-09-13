@@ -71,15 +71,29 @@ ROUTING: tuple[tuple[str, str], ...] = (
     (r"gameplay|player|jump|점프|이동|충돌|\b적\b|obstacle", "gameplay_engineer"),
 )
 
-# Task types that mean "this run edits production code". A role with
-# can_modify_code false may not take one. A set rather than something inferred
-# from the name, so that adding a writing task type is a deliberate act.
-WRITING_TASK_TYPES = frozenset({
-    "gameplay_code", "player", "enemy", "obstacle", "combat", "physics",
-    "game_feel", "core_code", "save", "economy", "ui_code", "ui",
-    "level", "stage", "generator", "architecture", "build", "release",
-    "test_code", "qa",
-})
+# What "production code" means, for can_modify_code. The paths, not the task
+# type: an earlier version of this kept a hand-written list of "writing" task
+# types, and AGENTS.json disagreed with it in both directions - `architecture`
+# is a design output that writes a document, while `progression` belongs to
+# game_director (which may not write) AND systems_engineer (which may). A type
+# cannot answer the question, because the same word means different work in
+# different rooms. The allowlist can: a task that may touch Assets/ is a task
+# that edits the game.
+PRODUCTION_PREFIXES = ("Assets/", "GameSpecs/", "Packages/", "ProjectSettings/")
+
+
+def writes_production_code(files: Any) -> bool:
+    """True when any allowlist entry reaches the game itself.
+
+    docs/ and Reports/ are deliberately not production: a design role has to
+    be able to write its design down, or every planning task would finish
+    having changed nothing and run_task would mark it BLOCKED.
+    """
+    for pattern in files or ():
+        cleaned = str(pattern).replace("\\", "/").lstrip("./")
+        if cleaned.startswith(PRODUCTION_PREFIXES):
+            return True
+    return False
 
 
 @dataclass(frozen=True)
@@ -177,11 +191,7 @@ def dispatch(task: Any, registry: AgentRegistry, *,
                 f"맡을 수 없습니다. 가능한 종류: {allowed}"
             ) from exc
 
-    if task_type:
-        writes = task_type in WRITING_TASK_TYPES
-    else:
-        # No declared type: a task that claims files is a task that writes.
-        writes = bool(_task_field(task, "files", []))
+    writes = writes_production_code(_task_field(task, "files", []))
     if writes and not agent.can_modify_code:
         raise ReadOnlyRoleError(
             f"{agent.display_name}({agent.id}) 은 코드를 고칠 수 없는 역할인데 "
