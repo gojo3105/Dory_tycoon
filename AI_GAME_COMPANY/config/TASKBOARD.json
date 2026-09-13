@@ -1066,7 +1066,7 @@
       "id": "PLAN-game02-02",
       "title": "[game02] 생성기와 GameSpec 구조를 정한다",
       "owner": "codex",
-      "status": "blocked",
+      "status": "todo",
       "goal": "Game02 아이들 공장 타이쿤을 만든다. 방치해도 자원이 쌓이고, 설비를 업그레이드해 생산량을 늘리는 핵심 루프.\n\n이 작업은 그중 '생성기와 GameSpec 구조를 정한다' 단계다. 프로젝트: game02.",
       "files": [
         "docs/**"
@@ -1080,7 +1080,6 @@
       ],
       "notes": [
         "manager.build_plan 이 'Game02 아이들 공장 타이쿤을 만든다. 방치해도 자원이 쌓이고, 설비를 업그레이드해 생산량을 늘리는 핵심 루프.' 한 문장에서 만든 계획의 2/7 단계.",
-        "CHAIN STOPPED: 같은 실패가 2회 반복됐습니다 (hash 998fc9b2d0ce). 남은 재시도를 태우지 않고 멈춥니다.",
         "BLOCKED: the run raised CodexLimited: Codex subscription limit reached and the run produced nothing usable. Policy on_codex_limit forbids escalating to a paid API - fall back to ['local_ai_review', 'claude_final_review']. Output: OpenAI Codex v0.151.0\n--------\nworkdir: C:\\Users\\VASCO-PC03\\source\\repos\\Dory_tycoon.worktrees\\check-repo-status-and-continue-modifications\nmodel: gpt-5.6-sol\nprovider: openai\napproval: never\nsandbox: workspace-write [workdir, /tmp, $TMPDIR]\nreasoning effort: none\nreasoning summaries: none\nsession i"
       ],
       "changed_files": [],
@@ -1239,6 +1238,206 @@
       "handoff_from": "quality_reviewer",
       "handoff_to": "ceo",
       "priority": 50
+    },
+    {
+      "id": "CODEX-BUILDEXEC1",
+      "title": "BuildExecutor: the release step must build a real APK, not write about one",
+      "owner": "codex",
+      "status": "todo",
+      "goal": "chain_runner can currently report a plan COMPLETE with no APK on disk.\n\nmanager.DEFAULT_STEPS ends with release_engineer, task_type 'build', allowlist docs/** and Reports/**. Run through CodexExecutor that step asks Codex to WRITE A DOCUMENT about the build. Codex cannot run Unity. So the final step of every chain produces prose, its own STATUS: OK is believed, and the chain marks the whole plan done - with nothing built.\n\nCLAUDE.md section 8's first principle is exactly this: never report a successful build without an APK actually on disk. Right now the chain's STRUCTURE can violate it, which is worse than a bug that does.\n\nAdd BuildExecutor to executors.py, selected by task_type == 'build' before the Codex/Ollama choice is made. It must:\n  1. Run the real pipeline - the same path `orchestrator build --game <id>` takes (unity_runner / main.cmd_build). Do not reimplement it.\n  2. Decide STATUS from the FILE, not the exit code. An APK must exist under Builds/<game>/APK/ and be newer than when the step started. scripts/dev/report-build-status.ps1 and Reports/build-status/latest.txt already establish this shape - reuse the check rather than inventing a second one.\n  3. Return STATUS: OK only when that file is there. Otherwise STATUS: FAILED with the reason, so chain_runner retries or stops.\n  4. Put the size and sha256 in the summary, because that is what makes the claim checkable afterwards.\n\nThe game id comes from the plan's project (PLAN-<project>-NN), not from anything in the task text.",
+      "files": [
+        "AI_GAME_COMPANY/company/orchestrator/executors.py",
+        "AI_GAME_COMPANY/company/orchestrator/chain_runner.py",
+        "AI_GAME_COMPANY/tests/test_executors.py"
+      ],
+      "acceptance": [
+        "A chain whose build step produces no APK ends with the plan NOT marked done.",
+        "STATUS: OK is returned only when an .apk exists on disk and is newer than the step's start time.",
+        "The summary names the APK path, its size and its sha256.",
+        "A test proves the no-APK case fails, using a temporary Builds/ directory rather than a real Unity run.",
+        "The existing build path is called, not reimplemented."
+      ],
+      "depends_on": [],
+      "notes": [
+        "Claude 가 명세만 작성. 2026-09-13 실행에서 확인된 구멍: release_engineer 단계가 문서만 쓰고 체인이 그걸 완료로 받아들임.",
+        "역할 조정: release_engineer -> systems_engineer. 오케스트레이터 파이썬을 고치는 작업이라 코드를 쓸 수 있는 역할이어야 함."
+      ],
+      "changed_files": [],
+      "last_run": "",
+      "title_ko": "release_engineer 단계를 진짜 Unity 빌드에 연결",
+      "agent_role": "systems_engineer",
+      "task_type": "core_system",
+      "priority": 90
+    },
+    {
+      "id": "CODEX-TESTEXEC1",
+      "title": "TestExecutor: the QA step must run the tests it writes",
+      "owner": "codex",
+      "status": "todo",
+      "goal": "The qa_engineer step has Codex write files under Assets/GameFactory/Tests/** and nothing runs them. They are not even compiled. The step then reports its own STATUS: OK and the chain advances on test code that has never executed.\n\nAdd TestExecutor to executors.py, selected by task_type == 'test'. Two phases in one step:\n  1. Codex writes the tests, exactly as now.\n  2. Then run the real suite - the path `orchestrator test --game <id> --platform playmode` takes. Reuse it; do not reimplement.\n\nSTATUS comes from the NUnit XML, not from Codex's opinion of its own tests: failed=0 is OK, anything else is FAILED with the failing test names in the summary. unity_runner already parses passed/failed/skipped - use that.\n\nIf phase 1 fails, do not run phase 2: tests that were not written cannot pass, and a green result there would be the most misleading output this chain could produce.\n\nCodex being at its subscription limit must make this step pause like any other writing step, not fall through to running a stale suite.",
+      "files": [
+        "AI_GAME_COMPANY/company/orchestrator/executors.py",
+        "AI_GAME_COMPANY/tests/test_executors.py"
+      ],
+      "acceptance": [
+        "STATUS is derived from the NUnit XML's failed count, never from the agent's message.",
+        "A failing suite yields STATUS: FAILED with the failing test names in the summary.",
+        "A failed write phase skips the run phase entirely.",
+        "A Codex limit during the write phase pauses the chain rather than running the old tests."
+      ],
+      "depends_on": [
+        "CODEX-BUILDEXEC1"
+      ],
+      "notes": [
+        "Claude 가 명세만 작성. BUILDEXEC1 과 같은 구멍의 다른 절반."
+      ],
+      "changed_files": [],
+      "last_run": "",
+      "title_ko": "qa_engineer 단계를 진짜 Unity 테스트 실행에 연결",
+      "agent_role": "qa_engineer",
+      "task_type": "test",
+      "priority": 85
+    },
+    {
+      "id": "CODEX-GEMINIEXEC1",
+      "title": "GeminiExecutor: art_director is the one role rule 2 assigns to Gemini",
+      "owner": "codex",
+      "status": "todo",
+      "goal": "CLAUDE.md rule 2: design is Gemini's work. art_director is the only design role among the twelve, GEMINI_API_KEY is present, and gemini_client.py exists - but no executor connects them, so a chain that needs art has nowhere to send it. chain_runner already routes a HANDOFF_TO: art_director correctly; the destination is missing.\n\nAdd GeminiExecutor to executors.py, selected when the resolved role is art_director. Constraints that are policy, not preference:\n  - allow_gemini_design must be true, and the model must be in gemini_free_tier_models. The adapter already refuses otherwise; do not work around it.\n  - A 429 or quota response degrades exactly like on_codex_limit does. It must never retry against a paid tier. Report it as a chain PAUSE, the same shape as the Codex limit, since it is the same situation.\n  - The key's presence may be recorded. Its value must never be written to a file, a log, or the summary chain_runner reads.\n\nOutput goes where the role's allowlist allows and nowhere else. Write the prompt used and the resulting file paths into the summary so the step is auditable.",
+      "files": [
+        "AI_GAME_COMPANY/company/orchestrator/executors.py",
+        "AI_GAME_COMPANY/tests/test_executors.py"
+      ],
+      "acceptance": [
+        "A quota response pauses the chain and never escalates to a paid tier.",
+        "The API key value appears in no file, log or summary - asserted by a test.",
+        "A model outside gemini_free_tier_models is refused.",
+        "Generated files land only inside the role's declared allowlist."
+      ],
+      "depends_on": [
+        "CODEX-BUILDEXEC1"
+      ],
+      "notes": [
+        "Claude 가 명세만 작성. 규칙 2 가 지정한 역할인데 실행 경로가 없었음.",
+        "역할 조정: art_director -> systems_engineer. 오케스트레이터 파이썬을 고치는 작업이라 코드를 쓸 수 있는 역할이어야 함."
+      ],
+      "changed_files": [],
+      "last_run": "",
+      "title_ko": "art_director 단계를 Gemini 에 연결",
+      "agent_role": "systems_engineer",
+      "task_type": "core_system",
+      "priority": 60
+    },
+    {
+      "id": "CODEX-AUTORESUME1",
+      "title": "Resume a paused chain from the scheduled task that already runs",
+      "owner": "codex",
+      "status": "todo",
+      "goal": "A chain paused by a Codex limit resumes only when a person types the command again. The subscription comes back on its own; the chain does not.\n\nThe PC already runs scripts/desktop/sync-and-run.ps1 every 15 minutes. Add a step: if any task carries a PAUSED note and its plan is unfinished, run team chain --project <slug> once. The chain is already idempotent - finished steps are skipped and a still-limited Codex just pauses again - so a wasted attempt costs one call that returns immediately.\n\nDo not add a new scheduled task or a daemon. One more step in the script that already runs is the whole change.\n\nscripts/**/*.ps1 must be ASCII only. Windows PowerShell 5.1 misreads non-ASCII in a BOM-less UTF-8 .ps1 and fails to parse - collect-errors.ps1 and sync-and-run.ps1 have both been broken by this already. Korean goes in a .md.\n\nIt must never resume a chain stopped for a REVIEW. That one waits for a person on purpose, and auto-continuing past it makes the continue button meaningless.",
+      "files": [
+        "scripts/desktop/sync-and-run.ps1",
+        "docs/AUTOMATION.md"
+      ],
+      "acceptance": [
+        "The .ps1 is ASCII only.",
+        "A chain paused by a limit is retried on the next 15-minute cycle.",
+        "A chain waiting on a REVIEW is NOT auto-continued.",
+        "No new scheduled task and no long-running process is added.",
+        "A cycle with nothing paused does no extra work."
+      ],
+      "depends_on": [],
+      "notes": [
+        "Claude 가 명세만 작성. 지금은 사람이 명령을 다시 쳐야만 재개됨."
+      ],
+      "changed_files": [],
+      "last_run": "",
+      "title_ko": "한도 복귀 자동 감지 (15분 예약 작업에 얹기)",
+      "agent_role": "systems_engineer",
+      "task_type": "core_system",
+      "priority": 50
+    },
+    {
+      "id": "CODEX-CHAINPROG1",
+      "title": "Show which chain step is running, instead of a nine-minute blank",
+      "owner": "codex",
+      "status": "todo",
+      "goal": "The chain-run button works, but a local-model step takes about nine minutes and the panel shows only the running spinner for all of it. A person cannot tell a working chain from a hung one - the same problem progress.py was written to solve for builds.\n\nteam chain already prints one line per step, with a bracketed marker: OK, 재시도, 인계, 일시정지, 검토 대기, 중단. Add markers to progress.MARKERS for the chain-run action covering each, so the live panel names the current step and its role.\n\nEvery phrase must come from a line the command actually printed. That is the rule this module exists to hold, and an invented 'almost done' would break it.\n\nDo not compute a percentage. The number of retries is not known in advance and a progress bar that goes backwards is worse than none.",
+      "files": [
+        "AI_GAME_COMPANY/company/orchestrator/progress.py",
+        "AI_GAME_COMPANY/tests/test_progress.py"
+      ],
+      "acceptance": [
+        "Every phrase is anchored to a line team chain prints.",
+        "Pause and review-wait read differently from a retry.",
+        "No percentage or time estimate is invented.",
+        "test_progress covers each new marker."
+      ],
+      "depends_on": [],
+      "notes": [
+        "Claude 가 명세만 작성. Ollama 폴백 단계가 약 9분이라 특히 눈에 띔."
+      ],
+      "changed_files": [],
+      "last_run": "",
+      "title_ko": "패널에서 체인 진행 단계 표시",
+      "agent_role": "ui_ux_engineer",
+      "task_type": "ui_code",
+      "priority": 45
+    },
+    {
+      "id": "CODEX-STUDIOGENRE1",
+      "title": "The studio makes Runners only, which section 6 calls a reskin",
+      "owner": "codex",
+      "status": "todo",
+      "goal": "game_creator.plan_game hardcodes the Runner genre and starts from a deep copy of GameSpecs/game01.json. Across all five style presets the mechanics block is identical - jump, doubleJump and slide on; dash, wallJump, teleport and timeSlow off - and enemy is always disabled. What varies is numbers, gravitySwitch on/off, and which of four special values is picked.\n\nCLAUDE.md section 6 forbids character/background-only reskins and requires mechanics/level/enemy/special combinations to actually differ. Same verbs plus different numbers is the thing that rule names.\n\nTwo parts, the first being the one that matters:\n  1. Let the caller choose a genre, and refuse one whose Gameplay/<Genre>/ folder holds no C#. Today only Runner qualifies. Refusing honestly is the point: a studio that offers Idle and emits a Runner is worse than one that says Idle is not built yet.\n  2. Make presets differ in VERBS, not only numbers. A preset that turns dash on and doubleJump off is a different game; one that moves moveSpeed by 0.15 is the same game.\n\nDo not delete the existing presets - Game01 was built on them. The genre gate comes first; the preset work can follow.",
+      "files": [
+        "AI_GAME_COMPANY/company/orchestrator/game_creator.py",
+        "AI_GAME_COMPANY/tests/test_game_creator.py"
+      ],
+      "acceptance": [
+        "A genre with no Gameplay/<Genre> C# is refused, naming the folder.",
+        "Runner keeps working exactly as it does now.",
+        "At least two presets differ in which mechanics flags are true.",
+        "A test asserts two presets do not produce identical mechanics blocks."
+      ],
+      "depends_on": [],
+      "notes": [
+        "Claude 가 명세만 작성. Game02(Idle) 를 스튜디오로 못 만드는 이유이기도 함."
+      ],
+      "changed_files": [],
+      "last_run": "",
+      "title_ko": "게임 스튜디오 장르 고정 문제 (리스킨 금지 위반)",
+      "agent_role": "systems_engineer",
+      "task_type": "core_system",
+      "priority": 40
+    },
+    {
+      "id": "CODEX-TESTFIX1",
+      "title": "Three test_server failures that predate the multi-agent work",
+      "owner": "codex",
+      "status": "todo",
+      "goal": "Three failures on this branch, all older than the chain work - confirmed by restoring the edited files and re-running, which gave identical counts:\n\n  test_accepts_a_codex_task\n  test_serves_a_page_with_the_control_panel\n  test_status_compatibility_endpoint_returns_runner_state\n\nAt least one is a real drift: server.ACTIONS contains an image-generate entry while progress.ACTION_LABEL does not, so the panel can start an action it cannot describe. Same class of drift that once left three buttons answering with an unknown-action error - one file grew and its partner did not.\n\nRead each failure before changing anything. Some may be the test holding an old expectation, in which case the test moves; some may be the code. Say which in the final message rather than just making them pass.",
+      "files": [
+        "AI_GAME_COMPANY/company/orchestrator/progress.py",
+        "AI_GAME_COMPANY/company/orchestrator/server.py",
+        "AI_GAME_COMPANY/tests/test_server.py",
+        "AI_GAME_COMPANY/tests/test_progress.py"
+      ],
+      "acceptance": [
+        "All three pass.",
+        "The final message says, per failure, whether the test or the code was wrong.",
+        "Every server.ACTIONS entry has a progress.ACTION_LABEL entry, with a test keeping them together.",
+        "No test is made to pass by weakening what it asserts."
+      ],
+      "depends_on": [],
+      "notes": [
+        "Claude 가 명세만 작성. 멀티에이전트 작업과 무관한 기존 부채."
+      ],
+      "changed_files": [],
+      "last_run": "",
+      "title_ko": "test_server 기존 실패 3건 정리",
+      "agent_role": "qa_engineer",
+      "task_type": "test",
+      "priority": 30
     }
   ]
 }

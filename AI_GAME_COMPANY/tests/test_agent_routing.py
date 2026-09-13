@@ -120,6 +120,13 @@ class RefusalTests(unittest.TestCase):
     def test_production_paths_are_what_count_not_the_task_type(self):
         self.assertTrue(dispatcher.writes_production_code(["Assets/x.cs"]))
         self.assertTrue(dispatcher.writes_production_code(["GameSpecs/game02.json"]))
+        # The orchestrator and the PowerShell are code too. Leaving them out
+        # let a spec hand a Python implementation task to release_engineer,
+        # which may not modify code, purely because the path was not Assets/.
+        self.assertTrue(dispatcher.writes_production_code(
+            ["AI_GAME_COMPANY/company/orchestrator/executors.py"]))
+        self.assertTrue(dispatcher.writes_production_code(
+            ["scripts/desktop/sync-and-run.ps1"]))
         self.assertFalse(dispatcher.writes_production_code(["docs/PLAN.md"]))
         self.assertFalse(dispatcher.writes_production_code(["Reports/x.txt"]))
         self.assertFalse(dispatcher.writes_production_code([]))

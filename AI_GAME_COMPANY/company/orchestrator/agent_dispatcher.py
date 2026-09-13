@@ -79,7 +79,15 @@ ROUTING: tuple[tuple[str, str], ...] = (
 # cannot answer the question, because the same word means different work in
 # different rooms. The allowlist can: a task that may touch Assets/ is a task
 # that edits the game.
-PRODUCTION_PREFIXES = ("Assets/", "GameSpecs/", "Packages/", "ProjectSettings/")
+PRODUCTION_PREFIXES = (
+    "Assets/", "GameSpecs/", "Packages/", "ProjectSettings/",
+    # The orchestrator is code too. Leaving it out let a spec assign a
+    # Python implementation task to release_engineer and art_director,
+    # both of which have can_modify_code false - the dispatcher passed it
+    # because the files were not under Assets/. A reviewer that may not
+    # rewrite the game should not be rewriting the thing that builds it.
+    "AI_GAME_COMPANY/company/", "scripts/",
+)
 
 
 def writes_production_code(files: Any) -> bool:
