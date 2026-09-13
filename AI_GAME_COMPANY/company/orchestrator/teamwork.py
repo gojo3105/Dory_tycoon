@@ -87,6 +87,18 @@ class Task:
     changed_files: list[str] = field(default_factory=list)
     last_run: str = ""
 
+    # --- company role, all optional ---
+    # A board written before roles existed has none of these, and must keep
+    # loading, running and saving byte-for-byte as it did. So they default to
+    # empty and to_dict emits them only when set: adding the fields must not
+    # rewrite thirty existing tasks.
+    agent_role: str = ""
+    department: str = ""
+    task_type: str = ""
+    priority: int = 0
+    handoff_from: str = ""
+    handoff_to: str = ""
+
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "Task":
         known = {f for f in cls.__dataclass_fields__}
@@ -102,6 +114,16 @@ class Task:
         }
         if self.title_ko:
             data["title_ko"] = self.title_ko
+        # Same rule as title_ko: absent stays absent. A task that never had a
+        # role should not grow `"agent_role": ""` the first time something
+        # saves the board.
+        for name in ("agent_role", "department", "task_type",
+                     "handoff_from", "handoff_to"):
+            value = getattr(self, name)
+            if value:
+                data[name] = value
+        if self.priority:
+            data["priority"] = self.priority
         return data
 
     def covers(self, repo_relative_path: str) -> bool:
@@ -362,11 +384,18 @@ def concurrent_work(task: Task, board: TaskBoard,
     return lines
 
 
-def build_prompt(task: Task, board: TaskBoard, repo_root: Path | None = None) -> str:
+def build_prompt(task: Task, board: TaskBoard, repo_root: Path | None = None,
+                 registry: Any = None) -> str:
     """The full instruction handed to `codex exec`.
 
     Deliberately verbose about the allowlist: the check afterwards is a
     backstop, and a task that states its boundaries up front rarely trips it.
+
+    `registry` is an AgentRegistry, or None. With one, a task that names a
+    company role gets that role's brief in front of its goal - section 5 of
+    CODEX_MULTI_AGENT_IMPLEMENTATION.md. Without one, or for a task with no
+    role, the prompt is exactly what it was before: the twelve roles are an
+    addition to this pipeline, never a precondition for it.
     """
     allowlist = "\n".join(f"  - {pattern}" for pattern in task.files) or "  (none declared)"
     acceptance = "\n".join(f"  {i}. {line}" for i, line in enumerate(task.acceptance, 1)) \
@@ -378,6 +407,22 @@ def build_prompt(task: Task, board: TaskBoard, repo_root: Path | None = None) ->
     sections = [
         f"TASK {task.id}: {task.title}",
         "",
+    ]
+
+    # Before the goal, so the agent reads who it is and then what it is for.
+    # A failure to resolve the role is NOT fatal here: the role is context,
+    # while the goal, the allowlist and HOUSE_RULES are the job. Refusing to
+    # run a perfectly valid task because its role string was wrong would put
+    # a decorative field in charge of the pipeline.
+    if registry is not None and task.agent_role:
+        try:
+            from company.orchestrator.agent_dispatcher import (
+                dispatch as _dispatch, role_section as _role_section)
+            sections += [_role_section(_dispatch(task, registry)), ""]
+        except Exception as exc:  # noqa: BLE001 - context is optional, see above
+            sections += [f"(company role '{task.agent_role}' was not applied: {exc})", ""]
+
+    sections += [
         "GOAL",
         f"  {task.goal}",
         "",
@@ -433,7 +478,7 @@ class TaskRun:
 
 
 def run_task(board: TaskBoard, task_id: str, codex: Any, repo_root: Path,
-             timeout_seconds: int | None = None) -> TaskRun:
+             timeout_seconds: int | None = None, registry: Any = None) -> TaskRun:
     """Hand one Codex-owned task to Codex, then check what it actually did.
 
     Raises rather than returning a soft failure when the task should never have
@@ -476,7 +521,7 @@ def run_task(board: TaskBoard, task_id: str, codex: Any, repo_root: Path,
     head_before = head_commit(repo_root)
 
     try:
-        result = codex.implement(build_prompt(task, board, repo_root),
+        result = codex.implement(build_prompt(task, board, repo_root, registry),
                                  timeout_seconds=timeout_seconds)
     except BaseException as exc:
         # BaseException, not Exception: Ctrl+C raises KeyboardInterrupt, which

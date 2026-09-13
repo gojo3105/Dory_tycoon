@@ -388,16 +388,32 @@ def cmd_team(args: argparse.Namespace) -> int:
     print(f"  {task.title}")
     print(f"  allowlist: {', '.join(task.files) or '(none)'}")
 
+    # Optional context: a missing or broken AGENTS.json must not stop a
+    # task that would otherwise run. Loaded once and REPORTED rather than
+    # silently skipped - a role that quietly failed to apply would look
+    # exactly like a task that never had one.
+    registry = None
+    try:
+        from company.orchestrator.agent_registry import AgentRegistry
+        registry = AgentRegistry.load(CONFIG_DIR / "AGENTS.json")
+    except Exception as exc:  # noqa: BLE001
+        if task.agent_role:
+            print(f"  NOTE: AGENTS.json 을 읽지 못해 역할 '{task.agent_role}' 은 "
+                  f"프롬프트에 들어가지 않습니다 ({exc})")
+    if registry is not None and task.agent_role:
+        print(f"  role: {task.agent_role}"
+              + (f" / {task.task_type}" if task.task_type else ""))
+
     if args.dry_run:
         print("\n--- prompt (not sent) ---")
-        print(build_prompt(task, board, REPO_ROOT))
+        print(build_prompt(task, board, REPO_ROOT, registry))
         return 0
 
     print("  running codex exec --sandbox workspace-write ...\n")
 
     try:
         run = run_task(board, args.task, codex, REPO_ROOT,
-                       timeout_seconds=args.timeout)
+                       timeout_seconds=args.timeout, registry=registry)
     except NotCodexOwned as exc:
         print(f"REFUSED: {exc}")
         return 2

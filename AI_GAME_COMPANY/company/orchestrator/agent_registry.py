@@ -26,6 +26,10 @@ class RegisteredAgent:
     order: int
     can_modify_code: bool
     allowed_task_types: tuple[str, ...]
+    #: Section names the role must put in its final message. Optional -
+    #: AGENTS.json carries it for all twelve, but an entry written
+    #: without one must still load, so it is not in `required`.
+    final_response_contract: tuple[str, ...] = ()
 
 
 class AgentRegistry:
@@ -87,6 +91,10 @@ class AgentRegistry:
             prompt=raw["prompt"], order=raw["order"],
             can_modify_code=raw["can_modify_code"],
             allowed_task_types=tuple(task_types),
+            final_response_contract=tuple(
+                value for value in (raw.get("final_response_contract") or ())
+                if isinstance(value, str) and value
+            ),
         )
 
     def get(self, agent_id: str) -> RegisteredAgent:
