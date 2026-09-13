@@ -443,7 +443,7 @@
       "id": "CLAUDE-VERBS1",
       "title": "Slide and double jump - the runner's second verb",
       "owner": "claude",
-      "status": "review",
+      "status": "done",
       "goal": "Tap-to-jump alone asks the same question at every obstacle, so a level can only vary its rhythm. Add a downward-swipe slide, a double jump, and an overhead obstacle that only the slide clears.",
       "files": [
         "Assets/GameFactory/Core/InputSystem.cs",
@@ -468,7 +468,8 @@
         "DONE BY CLAUDE - user instruction 2026-09-05 '쿠키런 기능 접목시켜'. Rule 1 exception, recorded in CLAUDE.md section 2.",
         "Commit 6369c5d. Not compiled: no Unity in the Claude Code container.",
         "Geometry, for whoever tunes it next: player art 1.5 units tall, ground surface y=-0.5, bar underside at 0.66 x player height (y=0.49), ducked head y=0.25, standing head y=1.0. Jump reaches 1.762 up and 3.84 forward, so the gap is 6.2-11.5.",
-        "The obstacle spawner deliberately runs 16 units ahead while the coin spawner runs 12. That ordering is what lets CoinSpawner's clearance probe see a bar before it drops a coin inside one. Do not equalise them."
+        "The obstacle spawner deliberately runs 16 units ahead while the coin spawner runs 12. That ordering is what lets CoinSpawner's clearance probe see a bar before it drops a coin inside one. Do not equalise them.",
+        "DONE: accepted from the dashboard."
       ],
       "changed_files": [],
       "last_run": "",
@@ -524,7 +525,7 @@
       "id": "CLAUDE-RIG1",
       "title": "Character rig: separated art, Animator, generated clips",
       "owner": "claude",
-      "status": "review",
+      "status": "cancelled",
       "goal": "One opaque cut-out PNG cannot animate - the player reported the character as an image sliding sideways. Split the drawing into body plus limbs, hang them on joints, and drive them with real AnimationClip assets on an AnimatorController instead of angles computed in LateUpdate.",
       "files": [
         "Assets/GameFactory/Editor/CharacterPartSlicer.cs",
@@ -551,41 +552,12 @@
         "Packages/manifest.json gained com.unity.modules.animation. Animator and AnimationClip live there and it was not registered - this is the CS1069 case in CLAUDE.md 9.3. Do not hand-edit packages-lock.json.",
         "Not compiled or run: no Unity in the Claude Code container, and GEMINI_API_KEY is ABSENT so the Gemini path has never executed either. The clip maths was checked by rendering the same curves over the real art outside Unity.",
         "Geometry lives in Assets/Common/Art/Runner/rig/rig.json, not in the C#. A limb in the wrong place is a number in that file.",
-        "Every clip writes every property any clip writes. A pose clip that skipped m_LocalPosition.y would leave a foot frozen mid-lift when the state changed."
+        "Every clip writes every property any clip writes. A pose clip that skipped m_LocalPosition.y would leave a foot frozen mid-lift when the state changed.",
+        "CANCELLED: stopped from the dashboard."
       ],
       "changed_files": [],
       "last_run": "",
       "title_ko": "캐릭터 리그: 분해 아트 + Animator + 클립 생성"
-    },
-    {
-      "id": "CLAUDE-ORDERS1",
-      "title": "Control panel order box: typed instruction -> board task -> Codex -> Unity test",
-      "owner": "claude",
-      "status": "review",
-      "goal": "The panel offered five fixed buttons, which cannot express 'make the jump feel heavier'. The order box turns a typed sentence into a task on the board and runs it. The text becomes task DATA, never argv: the id is minted by orders.py, the file allowlist comes from the DEPARTMENTS table, and the owner is forced - so CLAUDE.md section 10 still holds. Codex cannot compile, so the order runs the Unity tests after it, and a failed first step skips the rest.",
-      "files": [
-        "AI_GAME_COMPANY/company/orchestrator/orders.py",
-        "AI_GAME_COMPANY/company/orchestrator/server.py",
-        "AI_GAME_COMPANY/company/orchestrator/dashboard.py",
-        "AI_GAME_COMPANY/company/orchestrator/progress.py",
-        "AI_GAME_COMPANY/tests/test_orders.py",
-        "AI_GAME_COMPANY/tests/test_server.py",
-        "CLAUDE.md"
-      ],
-      "acceptance": [
-        "An order's text never appears in any argv (test_orders covers it).",
-        "The allowlist comes from DEPARTMENTS, not from the order text.",
-        "A failed Codex step skips the Unity test step.",
-        "All 14 test modules pass."
-      ],
-      "depends_on": [],
-      "notes": [
-        "DONE BY CLAUDE - 사용자가 직접 지시 (2026-09-07): '127.0.0.1:8765 를 pov ai 직원 회사로 만들어. 내가 명령할 수 있는 명령창 만들어. 명령을 내리면 알아서 ai가 일을 하도록 만들어.' CLAUDE.md 2절 예외 목록에 기록함.",
-        "REVIEW, not done: the order box has not been exercised on the PC, where codex actually exists. Nothing here ran a real Codex job."
-      ],
-      "changed_files": [],
-      "last_run": "",
-      "title_ko": "제어판 명령창 (지시 → 작업판 → Codex → 유니티 테스트)"
     },
     {
       "id": "CODEX-WIREACT1",
