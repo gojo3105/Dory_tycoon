@@ -891,34 +891,6 @@
       "changed_files": [],
       "last_run": "2026-09-09",
       "title_ko": "스테이지·미션·성장·저장·튜토리얼·설정·광고·결제"
-    },
-    {
-      "id": "CLAUDE-HYDRA1",
-      "title": "Supervise HydraProxy from the panel, and let a team pick its model",
-      "owner": "claude",
-      "status": "todo",
-      "goal": "HydraTeams is built on this machine and now appears in the office view, gated by allow_hydra_proxy. Making it usable needs two things the current panel cannot express.\n\nA SUPERVISED PROCESS, NOT A JOB. Runner in server.py starts a command and waits for it to exit; HydraProxy is a server that never exits, so a start button built on the job runner would leave the panel permanently 'busy'. It needs its own supervisor: start detached, keep the pid, report alive/dead by polling the port, stop on request. Its stdout must NOT be piped into the job log the browser polls - the panel would then be publishing proxy traffic to a web page.\n\nA MODEL PER TEAM. orders.py currently forces every order to Codex (Department.seat_owner returns CODEX). With the proxy up, a team could name its own model, which is what makes the office an honest staffing chart rather than a picture. Keep the allowlist mechanism exactly as it is - the model changes who writes, never which files may be written.\n\nBOTH ARE BLOCKED ON A DECISION, NOT ON CODE. allow_hydra_proxy is false, and the note in company_policy.json says why: the credential question (~/.codex/auth.json is on secrets_never_touched), the billing question (--provider openai is the paid API, which policy forbids; only the chatgpt subscription mode is compatible, and that mode is the one needing --use-codex-auth), and rule 1 (codex_writes_all_code). Do not implement past that flag until the user answers.",
-      "files": [
-        "AI_GAME_COMPANY/company/orchestrator/server.py",
-        "AI_GAME_COMPANY/company/orchestrator/orders.py",
-        "AI_GAME_COMPANY/company/orchestrator/dashboard.py",
-        "AI_GAME_COMPANY/config/company_policy.json",
-        "AI_GAME_COMPANY/tests/**"
-      ],
-      "acceptance": [
-        "The proxy's stdout never reaches the browser-polled job log.",
-        "A dead proxy is reported as dead, from the port, not from a remembered pid.",
-        "allow_hydra_proxy false means nothing starts.",
-        "--provider openai is refused while allow_openai_api_billing is false.",
-        "A team's model choice does not widen its file allowlist."
-      ],
-      "depends_on": [],
-      "notes": [
-        "HydraTeams is MIT (Pickle-Pixel). Local copy patched 2026-09-10 so ~/.codex/auth.json is only read with --use-codex-auth, and the plan type decoded from the token is no longer printed. Original: src/config.ts.orig."
-      ],
-      "changed_files": [],
-      "last_run": "",
-      "title_ko": "패널에서 HydraProxy 관리 + 팀별 모델 지정"
     }
   ]
 }
