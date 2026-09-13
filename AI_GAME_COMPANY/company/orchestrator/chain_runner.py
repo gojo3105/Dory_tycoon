@@ -49,6 +49,12 @@ from company.orchestrator.teamwork import (
 CONTINUE = "continue"
 RETRY = "retry"
 REROUTE = "reroute"
+#: Codex 한도. 실패가 아니라 "지금은 못 한다" 이므로 작업 상태를 건드리지
+#: 않는다. 나중에 같은 체인을 다시 부르면 그 자리에서 이어진다.
+PAUSE = "pause"
+#: 에이전트가 스스로 확신하지 못한 경우. 사람이 "계속 진행" 을 누를 때까지
+#: 멈춘다. 재시도로 같은 답을 또 받아내는 것보다 정직하다.
+REVIEW_WAIT = "review_wait"
 STOP = "stop"
 
 #: STATUS words an agent may use, mapped to whether the step succeeded.
@@ -56,7 +62,11 @@ STOP = "stop"
 #: verdict, and guessing "probably fine" is how a broken step advances.
 STATUS_OK = frozenset({"OK", "DONE", "COMPLETE", "COMPLETED", "SUCCESS", "PASS"})
 STATUS_BAD = frozenset({"FAILED", "FAIL", "BLOCKED", "ERROR", "STOPPED",
-                        "INCOMPLETE", "NEEDS_HUMAN_REVIEW"})
+                        "INCOMPLETE"})
+#: Not failure and not success: the agent is saying a person should look.
+#: Retrying these produces the same uncertainty again, so the chain waits.
+STATUS_REVIEW = frozenset({"NEEDS_HUMAN_REVIEW", "REVIEW", "NEEDS_REVIEW",
+                           "UNSURE", "UNCERTAIN"})
 
 
 @dataclass
@@ -66,6 +76,10 @@ class Verdict:
     handoff_to: str = ""
     reason: str = ""
     raw: str = ""
+
+    @property
+    def needs_review(self) -> bool:
+        return self.status.strip().upper() in STATUS_REVIEW
 
     @property
     def succeeded(self) -> bool | None:
@@ -109,6 +123,16 @@ class ChainResult:
     records: list[StepRecord] = field(default_factory=list)
     finished: bool = False
     stopped_because: str = ""
+    #: Set when a Codex limit paused the chain. NOT a failure - calling
+    #: run_chain again once the subscription resets picks up here.
+    paused_at: str = ""
+    #: Set when an agent asked for a person. Cleared by passing the id in
+    #: `approved` on a later call, which is what the panel button does.
+    awaiting_review: str = ""
+
+    @property
+    def paused(self) -> bool:
+        return bool(self.paused_at)
 
     @property
     def ran(self) -> int:
@@ -164,10 +188,20 @@ def decide(step: StepResult, verdict: Verdict, *, attempt: int,
     "it did the job".
     """
     if step.limited:
-        return STOP, "Codex 구독 한도. 정책이 유료 API 승격을 금지합니다."
+        # A pause, not a stop. The work is fine; the subscription is not, and
+        # a subscription comes back. Marking this BLOCKED would turn "come
+        # back later" into "somebody go and fix this".
+        return PAUSE, "Codex 구독 한도. 한도가 돌아오면 이어서 진행합니다."
 
     if attempt > max_retry:
         return STOP, f"재시도 {max_retry}회를 넘겼습니다."
+
+    # Checked before the handoff and before success: an agent saying it is
+    # unsure is asking for a person, and retrying produces the same
+    # uncertainty a second time.
+    if verdict.needs_review:
+        return REVIEW_WAIT, (verdict.reason
+                             or f"에이전트가 검토를 요청했습니다: {verdict.status}")
 
     said = verdict.succeeded
 
@@ -205,6 +239,7 @@ def run_chain(board: TaskBoard, prefix: str,
               *, roles: set[str] | None = None,
               max_retry: int = 5,
               stop_on_repeated_error: bool = True,
+              approved: set[str] | None = None,
               on_event: Callable[[StepRecord], None] | None = None,
               ) -> ChainResult:
     """Run every step of one plan, routing on each agent's own verdict.
@@ -212,6 +247,14 @@ def run_chain(board: TaskBoard, prefix: str,
     `execute` is how a step actually happens - Codex for a writing role,
     Gemini for art, Unity for a test or a build. Passed in, so this file
     stays ignorant of all three and a new executor needs no change here.
+
+    `approved` holds ids a person has cleared past a review pause - what the
+    panel's 계속 진행 button sends. An approved task is stepped OVER, not run
+    again: its work already happened, and the only thing missing was somebody
+    saying it was good enough to build on.
+
+    Safe to call repeatedly. Finished steps are skipped, so resuming after a
+    Codex limit is the same call made again.
     """
     tasks = chain_tasks(board, prefix)
     if not tasks:
@@ -225,9 +268,28 @@ def run_chain(board: TaskBoard, prefix: str,
     attempt = 1
     while index < len(tasks):
         task = tasks[index]
-        if task.status in (DONE, REVIEW):
+        cleared = approved or set()
+
+        # REVIEW with no review_note is teamwork.run_task's "this step
+        # succeeded" - a finished step, not a question for anybody.
+        if task.status == DONE or (task.status == REVIEW and not task.review_note):
             index, attempt = index + 1, 1
             continue
+
+        if task.status == REVIEW and task.review_note:
+            if task.id in cleared:
+                task.notes.append(
+                    f"CONTINUE: 사람이 검토를 통과시켰습니다 ({task.review_note}).")
+                task.review_note = ""
+                task.status = DONE
+                index, attempt = index + 1, 1
+                continue
+            # Already waiting. Returning without running anything matters:
+            # re-invoking the chain while a review is outstanding must not
+            # spend another Codex call to be told the same thing.
+            result.awaiting_review = task.id
+            result.stopped_because = f"{task.id} 이 검토를 기다리고 있습니다."
+            return result
 
         role = task.agent_role or "?"
         step = execute(task, role)
@@ -250,11 +312,38 @@ def run_chain(board: TaskBoard, prefix: str,
             on_event(record)
 
         if action == CONTINUE:
+            # The agent that did the work said it was done and the tree
+            # agrees, so the step is DONE - not REVIEW awaiting somebody.
+            # This is the point of the chain: completion is determined by
+            # whoever did the work, and the next step's depends_on check
+            # requires DONE, so leaving it at REVIEW stalls the chain on its
+            # own finished steps.
+            #
+            # Narrower than it looks: only tasks this chain ran reach here.
+            # A CODEX-* task run through `team run` still lands at REVIEW for
+            # a person, which is CLAUDE.md section 12's rule and is unchanged.
+            task.status = DONE
             index, attempt = index + 1, 1
             continue
         if action == RETRY:
             attempt += 1
             continue
+        if action == PAUSE:
+            # Status untouched on purpose. The task is still todo; nothing
+            # about it is wrong, and the next call retries it as normal.
+            task.notes.append(f"PAUSED: {why}")
+            result.paused_at = task.id
+            result.stopped_because = why
+            return result
+
+        if action == REVIEW_WAIT:
+            task.status = REVIEW
+            task.review_note = why
+            task.notes.append(f"REVIEW: {why}")
+            result.awaiting_review = task.id
+            result.stopped_because = why
+            return result
+
         if action == REROUTE:
             # The board keeps the audit trail: who it went to and why. The
             # allowlist is NOT changed - a handoff moves the work, never the

@@ -1030,7 +1030,7 @@
       "id": "PLAN-game02-01",
       "title": "[game02] 핵심 루프와 성공 조건을 정한다",
       "owner": "codex",
-      "status": "blocked",
+      "status": "done",
       "goal": "Game02 아이들 공장 타이쿤을 만든다. 방치해도 자원이 쌓이고, 설비를 업그레이드해 생산량을 늘리는 핵심 루프.\n\n이 작업은 그중 '핵심 루프와 성공 조건을 정한다' 단계다. 프로젝트: game02.",
       "files": [
         "docs/**"
@@ -1042,7 +1042,15 @@
       "depends_on": [],
       "notes": [
         "manager.build_plan 이 'Game02 아이들 공장 타이쿤을 만든다. 방치해도 자원이 쌓이고, 설비를 업그레이드해 생산량을 늘리는 핵심 루프.' 한 문장에서 만든 계획의 1/7 단계.",
-        "BLOCKED: the run raised CodexLimited: Codex subscription limit reached and the run produced nothing usable. Policy on_codex_limit forbids escalating to a paid API - fall back to ['local_ai_review', 'claude_final_review']. Output: OpenAI Codex v0.151.0\n--------\nworkdir: C:\\Users\\VASCO-PC03\\source\\repos\\Dory_tycoon.worktrees\\check-repo-status-and-continue-modifications\nmodel: gpt-5.6-sol\nprovider: openai\napproval: never\nsandbox: workspace-write [workdir, /tmp, $TMPDIR]\nreasoning effort: none\nreasoning summaries: none\nsession i"
+        "BLOCKED: the run raised CodexLimited: Codex subscription limit reached and the run produced nothing usable. Policy on_codex_limit forbids escalating to a paid API - fall back to ['local_ai_review', 'claude_final_review']. Output: OpenAI Codex v0.151.0\n--------\nworkdir: C:\\Users\\VASCO-PC03\\source\\repos\\Dory_tycoon.worktrees\\check-repo-status-and-continue-modifications\nmodel: gpt-5.6-sol\nprovider: openai\napproval: never\nsandbox: workspace-write [workdir, /tmp, $TMPDIR]\nreasoning effort: none\nreasoning summaries: none\nsession i",
+        "BLOCKED: the run raised CodexUnavailable: codex --version could not run [tried: codex] - nothing launchable at that path. On Windows the bare name cannot work: npm's extension-less shim is not a Win32 executable and subprocess does not apply PATHEXT. Run AI_GAME_COMPANY/tools/detect-environment.ps1 so the .cmd path is recorded in HARDWARE_PROFILE.json.: [WinError 2] 지정된 파일을 찾을 수 없습니다",
+        "BLOCKED: the run raised CodexUnavailable: codex --version could not run [tried: codex] - nothing launchable at that path. On Windows the bare name cannot work: npm's extension-less shim is not a Win32 executable and subprocess does not apply PATHEXT. Run AI_GAME_COMPANY/tools/detect-environment.ps1 so the .cmd path is recorded in HARDWARE_PROFILE.json.: [WinError 2] 지정된 파일을 찾을 수 없습니다",
+        "CHAIN STOPPED: 같은 실패가 2회 반복됐습니다 (hash dcff7a2999e4). 남은 재시도를 태우지 않고 멈춥니다.",
+        "BLOCKED: the run raised CodexLimited: Codex subscription limit reached and the run produced nothing usable. Policy on_codex_limit forbids escalating to a paid API - fall back to ['local_ai_review', 'claude_final_review']. Output: 2026-09-13T02:02:27.649705Z ERROR codex_models_manager::manager: failed to load models cache: EOF while parsing a value at line 1 column 0\nOpenAI Codex v0.151.0\n--------\nworkdir: C:\\Users\\VASCO-PC03\\source\\repos\\Dory_tycoon.worktrees\\check-repo-status-and-continue-modifications\nmodel: gpt-5.6-sol\npr",
+        "PAUSED: Codex 구독 한도. 한도가 돌아오면 이어서 진행합니다.",
+        "BLOCKED: the run raised CodexLimited: Codex subscription limit reached and the run produced nothing usable. Policy on_codex_limit forbids escalating to a paid API - fall back to ['local_ai_review', 'claude_final_review']. Output: OpenAI Codex v0.151.0\n--------\nworkdir: C:\\Users\\VASCO-PC03\\source\\repos\\Dory_tycoon.worktrees\\check-repo-status-and-continue-modifications\nmodel: gpt-5.6-sol\nprovider: openai\napproval: never\nsandbox: workspace-write [workdir, /tmp, $TMPDIR]\nreasoning effort: none\nreasoning summaries: none\nsession i",
+        "REVIEW: 로컬 모델(Qwen3-VL:4b)이 STATUS 를 내지 않아 이 판정은 모델이 아니라 executors.py 가 붙인 것입니다.",
+        "CONTINUE: 사람이 검토를 통과시켰습니다 (로컬 모델(Qwen3-VL:4b)이 STATUS 를 내지 않아 이 판정은 모델이 아니라 executors.py 가 붙인 것입니다.)."
       ],
       "changed_files": [],
       "last_run": "",
@@ -1058,7 +1066,7 @@
       "id": "PLAN-game02-02",
       "title": "[game02] 생성기와 GameSpec 구조를 정한다",
       "owner": "codex",
-      "status": "todo",
+      "status": "blocked",
       "goal": "Game02 아이들 공장 타이쿤을 만든다. 방치해도 자원이 쌓이고, 설비를 업그레이드해 생산량을 늘리는 핵심 루프.\n\n이 작업은 그중 '생성기와 GameSpec 구조를 정한다' 단계다. 프로젝트: game02.",
       "files": [
         "docs/**"
@@ -1071,7 +1079,9 @@
         "PLAN-game02-01"
       ],
       "notes": [
-        "manager.build_plan 이 'Game02 아이들 공장 타이쿤을 만든다. 방치해도 자원이 쌓이고, 설비를 업그레이드해 생산량을 늘리는 핵심 루프.' 한 문장에서 만든 계획의 2/7 단계."
+        "manager.build_plan 이 'Game02 아이들 공장 타이쿤을 만든다. 방치해도 자원이 쌓이고, 설비를 업그레이드해 생산량을 늘리는 핵심 루프.' 한 문장에서 만든 계획의 2/7 단계.",
+        "CHAIN STOPPED: 같은 실패가 2회 반복됐습니다 (hash 998fc9b2d0ce). 남은 재시도를 태우지 않고 멈춥니다.",
+        "BLOCKED: the run raised CodexLimited: Codex subscription limit reached and the run produced nothing usable. Policy on_codex_limit forbids escalating to a paid API - fall back to ['local_ai_review', 'claude_final_review']. Output: OpenAI Codex v0.151.0\n--------\nworkdir: C:\\Users\\VASCO-PC03\\source\\repos\\Dory_tycoon.worktrees\\check-repo-status-and-continue-modifications\nmodel: gpt-5.6-sol\nprovider: openai\napproval: never\nsandbox: workspace-write [workdir, /tmp, $TMPDIR]\nreasoning effort: none\nreasoning summaries: none\nsession i"
       ],
       "changed_files": [],
       "last_run": "",

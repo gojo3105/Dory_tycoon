@@ -91,6 +91,16 @@ MARKERS: dict[str, tuple[Marker, ...]] = {
     "git-status": (
         _m(r"\S", "작업 트리의 변경 파일을 세는 중"),
     ),
+    "chain-run": (
+        _m(r"^=== CHAIN ", "계획 단계를 순서대로 실행하는 중"),
+        _m(r"^  \[일시정지\]", "Codex 한도로 일시정지 · 한도 복귀 후 이어짐"),
+        _m(r"^  \[검토 대기\]", "검토 대기 · 계속 진행 버튼이 필요합니다"),
+        _m(r"^  \[OK\]", "단계 통과 · 다음으로"),
+        _m(r"^체인 완료", "체인 완료"),
+    ),
+    "chain-continue": (
+        _m(r"^=== CHAIN ", "검토를 통과시키고 이어서 실행하는 중"),
+    ),
     "ollama-list": (
         _m(r"\S", "설치된 모델과 라이선스·RAM 적합성을 확인하는 중"),
     ),
@@ -109,6 +119,8 @@ ACTION_LABEL = {
     "codex-doctor": "Codex 진단",
     "git-status": "변경 파일 확인",
     "ollama-list": "설치된 모델 확인",
+    "chain-run": "체인 진행",
+    "chain-continue": "계속 진행",
     "dashboard": "대시보드 새로고침",
 }
 

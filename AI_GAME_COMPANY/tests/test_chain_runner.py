@@ -56,8 +56,16 @@ class VerdictTests(unittest.TestCase):
     def test_status_words_map_to_success_or_failure(self):
         for word in ("OK", "DONE", "complete", "SUCCESS", "pass"):
             self.assertIs(True, chain.read_verdict(f"STATUS: {word}").succeeded, word)
-        for word in ("FAILED", "blocked", "ERROR", "NEEDS_HUMAN_REVIEW"):
+        for word in ("FAILED", "blocked", "ERROR"):
             self.assertIs(False, chain.read_verdict(f"STATUS: {word}").succeeded, word)
+
+    def test_asking_for_review_is_neither_success_nor_failure(self):
+        # Retrying an agent that said it was unsure gets the same uncertainty
+        # a second time. It is a question for a person, not a failure.
+        for word in ("NEEDS_HUMAN_REVIEW", "review", "UNSURE"):
+            verdict = chain.read_verdict(f"STATUS: {word}")
+            self.assertTrue(verdict.needs_review, word)
+            self.assertIsNone(verdict.succeeded, word)
 
     def test_an_unknown_word_is_not_success(self):
         self.assertIsNone(chain.read_verdict("STATUS: 아마도").succeeded)
@@ -118,11 +126,20 @@ class DecisionTests(unittest.TestCase):
         action, _ = self.decide(ok("STATUS: OK\nHANDOFF_TO: qa_engineer"))
         self.assertEqual(chain.CONTINUE, action)
 
-    def test_a_subscription_limit_stops_rather_than_retrying(self):
+    def test_a_subscription_limit_pauses_rather_than_failing(self):
+        # A pause, not a stop: the work is fine and a subscription comes
+        # back. BLOCKED would read as "somebody go and fix this".
         action, why = self.decide(chain.StepResult(ok=False, limited=True,
                                                    error="limit"))
-        self.assertEqual(chain.STOP, action)
-        self.assertIn("유료 API", why)
+        self.assertEqual(chain.PAUSE, action)
+        self.assertIn("한도", why)
+
+    def test_a_request_for_review_waits_instead_of_retrying(self):
+        action, why = self.decide(chain.StepResult(
+            ok=True, changed=["docs/a.md"],
+            summary="STATUS: NEEDS_HUMAN_REVIEW\nHANDOFF_REASON: 수치가 맞는지 모르겠다"))
+        self.assertEqual(chain.REVIEW_WAIT, action)
+        self.assertIn("수치", why)
 
     def test_running_past_max_retry_stops(self):
         action, _ = self.decide(chain.StepResult(ok=False, summary="STATUS: FAILED"),
@@ -222,6 +239,9 @@ class ChainTests(unittest.TestCase):
         self.assertIn("한도", result.stopped_because)
 
     def test_finished_steps_are_skipped_on_a_resumed_chain(self):
+        # REVIEW with no review_note is what teamwork.run_task leaves behind
+        # after a SUCCESSFUL run. Treating that as a question for a person
+        # would stop every resumed chain at its own finished work.
         target = board_with("game_director", "gameplay_engineer")
         target.tasks[0].status = REVIEW
         calls: list[str] = []
@@ -251,6 +271,90 @@ class ChainTests(unittest.TestCase):
         for forbidden in ("import subprocess", "Popen(", "codex.implement(",
                           "git commit", "git push"):
             self.assertNotIn(forbidden, source)
+
+
+class PauseAndReviewTests(unittest.TestCase):
+    """The two ways a chain stops without anything being wrong."""
+
+    def test_a_limit_pauses_without_blocking_the_task(self):
+        target = board_with("game_director", "gameplay_engineer")
+        result = chain.run_chain(
+            target, "PLAN-t-",
+            lambda t, r: chain.StepResult(ok=False, limited=True, error="limit"),
+            roles=ROLES)
+        self.assertTrue(result.paused)
+        self.assertEqual("PLAN-t-01", result.paused_at)
+        # Status untouched: nothing about the task is wrong.
+        self.assertNotEqual(BLOCKED, target.tasks[0].status)
+
+    def test_a_paused_chain_resumes_where_it_stopped(self):
+        target = board_with("game_director", "gameplay_engineer")
+        state = {"limited": True}
+
+        def execute(task, role):
+            if state["limited"]:
+                return chain.StepResult(ok=False, limited=True, error="limit")
+            return ok()
+
+        first = chain.run_chain(target, "PLAN-t-", execute, roles=ROLES)
+        self.assertTrue(first.paused)
+        state["limited"] = False
+        second = chain.run_chain(target, "PLAN-t-", execute, roles=ROLES)
+        self.assertTrue(second.finished)
+
+    def test_an_unsure_agent_parks_the_task_for_a_person(self):
+        target = board_with("game_director", "gameplay_engineer")
+        result = chain.run_chain(
+            target, "PLAN-t-",
+            lambda t, r: chain.StepResult(
+                ok=True, changed=["docs/a.md"],
+                summary="STATUS: NEEDS_HUMAN_REVIEW\nHANDOFF_REASON: 확신이 없다"),
+            roles=ROLES)
+        self.assertEqual("PLAN-t-01", result.awaiting_review)
+        self.assertEqual(REVIEW, target.tasks[0].status)
+        self.assertIn("확신이 없다", target.tasks[0].review_note)
+
+    def test_a_waiting_task_is_not_re_run_on_the_next_call(self):
+        # Re-invoking while a review is outstanding must not spend another
+        # Codex call to be told the same thing.
+        target = board_with("game_director")
+        target.tasks[0].status = REVIEW
+        target.tasks[0].review_note = "확인 필요"
+        calls: list[str] = []
+
+        result = chain.run_chain(target, "PLAN-t-",
+                                 lambda t, r: calls.append(t.id) or ok(),
+                                 roles=ROLES)
+        self.assertEqual([], calls)
+        self.assertEqual("PLAN-t-01", result.awaiting_review)
+
+    def test_continuing_steps_over_the_task_without_re_running_it(self):
+        # The work already happened; only the approval was missing.
+        target = board_with("game_director", "gameplay_engineer")
+        target.tasks[0].status = REVIEW
+        target.tasks[0].review_note = "확인 필요"
+        calls: list[str] = []
+
+        def execute(task, role):
+            calls.append(task.id)
+            return ok()
+
+        result = chain.run_chain(target, "PLAN-t-", execute, roles=ROLES,
+                                 approved={"PLAN-t-01"})
+        self.assertTrue(result.finished)
+        self.assertEqual(["PLAN-t-02"], calls)
+        self.assertEqual("", target.tasks[0].review_note)
+
+    def test_approving_one_task_does_not_clear_another(self):
+        target = board_with("game_director", "gameplay_engineer")
+        for task in target.tasks:
+            task.status = REVIEW
+            task.review_note = "확인 필요"
+
+        result = chain.run_chain(target, "PLAN-t-", lambda t, r: ok(),
+                                 roles=ROLES, approved={"PLAN-t-01"})
+        self.assertEqual("PLAN-t-02", result.awaiting_review)
+        self.assertEqual("확인 필요", target.tasks[1].review_note)
 
 
 if __name__ == "__main__":

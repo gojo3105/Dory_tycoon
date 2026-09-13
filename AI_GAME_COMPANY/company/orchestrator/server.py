@@ -78,6 +78,17 @@ class Action:
     timeout: int = 900
 
 
+def _project_of(task_id: str) -> str:
+    """The project slug inside a PLAN-<slug>-<nn> id.
+
+    Derived here rather than taken from the request: the browser sends one
+    id, and the project it belongs to is a fact about that id, not a second
+    thing a caller gets to choose.
+    """
+    parts = (task_id or "").split("-")
+    return parts[1] if len(parts) >= 3 else ""
+
+
 def _python() -> str:
     """This interpreter, so a venv is not silently swapped for the system one."""
     return sys.executable or "python"
@@ -133,6 +144,21 @@ ACTIONS: dict[str, Action] = {
             "--out", str(root / "Assets" / "Common" / "Art" / "Runner" / "player_slide.png"),
         ],
         timeout=1800),
+    # Drive a plan to the end. Safe to press repeatedly: a Codex limit
+    # pauses rather than failing, so pressing this again once the
+    # subscription is back resumes at the same step.
+    "chain-run": Action(
+        "체인 진행",
+        lambda root, arg: [_python(), "-m", "company.orchestrator.main",
+                           "team", "chain", "--project", arg],
+        needs="project", timeout=5400),
+    # The 계속 진행 button. Continues past ONE review pause, named by task id.
+    "chain-continue": Action(
+        "계속 진행",
+        lambda root, arg: [_python(), "-m", "company.orchestrator.main",
+                           "team", "chain", "--project", _project_of(arg),
+                           "--approve", arg],
+        needs="review", timeout=5400),
     "git-status": Action(
         "변경된 파일",
         lambda root, arg: ["git", "status", "--short", "--untracked-files=all"],
@@ -256,6 +282,17 @@ class Runner:
                    if t.owner == "codex" and t.status not in ("done", "canceled")}
             if arg not in ids:
                 return False, f"작업판에 Codex 소유의 '{arg}' 작업이 없습니다."
+        elif action.needs == "project":
+            prefix = f"PLAN-{arg}-"
+            if not any(t.id.startswith(prefix) for t in self.board().tasks):
+                return False, f"'{arg}' 로 시작하는 계획이 작업판에 없습니다."
+        elif action.needs == "review":
+            # Only a task actually parked for review. Without this the button
+            # would be a way to mark anything done from a browser.
+            waiting = {t.id for t in self.board().tasks
+                       if t.status == "review" and getattr(t, "review_note", "")}
+            if arg not in waiting:
+                return False, f"'{arg}' 은 검토 대기 중인 작업이 아닙니다."
         elif action.needs == "game":
             if not (self.repo_root / "GameSpecs" / f"{arg}.json").is_file():
                 return False, f"GameSpecs/{arg}.json 이 없습니다."

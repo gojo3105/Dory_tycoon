@@ -98,6 +98,12 @@ class Task:
     priority: int = 0
     handoff_from: str = ""
     handoff_to: str = ""
+    #: Why the chain parked this for a person, set by chain_runner and
+    #: cleared when somebody continues past it. REVIEW status alone cannot
+    #: carry this: teamwork.run_task already sets REVIEW on a SUCCESSFUL
+    #: Codex run, so without a separate mark a resumed chain would stop at
+    #: its own finished steps.
+    review_note: str = ""
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "Task":
@@ -118,7 +124,7 @@ class Task:
         # role should not grow `"agent_role": ""` the first time something
         # saves the board.
         for name in ("agent_role", "department", "task_type",
-                     "handoff_from", "handoff_to"):
+                     "handoff_from", "handoff_to", "review_note"):
             value = getattr(self, name)
             if value:
                 data[name] = value
