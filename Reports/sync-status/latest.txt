@@ -1,10 +1,10 @@
 ﻿# Auto-sync status
 
-Generated: 2026-09-13 11:10:57
-Outcome: FAILED
-Reason: Uncommitted changes to tracked files - stopping. Commit or stash them first: |  | M AI_GAME_COMPANY/company/orchestrator/agent_registry.py |  M AI_GAME_COMPANY/company/orchestrator/dashboard.py |  M AI_GAME_COMPANY/company/orchestrator/game_creator.py |  M AI_GAME_COMPANY/company/orchestrator/progress.py |  M AI_GAME_COMPANY/company/orchestrator/server.py |  M AI_GAME_COMPANY/company/orchestrator/teamwork.py |  M AI_GAME_COMPANY/config/AGENTS.json |  M AI_GAME_COMPANY/tests/test_agent_registry.py |  M AI_GAME_COMPANY/tests/test_dashboard.py |  M AI_GAME_COMPANY/tests/test_game_creator.py |  M ...
+Generated: 2026-09-13 11:25:56
+Outcome: BLOCKED
+Reason: Uncommitted changes to tracked files: M AI_GAME_COMPANY/company/orchestrator/agent_registry.py |  M AI_GAME_COMPANY/company/orchestrator/dashboard.py |  M AI_GAME_COMPANY/company/orchestrator/game_creator.py |  M AI_GAME_COMPANY/company/orchestrator/progress.py |  M AI_GAME_COMPANY/company/orchestrator/server.py |  M AI_GAME_COMPANY/company/orchestrator/teamwork.py |  M AI_GAME_COMPANY/config/AGENTS.json |  M AI_GAME_COMPANY/tests/test_agent_registry.py |  M AI_GAME_COMPANY/tests/test_dashboard.py |  M AI_GAME_COMPANY/tests/test_game_creator.py |  M AI_GAME_COMPANY/tests/test_server.py |  M AI...
 Last-Success: 2026-09-12 20:10:54
-Local-Head: 5e3975b
+Local-Head: f4dbd3e
 Upstream-Head: 646dd7a
 Branch: claude/delete-current-content-mgn4xm
 
