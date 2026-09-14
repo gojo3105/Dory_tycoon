@@ -1229,6 +1229,110 @@
       "agent_role": "release_engineer",
       "task_type": "build",
       "handoff_from": "quality_reviewer"
+    },
+    {
+      "id": "CODEX-BUILDGATE1",
+      "title": "Wire release_gate to the chain, so a plan cannot finish without an APK",
+      "owner": "codex",
+      "status": "review",
+      "goal": "chain_runner can report a plan complete with no APK on disk. The release step\nis task_type 'build' with an allowlist of Reports/ and Builds/; run through\nCodexExecutor it asks Codex to write a REPORT about the build. Codex cannot\nrun Unity. So the last step of every chain produces prose, its own STATUS: OK\nis believed, and the plan is marked done with nothing built. CLAUDE.md section\n8's first principle, violable by structure rather than by a bug.\n\nDO NOT WRITE NEW DECISION LOGIC. Everything needed already exists and nothing\nconnects it:\n  quality_gates.release_gate(ReleaseEvidence) already decides, and already\n    distinguishes COMPILE_FAILURE, UNITY_BUILD_FAILURE and ARTIFACT_MISSING,\n    including an APK that exists but is not tied to the current run.\n  unity_runner.find_apk(game_id) already finds the newest non-empty artifact.\n  UnityResult already carries exit_code and ok.\n  Nothing calls quality_gates at all - grep finds only its own test.\n\nWrite the connector: a BuildExecutor in executors.py chosen by task_type\n'build' BEFORE the Codex/Ollama choice. It runs the real build the way\norchestrator build --game does, fills a ReleaseEvidence from what came back,\ncalls release_gate, and turns the GateResult into the StepResult that\nchain_runner reads: passed -> STATUS: OK, otherwise STATUS: FAILED with the\ngate's own category and reasons in the summary.\n\nThe game id comes from the plan id (GAMENN-STEP), not from the task text.\nPut the APK path, size and sha256 in the summary - that is what makes the\nclaim checkable afterwards.",
+      "files": [
+        "AI_GAME_COMPANY/company/orchestrator/executors.py",
+        "AI_GAME_COMPANY/company/orchestrator/chain_runner.py",
+        "AI_GAME_COMPANY/tests/test_executors.py"
+      ],
+      "acceptance": [
+        "No new pass/fail logic: release_gate makes the decision.",
+        "A build that leaves no APK ends the chain without the plan marked done.",
+        "The gate's category (ARTIFACT_MISSING, UNITY_BUILD_FAILURE, COMPILE_FAILURE) reaches the summary.",
+        "The summary names the APK path, size and sha256 on success.",
+        "A test proves the no-APK case fails, using a temporary Builds/ tree rather than a real Unity run."
+      ],
+      "depends_on": [],
+      "notes": [
+        "Claude 가 명세만 작성. 2026-09-15 확인: quality_gates.py 는 완성돼 있는데 호출하는 곳이 한 군데도 없음. 판정은 있고 연결이 없는 상태.",
+        "2026-09-15: DONE BY CLAUDE, not Codex. 사용자 지시 '버그가 없는 선으로 너가 직접 작업해'. 규칙 1 예외, CLAUDE.md 2절에 기록. 새 판정 로직은 쓰지 않음 - quality_gates.py 가 판정하고 executors.py 는 증거만 모아 넘김.",
+        "executors.BuildExecutor 가 run_pipeline 을 실제로 돌리고 ReleaseEvidence 를 채워 release_gate 에 넘깁니다. task_type 'build' 이면 Codex/Ollama 선택 전에 먼저 잡습니다(step_kind). 실측: game02 는 GameSpec 이 없어 generate 가 1 로 끝났고 GATE: COMPILE_FAILURE 로 체인이 멈췄습니다. 이전에는 이 단계가 로컬 모델의 문서 한 장으로 'STATUS: OK' 를 내고 체인이 완료로 끝났습니다."
+      ],
+      "changed_files": [
+        "AI_GAME_COMPANY/company/orchestrator/executors.py",
+        "AI_GAME_COMPANY/company/orchestrator/main.py",
+        "AI_GAME_COMPANY/company/orchestrator/unity_runner.py",
+        "AI_GAME_COMPANY/tests/test_executors.py",
+        "AI_GAME_COMPANY/tests/test_unity_runner.py"
+      ],
+      "last_run": "",
+      "title_ko": "release_gate 를 체인에 연결 (APK 없이 완료 불가)",
+      "agent_role": "systems_engineer",
+      "task_type": "core_system",
+      "priority": 90
+    },
+    {
+      "id": "CODEX-QAGATE1",
+      "title": "Wire qa_gate to the chain, so the QA step runs the tests it writes",
+      "owner": "codex",
+      "status": "review",
+      "goal": "The QA step has Codex write files under Assets/GameFactory/Tests/ and nothing\nruns them. They are not even compiled. The step reports its own STATUS: OK and\nthe chain advances on test code that has never executed.\n\nSame shape as CODEX-BUILDGATE1: the decision already exists and is unwired.\n  quality_gates.qa_gate(list[Finding]) already ranks BLOCKER/CRITICAL over\n    lesser failures and already returns NOT_VERIFIED, which is neither PASS\n    nor FAIL - exactly the state a suite that did not run is in.\n  UnityResult already carries passed, failed, skipped and failures as\n    (name, message) pairs, parsed from the NUnit XML.\n\nWrite the connector: a TestExecutor in executors.py chosen by task_type 'test'\nor 'qa'. Two phases in one step - Codex writes the tests as now, then the real\nsuite runs the way orchestrator test --platform playmode does. Turn each\nUnityResult failure into a Finding and let qa_gate decide.\n\nA suite that did not run at all is NOT_VERIFIED, not PASS. That distinction is\nthe reason qa_gate has three results instead of two, and collapsing it would\nthrow away the only honest answer for 'nobody checked'.\n\nIf the write phase fails, do not run the suite: tests that were not written\ncannot pass, and a green result there is the most misleading thing this chain\ncould print. A Codex limit during the write phase pauses the chain like any\nother writing step rather than running the previous suite.",
+      "files": [
+        "AI_GAME_COMPANY/company/orchestrator/executors.py",
+        "AI_GAME_COMPANY/tests/test_executors.py"
+      ],
+      "acceptance": [
+        "No new pass/fail logic: qa_gate makes the decision.",
+        "A suite that did not run reports NOT_VERIFIED, never PASS.",
+        "Failing test names reach the summary.",
+        "A failed write phase skips the run phase.",
+        "A Codex limit during the write phase pauses rather than running the old suite."
+      ],
+      "depends_on": [
+        "CODEX-BUILDGATE1"
+      ],
+      "notes": [
+        "Claude 가 명세만 작성. BUILDGATE1 과 같은 구멍의 다른 절반.",
+        "2026-09-15: DONE BY CLAUDE, not Codex. 사용자 지시 '버그가 없는 선으로 너가 직접 작업해'. 규칙 1 예외, CLAUDE.md 2절에 기록. 새 판정 로직은 쓰지 않음 - quality_gates.py 가 판정하고 executors.py 는 증거만 모아 넘김.",
+        "executors.TestExecutor 는 2단계입니다. 1) Codex 가 테스트를 씁니다(기존 에이전트 경로 그대로라 한도/쓰기 뮤텍스/allowlist 가 모두 그대로 적용). 2) run_tests 로 실제 실행하고 findings_from 이 UnityResult 를 Finding 으로 바꿔 qa_gate 가 판정합니다. NUnit XML 이 없으면 PASS 가 아니라 NOT_VERIFIED. 작성 실패 시 실행하지 않고, 한도면 멈춥니다. Codex 보고서는 summary 에 남기되 STATUS/HANDOFF_TO 를 괄호로 묶어(quote_foreign) 게이트 판정을 덮지 못하게 했습니다."
+      ],
+      "changed_files": [
+        "AI_GAME_COMPANY/company/orchestrator/executors.py",
+        "AI_GAME_COMPANY/company/orchestrator/main.py",
+        "AI_GAME_COMPANY/tests/test_executors.py"
+      ],
+      "last_run": "",
+      "title_ko": "qa_gate 를 체인에 연결 (QA 단계가 테스트를 실행)",
+      "agent_role": "qa_engineer",
+      "task_type": "test",
+      "priority": 85
+    },
+    {
+      "id": "CODEX-QUALITYSTEP1",
+      "title": "quality_gate needs a step that can honestly refuse to score",
+      "owner": "codex",
+      "status": "todo",
+      "goal": "quality_gate scores seven dimensions against a 100-point rubric and refuses to\naccept graphics, ui_ux or animation_vfx scores unless visually_inspected is\ntrue. That refusal is the interesting part: it is a guard against an agent\nthat never saw the screen inventing a number for how the game looks.\n\nNothing calls it. The chain's quality_reviewer step writes a document instead.\n\nWire it into the review step. The hard part is not the call, it is being\nhonest about visually_inspected: pass true only when a screenshot or a device\nrun actually happened in this chain. If nothing looked at the screen, the\nvisual dimensions stay None and the gate returns NOT_VERIFIED, which is the\ncorrect answer and must not be worked around.\n\nOllama is running Qwen3-VL here, which has vision and could look at a\nscreenshot. That is a legitimate way to set visually_inspected, but only if a\nreal image was actually passed to it - and the summary must say which model\nlooked and at what, so the score can be doubted later.",
+      "files": [
+        "AI_GAME_COMPANY/company/orchestrator/executors.py",
+        "AI_GAME_COMPANY/company/orchestrator/quality_gates.py",
+        "AI_GAME_COMPANY/tests/test_executors.py"
+      ],
+      "acceptance": [
+        "visually_inspected is true only when an image was actually shown to something.",
+        "With no inspection, the visual dimensions are None and the result is NOT_VERIFIED.",
+        "The summary records which model inspected what.",
+        "quality_gate's existing refusal is not weakened to make a step pass."
+      ],
+      "depends_on": [
+        "CODEX-BUILDGATE1"
+      ],
+      "notes": [
+        "Claude 가 명세만 작성. 세 게이트 중 마지막 미연결분.",
+        "2026-09-15: 아직 미연결. BUILDGATE1/QAGATE1 은 Claude 가 직접 했지만 이 건은 '무엇을 실제로 봤는가' 를 정직하게 기록하는 부분이라 남겨둡니다."
+      ],
+      "changed_files": [],
+      "last_run": "",
+      "title_ko": "quality_gate 를 검토 단계에 연결 (안 본 것은 점수 없음)",
+      "agent_role": "systems_engineer",
+      "task_type": "core_system",
+      "priority": 55
     }
   ]
 }

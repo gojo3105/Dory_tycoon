@@ -223,12 +223,18 @@ class InvocationTests(unittest.TestCase):
             self.assertIn(entry, text, f"{entry} is not in the workflow that builds APKs")
 
     def test_pipeline_stops_at_first_failure(self):
+        fake = FakeRunner(exit_code=1)
         failing = UnityRunner(repo_root=self.root, policy=Policy.load(REAL_POLICY),
-                              runner=FakeRunner(exit_code=1))
+                              runner=fake)
         results, apk = failing.run_pipeline("game01")
         self.assertEqual(len(results), 1)          # generate only
         self.assertEqual(results[0].step, "generate")
         self.assertIsNone(apk)
+        # The results list is the report; this is the action. They disagreed:
+        # the loop used to evaluate generate AND validate before checking
+        # either, so validate really launched Unity against a project that had
+        # just failed to generate, and only the report looked correct.
+        self.assertEqual(1, len(fake.scripts), "validate ran after generate failed")
 
     def test_test_flags_match_the_workflow(self):
         if not TEST_WORKFLOW.is_file():

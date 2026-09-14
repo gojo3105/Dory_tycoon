@@ -355,7 +355,8 @@ def _team_chain(args, board) -> int:
     from company.orchestrator import chain_runner as chain
     from company.orchestrator.chain_runner import StepResult
     from company.orchestrator.executors import (
-        CodexExecutor, OllamaExecutor, writing_roles)
+        BuildExecutor, CodexExecutor, OllamaExecutor, TestExecutor, step_kind,
+        writing_roles)
 
     game = (args.game or "").strip().lower()
     prefix = f"{game.upper()}-"
@@ -381,7 +382,7 @@ def _team_chain(args, board) -> int:
     writers = writing_roles(registry)
     state = {"limited": False}
 
-    def execute(task, role):
+    def agent_step(task, role):
         """Codex first; the local model only once Codex has actually refused.
 
         The flag is set by a real refusal rather than guessed in advance: the
@@ -408,6 +409,31 @@ def _team_chain(args, board) -> int:
                               error="로컬 모델 폴백이 없습니다.")
         return local_exec(task, role)
 
+    # The Unity editor these two need. Resolved once, up front, so a machine
+    # with no editor is reported before a chain spends Codex calls reaching a
+    # build step that cannot run.
+    unity_path = getattr(args, "unity_path", None) or UnityRunner.unity_path_from_profile(
+        CONFIG_DIR / "HARDWARE_PROFILE.json")
+    build_step = BuildExecutor(repo_root=REPO_ROOT, policy=policy,
+                               unity_path=unity_path)
+    test_step = TestExecutor(repo_root=REPO_ROOT, policy=policy,
+                             write_phase=agent_step, unity_path=unity_path)
+
+    def execute(task, role):
+        """Who runs this step - decided by the work, not by the job title.
+
+        The table is step_kind's, next to the executors, so the planner's
+        task_type strings and this routing have one definition between them
+        and a test can read what both sides use. Why role is the wrong
+        question is written there.
+        """
+        kind = step_kind(task)
+        if kind == "build":
+            return build_step(task, role)
+        if kind == "test":
+            return test_step(task, role)
+        return agent_step(task, role)
+
     def announce(record):
         mark = {"continue": "OK", "retry": "재시도", "reroute": "인계",
                 "pause": "일시정지", "review_wait": "검토 대기",
@@ -418,6 +444,11 @@ def _team_chain(args, board) -> int:
     print(f"=== CHAIN {prefix} ===")
     if model:
         print(f"  Codex 한도 시 폴백: 로컬 {model} (문서 역할만)")
+    if unity_path:
+        print(f"  빌드/테스트 단계는 실제 Unity 로 실행: {unity_path}")
+    else:
+        print("  경고: Unity 편집기 경로가 없어 빌드/테스트 단계는 실패로 처리됩니다.")
+        print("  AI_GAME_COMPANY/tools/detect-environment.ps1 을 먼저 실행하세요.")
     result = chain.run_chain(
         board, prefix, execute, roles={a.id for a in registry.list_agents()},
         approved=set(args.approve or ()), on_event=announce)
@@ -942,6 +973,8 @@ def main(argv: list[str] | None = None) -> int:
                       help="seconds before the Codex run is abandoned (default 1800)")
     team.add_argument("--dry-run", action="store_true",
                       help="print the prompt that would be sent and stop")
+    team.add_argument("--unity-path", default=None,
+                      help="for 'chain': Unity.exe path; defaults to HARDWARE_PROFILE.json")
     team.set_defaults(func=cmd_team)
 
     build = sub.add_parser("build", help="run generate/validate/build locally, no CI")

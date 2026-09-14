@@ -40,6 +40,12 @@ ENTRY_BUILD = "GameFactory.Editor.BuildAndroid.BuildFromCommandLine"
 
 WAIT_SCRIPT = Path("scripts") / "ci" / "wait-for-unity.ps1"
 
+#: The Build Report the Editor leaves behind, relative to the repo root.
+#: Named once because two places now check it - verify_build here, and the
+#: chain's release gate - and a build report that only one of them can find
+#: would be the quietest possible disagreement.
+BUILD_REPORT = Path("Logs") / "unity-build.log"
+
 
 def ps_quote(value: str) -> str:
     """Single-quoted PowerShell literal; ' is escaped by doubling it."""
@@ -331,7 +337,7 @@ class UnityRunner:
         rule gets broken by accident.
         """
         apk = self.find_apk(game_id)
-        report = self.repo_root / "Logs" / "unity-build.log"
+        report = self.repo_root / BUILD_REPORT
 
         self.policy.assert_build_verification(
             exit_code_ok=result.ok,
@@ -350,10 +356,23 @@ class UnityRunner:
         """
         results: list[UnityResult] = []
 
-        for step in (self.generate(game_id), self.validate()):
-            results.append(step)
-            if not step.ok:
-                return results, None
+        # Spelled out rather than looped over a tuple. `for step in
+        # (self.generate(game_id), self.validate())` reads like it stops at the
+        # first failure and does not: Python builds the tuple first, so BOTH
+        # calls happen before the loop body ever checks `ok`. A run against
+        # game02, which has no GameSpec, launched the editor twice - once to
+        # fail generating, once to validate a project that had not been
+        # generated. The results list looked right, so the existing test passed;
+        # only the invocation scripts on disk showed it.
+        generated = self.generate(game_id)
+        results.append(generated)
+        if not generated.ok:
+            return results, None
+
+        validated = self.validate()
+        results.append(validated)
+        if not validated.ok:
+            return results, None
 
         build = self.build_android(game_id)
         results.append(build)
