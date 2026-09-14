@@ -765,6 +765,255 @@
       "changed_files": [],
       "last_run": "2026-09-09",
       "title_ko": "스테이지·미션·성장·저장·튜토리얼·설정·광고·결제"
+    },
+    {
+      "id": "CODEX-MA-REGISTRY",
+      "title": "Complete the validated twelve-role agent registry",
+      "owner": "codex",
+      "status": "review",
+      "goal": "Make AGENTS.json the single validated source for all twelve role names, AI names, permissions, task types, departments and prompts.",
+      "files": [
+        "AI_GAME_COMPANY/config/AGENTS.json",
+        "AI_GAME_COMPANY/company/orchestrator/agent_registry.py",
+        "AI_GAME_COMPANY/tests/test_agent_registry.py"
+      ],
+      "acceptance": [
+        "UTF-8 BOM, version, required fields, duplicate IDs and unknown roles are validated.",
+        "All twelve role prompts remain data-driven and AI names are exposed.",
+        "Capability flags and task types are available to routing code."
+      ],
+      "depends_on": [],
+      "notes": [
+        "Executed by Codex on 2026-09-15; included in the 469-test passing suite."
+      ],
+      "changed_files": [
+        "AI_GAME_COMPANY/config/AGENTS.json",
+        "AI_GAME_COMPANY/company/orchestrator/agent_registry.py",
+        "AI_GAME_COMPANY/tests/test_agent_registry.py"
+      ],
+      "last_run": "2026-09-15",
+      "title_ko": "12개 역할·담당 AI 레지스트리 검증",
+      "agent_role": "systems_engineer",
+      "department": "플랫폼개발부",
+      "task_type": "core_system",
+      "priority": 100,
+      "handoff_to": "systems_engineer"
+    },
+    {
+      "id": "CODEX-MA-SCHEMA",
+      "title": "Add backward-compatible role and handoff fields to Task",
+      "owner": "codex",
+      "status": "review",
+      "goal": "Extend Task with optional agent role, department, task type, priority and structured handoff fields without losing legacy or future fields.",
+      "files": [
+        "AI_GAME_COMPANY/company/orchestrator/teamwork.py",
+        "AI_GAME_COMPANY/tests/test_teamwork.py"
+      ],
+      "acceptance": [
+        "Legacy tasks load and save without new empty fields being forced into them.",
+        "New role metadata round-trips.",
+        "Unknown task-level fields survive board status updates."
+      ],
+      "depends_on": [
+        "CODEX-MA-REGISTRY"
+      ],
+      "notes": [
+        "Executed by Codex on 2026-09-15; included in the 469-test passing suite."
+      ],
+      "changed_files": [
+        "AI_GAME_COMPANY/company/orchestrator/teamwork.py",
+        "AI_GAME_COMPANY/tests/test_teamwork.py"
+      ],
+      "last_run": "2026-09-15",
+      "title_ko": "기존 작업 호환 역할·인수인계 필드 추가",
+      "agent_role": "systems_engineer",
+      "department": "플랫폼개발부",
+      "task_type": "core_system",
+      "priority": 95,
+      "handoff_from": "systems_engineer",
+      "handoff_to": "systems_engineer"
+    },
+    {
+      "id": "CODEX-MA-DISPATCH",
+      "title": "Validate role routing and enforce one shared-tree writer",
+      "owner": "codex",
+      "status": "review",
+      "goal": "Route each task type to a registered role, reject invalid/read-only production edits, and prevent simultaneous code writers in the shared working tree.",
+      "files": [
+        "AI_GAME_COMPANY/company/orchestrator/agent_dispatcher.py",
+        "AI_GAME_COMPANY/tests/test_agent_routing.py"
+      ],
+      "acceptance": [
+        "Gameplay, UI, QA and release task types route correctly.",
+        "An explicit invalid role or disallowed task type is rejected.",
+        "A second writing role cannot reserve the working tree."
+      ],
+      "depends_on": [
+        "CODEX-MA-SCHEMA"
+      ],
+      "notes": [
+        "Executed by Codex on 2026-09-15; included in the 469-test passing suite."
+      ],
+      "changed_files": [
+        "AI_GAME_COMPANY/company/orchestrator/agent_dispatcher.py",
+        "AI_GAME_COMPANY/tests/test_agent_routing.py"
+      ],
+      "last_run": "2026-09-15",
+      "title_ko": "역할 라우팅·공유 작업트리 단일 작성자 적용",
+      "agent_role": "systems_engineer",
+      "department": "플랫폼개발부",
+      "task_type": "core_system",
+      "priority": 90,
+      "handoff_from": "systems_engineer",
+      "handoff_to": "systems_engineer"
+    },
+    {
+      "id": "CODEX-MA-MANAGER",
+      "title": "Create the seven-stage structured CEO and Producer planner",
+      "owner": "codex",
+      "status": "review",
+      "goal": "Turn one sentence into a validated seven-stage, Codex-owned, role-assigned dependency plan and persist it before execution.",
+      "files": [
+        "AI_GAME_COMPANY/company/orchestrator/manager.py",
+        "AI_GAME_COMPANY/company/orchestrator/orders.py",
+        "AI_GAME_COMPANY/tests/test_manager_planning.py",
+        "AI_GAME_COMPANY/tests/test_orders.py"
+      ],
+      "acceptance": [
+        "Raw goal, objective, success and priority use structured JSON.",
+        "Unknown roles, bad paths, empty goals, duplicate IDs and dependency cycles are rejected.",
+        "Natural-language department orders receive agent_role and task_type."
+      ],
+      "depends_on": [
+        "CODEX-MA-DISPATCH"
+      ],
+      "notes": [
+        "Executed by Codex on 2026-09-15; dry-run for Game02 produced exactly seven validated stages."
+      ],
+      "changed_files": [
+        "AI_GAME_COMPANY/company/orchestrator/manager.py",
+        "AI_GAME_COMPANY/company/orchestrator/orders.py",
+        "AI_GAME_COMPANY/tests/test_manager_planning.py",
+        "AI_GAME_COMPANY/tests/test_orders.py"
+      ],
+      "last_run": "2026-09-15",
+      "title_ko": "CEO 한 문장 → 7단계 구조화 작업 계획",
+      "agent_role": "systems_engineer",
+      "department": "플랫폼개발부",
+      "task_type": "core_system",
+      "priority": 85,
+      "handoff_from": "systems_engineer",
+      "handoff_to": "qa_engineer"
+    },
+    {
+      "id": "CODEX-MA-GATES",
+      "title": "Add evidence-based QA, quality and release gates",
+      "owner": "codex",
+      "status": "review",
+      "goal": "Prevent unverified tests, invented visual scores, critical defects or missing APKs from being promoted to release success.",
+      "files": [
+        "AI_GAME_COMPANY/company/orchestrator/quality_gates.py",
+        "AI_GAME_COMPANY/tests/test_quality_gates.py"
+      ],
+      "acceptance": [
+        "QA uses PASS, FAIL and NOT_VERIFIED with defined severities.",
+        "Quality target is 85 and visual scores require visual evidence.",
+        "Release requires process success, Unity report success and a current APK."
+      ],
+      "depends_on": [
+        "CODEX-MA-MANAGER"
+      ],
+      "notes": [
+        "Executed by Codex on 2026-09-15; included in the 469-test passing suite."
+      ],
+      "changed_files": [
+        "AI_GAME_COMPANY/company/orchestrator/quality_gates.py",
+        "AI_GAME_COMPANY/tests/test_quality_gates.py"
+      ],
+      "last_run": "2026-09-15",
+      "title_ko": "QA·품질점수·APK 증거 게이트",
+      "agent_role": "qa_engineer",
+      "department": "품질보증부",
+      "task_type": "qa",
+      "priority": 80,
+      "handoff_from": "systems_engineer",
+      "handoff_to": "ui_ux_engineer"
+    },
+    {
+      "id": "CODEX-MA-CLI-UI",
+      "title": "Expose role workflow through CLI and live office dashboard",
+      "owner": "codex",
+      "status": "review",
+      "goal": "Provide team agents, status, order and next commands while showing real task-derived role state, AI name, current task and last result in the office.",
+      "files": [
+        "AI_GAME_COMPANY/company/orchestrator/main.py",
+        "AI_GAME_COMPANY/company/orchestrator/dashboard.py",
+        "AI_GAME_COMPANY/tests/test_dashboard.py"
+      ],
+      "acceptance": [
+        "Required team CLI commands are available.",
+        "team order shows the plan and starts the first executable task unless dry-run is used.",
+        "Office state is derived from TASKBOARD and live runs rather than fake activity."
+      ],
+      "depends_on": [
+        "CODEX-MA-GATES"
+      ],
+      "notes": [
+        "Executed by Codex on 2026-09-15; CLI agents, status and Game02 order dry-run were observed."
+      ],
+      "changed_files": [
+        "AI_GAME_COMPANY/company/orchestrator/main.py",
+        "AI_GAME_COMPANY/company/orchestrator/dashboard.py",
+        "AI_GAME_COMPANY/tests/test_dashboard.py"
+      ],
+      "last_run": "2026-09-15",
+      "title_ko": "팀 CLI·실시간 12부서 사무실 연결",
+      "agent_role": "ui_ux_engineer",
+      "department": "UIUX개발부",
+      "task_type": "ui_code",
+      "priority": 75,
+      "handoff_from": "qa_engineer",
+      "handoff_to": "qa_engineer"
+    },
+    {
+      "id": "CODEX-MA-DOCS-VALIDATE",
+      "title": "Document and regression-test the multi-agent workflow",
+      "owner": "codex",
+      "status": "review",
+      "goal": "Document organization, lifecycle, handoffs, commands, human gates and Game01/Game02 procedures, then run the complete Python regression suite.",
+      "files": [
+        "AI_GAME_COMPANY/AGENT_TEAM.md",
+        "AI_GAME_COMPANY/tests/**",
+        "AI_GAME_COMPANY/config/TASKBOARD.json"
+      ],
+      "acceptance": [
+        "AGENT_TEAM.md covers all required operating and troubleshooting sections.",
+        "Old task, allowlist, order, dashboard, server and game creation tests are not weakened.",
+        "The complete Python test suite passes."
+      ],
+      "depends_on": [
+        "CODEX-MA-CLI-UI"
+      ],
+      "notes": [
+        "Executed by Codex on 2026-09-15: 469 Python tests passed in 100.825 seconds. Unity validation remains the next evidence step."
+      ],
+      "changed_files": [
+        "AI_GAME_COMPANY/AGENT_TEAM.md",
+        "AI_GAME_COMPANY/tests/test_agent_routing.py",
+        "AI_GAME_COMPANY/tests/test_manager_planning.py",
+        "AI_GAME_COMPANY/tests/test_quality_gates.py",
+        "AI_GAME_COMPANY/tests/test_teamwork.py",
+        "AI_GAME_COMPANY/tests/test_orders.py",
+        "AI_GAME_COMPANY/config/TASKBOARD.json"
+      ],
+      "last_run": "2026-09-15",
+      "title_ko": "멀티 에이전트 문서·전체 회귀 검증",
+      "agent_role": "qa_engineer",
+      "department": "품질보증부",
+      "task_type": "qa",
+      "priority": 70,
+      "handoff_from": "ui_ux_engineer",
+      "handoff_to": "quality_reviewer"
     }
   ]
 }
