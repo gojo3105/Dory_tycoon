@@ -1,0 +1,226 @@
+# Orchestrator run report
+
+Generated: 2026-09-15 00:08:22
+Command: team order --game game02 --goal Game02 만들어. --dry-run
+Outcome: OK
+Exit: 0
+Duration: 0초
+
+## Output (tail)
+
+=== CEO / PRODUCER PLAN ===
+{
+  "project": "game02",
+  "raw_goal": "Game02 만들어.",
+  "objective": "Create a verified, distinct mobile game vertical slice for game02: Game02 만들어.",
+  "success": [
+    "core loop is playable and distinct from existing games",
+    "GameSpec and generated content stay backward compatible",
+    "save, tutorial, settings, missions, rewards and growth are verified",
+    "automated tests pass with no BLOCKER or CRITICAL finding",
+    "Android APK exists and belongs to the current build"
+  ],
+  "priority": 80,
+  "tasks": [
+    {
+      "id": "GAME02-DESIGN",
+      "title": "game02 game design",
+      "owner": "codex",
+      "status": "todo",
+      "goal": "Turn the CEO objective into a distinct core loop, progression, difficulty and replay plan. Raw goal: Game02 만들어.",
+      "files": [
+        "GameSpecs/game02.json",
+        "docs/GAME02_DESIGN.md"
+      ],
+      "acceptance": [
+        "Core fantasy, loop, failure, rewards and progression are explicit.",
+        "At least two mechanics differ from Game01."
+      ],
+      "depends_on": [],
+      "notes": [],
+      "changed_files": [],
+      "last_run": "",
+      "title_ko": "game02 game design",
+      "agent_role": "game_director",
+      "task_type": "game_design",
+      "handoff_to": "technical_director",
+      "priority": 80
+    },
+    {
+      "id": "GAME02-ARCH",
+      "title": "game02 technical architecture",
+      "owner": "codex",
+      "status": "todo",
+      "goal": "Map the approved design onto existing Core, Gameplay, Modules, UI, Editor and GameSpec boundaries.",
+      "files": [
+        "GameSpecs/game02.json",
+        "docs/GAME02_ARCHITECTURE.md"
+      ],
+      "acceptance": [
+        "Existing reusable systems are identified before new modules.",
+        "Every GameSpec field change lists Data, Validator, Docs and Generator impact."
+      ],
+      "depends_on": [
+        "GAME02-DESIGN"
+      ],
+      "notes": [],
+      "changed_files": [],
+      "last_run": "",
+      "title_ko": "game02 technical architecture",
+      "agent_role": "technical_director",
+      "task_type": "architecture",
+      "handoff_from": "game_director",
+      "handoff_to": "systems_engineer",
+      "priority": 75
+    },
+    {
+      "id": "GAME02-SYSTEMS",
+      "title": "game02 gameplay and systems implementation",
+      "owner": "codex",
+      "status": "todo",
+      "goal": "Implement the approved reusable gameplay, save, economy and progression systems without weakening Game01.",
+      "files": [
+        "Assets/GameFactory/Core/**",
+        "Assets/GameFactory/Gameplay/**",
+        "Assets/GameFactory/Modules/**",
+        "Assets/GameFactory/Editor/**",
+        "GameSpecs/game02.json",
+        "docs/GAME_SPEC.md"
+      ],
+      "acceptance": [
+        "The core loop starts and reaches a reward/failure state.",
+        "Save and economy values remain isolated by game id.",
+        "Runtime code has no UnityEditor reference."
+      ],
+      "depends_on": [
+        "GAME02-ARCH"
+      ],
+      "notes": [],
+      "changed_files": [],
+      "last_run": "",
+      "title_ko": "game02 gameplay and systems implementation",
+      "agent_role": "systems_engineer",
+      "task_type": "core_system",
+      "handoff_from": "technical_director",
+      "handoff_to": "ui_ux_engineer",
+      "priority": 70
+    },
+    {
+      "id": "GAME02-UI",
+      "title": "game02 mobile UI and UX",
+      "owner": "codex",
+      "status": "todo",
+      "goal": "Build the portrait mobile HUD, menus, tutorial, settings and progression UI for the implemented loop.",
+      "files": [
+        "Assets/GameFactory/UI/**",
+        "Assets/GameFactory/Editor/**",
+        "Assets/Common/Art/UI/**",
+        "GameSpecs/game02.json"
+      ],
+      "acceptance": [
+        "Primary actions are readable and reachable on portrait mobile.",
+        "Korean labels, safe area and touch targets are usable.",
+        "UI displays state owned by gameplay/core systems."
+      ],
+      "depends_on": [
+        "GAME02-SYSTEMS"
+      ],
+      "notes": [],
+      "changed_files": [],
+      "last_run": "",
+      "title_ko": "game02 mobile UI and UX",
+      "agent_role": "ui_ux_engineer",
+      "task_type": "ui_code",
+      "handoff_from": "systems_engineer",
+      "handoff_to": "qa_engineer",
+      "priority": 65
+    },
+    {
+      "id": "GAME02-QA",
+      "title": "game02 acceptance and regression QA",
+      "owner": "codex",
+      "status": "todo",
+      "goal": "Add and run acceptance and regression checks for the design, systems and UI handoff.",
+      "files": [
+        "Assets/GameFactory/Tests/**",
+        "AI_GAME_COMPANY/tests/**",
+        "Reports/**"
+      ],
+      "acceptance": [
+        "Acceptance results use PASS, FAIL or NOT_VERIFIED.",
+        "BLOCKER and CRITICAL failures prevent release.",
+        "Game01 regression coverage is retained."
+      ],
+      "depends_on": [
+        "GAME02-UI"
+      ],
+      "notes": [],
+      "changed_files": [],
+      "last_run": "",
+      "title_ko": "game02 acceptance and regression QA",
+      "agent_role": "qa_engineer",
+      "task_type": "qa",
+      "handoff_from": "ui_ux_engineer",
+      "handoff_to": "quality_reviewer",
+      "priority": 60
+    },
+    {
+      "id": "GAME02-REVIEW",
+      "title": "game02 independent quality review",
+      "owner": "codex",
+      "status": "todo",
+      "goal": "Review architecture, regression, GameSpec compatibility, mobile performance and evidence; write a concise quality report.",
+      "files": [
+        "Reports/quality/game02.json"
+      ],
+      "acceptance": [
+        "Quality dimensions total 100 and target 85.",
+        "Uninspected visual dimensions are NOT_VERIFIED.",
+        "BLOCKER or CRITICAL findings stop release."
+      ],
+      "depends_on": [
+        "GAME02-QA"
+      ],
+      "notes": [],
+      "changed_files": [],
+      "last_run": "",
+      "title_ko": "game02 independent quality review",
+      "agent_role": "quality_reviewer",
+      "task_type": "code_review",
+      "handoff_from": "qa_engineer",
+      "handoff_to": "release_engineer",
+      "priority": 55
+    },
+    {
+      "id": "GAME02-RELEASE",
+      "title": "game02 Android release verification",
+      "owner": "codex",
+      "status": "todo",
+      "goal": "Run the existing generate, validate, test and Android build pipeline and verify the current APK.",
+      "files": [
+        "Reports/errors/**",
+        "Reports/build-status/**",
+        "Reports/runs/**",
+        "Reports/sync-status/**",
+        "Builds/**"
+      ],
+      "acceptance": [
+        "Process, Unity Build Report and current APK all prove success.",
+        "Failure has a defined build failure category.",
+        "Device-only checks remain HUMAN_GATE_DEVICE_TEST."
+      ],
+      "depends_on": [
+        "GAME02-REVIEW"
+      ],
+      "notes": [],
+      "changed_files": [],
+      "last_run": "",
+      "title_ko": "game02 Android release verification",
+      "agent_role": "release_engineer",
+      "task_type": "build",
+      "handoff_from": "quality_reviewer"
+    }
+  ]
+}
+
+DRY RUN - plan was not written and no task was started.
