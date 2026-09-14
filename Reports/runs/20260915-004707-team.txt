@@ -1,0 +1,16 @@
+# Orchestrator run report
+
+Generated: 2026-09-15 00:47:07
+Command: team chain --game game02
+Outcome: FAILED
+Exit: 1
+Duration: 0초
+
+## Output (tail)
+
+=== CHAIN GAME02- ===
+  Codex 한도 시 폴백: 로컬 Qwen3-VL:4b (문서 역할만)
+  [재시도] GAME02-ARCH (technical_director) 시도 1 - NotCodexOwned: task GAME02-ARCH depends on GAME02-DESIGN, which is not done yet.
+  [중단] GAME02-ARCH (technical_director) 시도 2 - 같은 실패가 2회 반복됐습니다 (hash d2339f8f6957). 남은 재시도를 태우지 않고 멈춥니다.
+
+중단: 같은 실패가 2회 반복됐습니다 (hash d2339f8f6957). 남은 재시도를 태우지 않고 멈춥니다.
