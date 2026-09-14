@@ -1,6 +1,6 @@
 # Orchestrator run report
 
-Generated: 2026-09-15 00:18:05
+Generated: 2026-09-15 00:15:27
 Command: team status
 Outcome: OK
 Exit: 0
@@ -14,10 +14,10 @@ Duration: 0초
   [IDLE     ] Game Director            -
   [IDLE     ] Technical Director       -
   [IDLE     ] Gameplay Engineer        -
-  [DONE     ] Systems Engineer         CODEX-MA-MANAGER Create the seven-stage structured CEO and Producer planner
-  [DONE     ] UI/UX Engineer           CODEX-MA-CLI-UI Expose role workflow through CLI and live office dashboard
+  [IDLE     ] Systems Engineer         -
+  [IDLE     ] UI/UX Engineer           -
   [IDLE     ] Art Director             -
   [IDLE     ] Level Designer           -
-  [DONE     ] QA Engineer              CODEX-MA-DOCS-VALIDATE Document and regression-test the multi-agent workflow
+  [IDLE     ] QA Engineer              -
   [IDLE     ] Code / Quality Reviewer  -
   [IDLE     ] Build / Release Engineer -

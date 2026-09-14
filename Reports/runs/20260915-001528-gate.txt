@@ -1,0 +1,15 @@
+# Orchestrator run report
+
+Generated: 2026-09-15 00:15:28
+Command: gate --game game01
+Outcome: FAILED
+Exit: 1
+Duration: 0초
+
+## Output (tail)
+
+=== COMPLETION GATE: game01 ===
+  NOT COMPLETE. Blockers:
+    - 1 asset(s) not APPROVED
+
+  Section 23: do not start the next game until these clear.

@@ -1,21 +1,25 @@
 # Orchestrator run report
 
-Generated: 2026-09-05 11:18:49
-Command: test --platform playmode
+Generated: 2026-09-15 00:10:47
+Command: test --game game01 --platform both
 Outcome: OK
 Exit: 0
-Duration: 2분 53초
+Duration: 1분 43초
 
 ## Output (tail)
 
-=== LOCAL UNITY TESTS: game01 (playmode) ===
+=== LOCAL UNITY TESTS: game01 (both) ===
   Unity: C:\Program Files\Unity\Hub\Editor\6000.5.9f1\Editor\Unity.exe
 
   [ OK ] generate          exit=0
          log: C:\Dory_tycoon\Logs\unity-generate.log
+  [ OK ] test-editmode     exit=0
+         log: C:\Dory_tycoon\Logs\unity-test-editmode.log
+         results: C:\Dory_tycoon\Logs\unity-test-editmode.xml
+         passed=8 failed=0 skipped=0
   [ OK ] test-playmode     exit=0
          log: C:\Dory_tycoon\Logs\unity-test-playmode.log
          results: C:\Dory_tycoon\Logs\unity-test-playmode.xml
-         passed=11 failed=0 skipped=0
+         passed=16 failed=0 skipped=0
 
 TESTS_PASSED - NUnit XML reports zero failures.

@@ -1,10 +1,10 @@
 # Orchestrator run report
 
-Generated: 2026-09-05 11:28:47
+Generated: 2026-09-15 00:12:49
 Command: build --game game01
 Outcome: OK
 Exit: 0
-Duration: 6분 52초
+Duration: 1분 41초
 
 ## Output (tail)
 
@@ -20,6 +20,6 @@ Duration: 6분 52초
          log: C:\Dory_tycoon\Logs\unity-build.log
 
 APK: C:\Dory_tycoon\Builds\game01\APK\Game01_FactoryRunner_v1.0.apk
-  size: 17.36 MB
+  size: 28.76 MB
 
 Next: run scripts/dev/report-build-status.ps1 -Commit so this is readable from the repository.
