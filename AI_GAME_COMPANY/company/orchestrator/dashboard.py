@@ -2298,7 +2298,17 @@ def _task_row(task: dict[str, Any], served: bool = False,
         files += f" 외 {len(paths) - 4}개"
 
     action = ""
-    if (served and task.get("owner") == "codex"
+    # The 계속 진행 button. A task the chain parked for a person carries
+    # review_note in its extra slot; nothing else on the board does, which
+    # is what keeps this button off every other review-status task.
+    parked = str(task.get("review_note", ""))
+    if served and parked:
+        action = (f"\n          " + '<div class="task-action">'
+                  + '<button class="btn task-run" type="button" '
+                  + 'data-act="chain-continue" '
+                  + f'data-arg-value="{e(str(task.get("id", "")))}">계속 진행</button>'
+                  + f'<span class="task-blockers">{e(parked[:110])}</span></div>')
+    elif (served and task.get("owner") == "codex"
             and status in ("todo", "in_progress", "blocked", "review")):
         unmet = unmet_dependencies or []
         disabled = ' disabled data-blocked="true"' if unmet else ""

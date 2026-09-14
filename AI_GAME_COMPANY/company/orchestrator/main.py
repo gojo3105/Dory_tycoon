@@ -342,6 +342,119 @@ def _board() -> TaskBoard:
     return TaskBoard.load(CONFIG_DIR / "TASKBOARD.json")
 
 
+def _team_chain(args, board) -> int:
+    """`team chain --game gameNN` - run a plan to the end, and resume it later.
+
+    Safe to call repeatedly, which is the design: a Codex limit pauses rather
+    than failing, and calling this again once the subscription is back picks up
+    at the same step. Finished steps are skipped.
+
+    `next` picks one task and runs it. This drives the whole plan, routing on
+    each agent's own verdict.
+    """
+    from company.orchestrator import chain_runner as chain
+    from company.orchestrator.chain_runner import StepResult
+    from company.orchestrator.executors import (
+        CodexExecutor, OllamaExecutor, writing_roles)
+
+    game = (args.game or "").strip().lower()
+    prefix = f"{game.upper()}-"
+
+    try:
+        registry = AgentRegistry.load(CONFIG_DIR / "AGENTS.json")
+    except Exception as exc:  # noqa: BLE001
+        print(f"REFUSED: AGENTS.json 을 읽을 수 없습니다 - {exc}")
+        return 2
+
+    policy = _load_policy()
+    if not policy.allows("allow_codex_write"):
+        print("REFUSED: policy allow_codex_write is not true.")
+        return 3
+
+    codex = CodexRunner(repo_root=REPO_ROOT, policy=policy, model=args.model,
+                        binary=_codex_binary())
+    codex_exec = CodexExecutor(board=board, codex=codex, repo_root=REPO_ROOT,
+                               registry=registry, timeout_seconds=args.timeout)
+    model = _active_ollama_model()
+    local_exec = (OllamaExecutor(repo_root=REPO_ROOT, registry=registry, model=model)
+                  if model else None)
+    writers = writing_roles(registry)
+    state = {"limited": False}
+
+    def execute(task, role):
+        """Codex first; the local model only once Codex has actually refused.
+
+        The flag is set by a real refusal rather than guessed in advance: the
+        local model is a fallback, not a cost saving, and routing design work
+        away from the better agent while it still answers is a downgrade
+        nobody asked for.
+        """
+        if not state["limited"]:
+            result = codex_exec(task, role)
+            if not result.limited:
+                return result
+            state["limited"] = True
+            print("  Codex 한도 도달. 문서 역할은 로컬 모델로 넘깁니다.")
+
+        if role in writers:
+            # A C# step answered by a 4B local model would look like progress
+            # and would not be.
+            return StepResult(
+                ok=False, limited=True,
+                error=f"{role} 은 코드를 쓰는 역할이라 Codex 가 필요합니다.",
+                summary="STATUS: BLOCKED")
+        if local_exec is None:
+            return StepResult(ok=False, limited=True,
+                              error="로컬 모델 폴백이 없습니다.")
+        return local_exec(task, role)
+
+    def announce(record):
+        mark = {"continue": "OK", "retry": "재시도", "reroute": "인계",
+                "pause": "일시정지", "review_wait": "검토 대기",
+                "stop": "중단"}.get(record.action, record.action)
+        print(f"  [{mark}] {record.task_id} ({record.role}) 시도 {record.attempt}"
+              + (f" - {record.detail}" if record.detail else ""))
+
+    print(f"=== CHAIN {prefix} ===")
+    if model:
+        print(f"  Codex 한도 시 폴백: 로컬 {model} (문서 역할만)")
+    result = chain.run_chain(
+        board, prefix, execute, roles={a.id for a in registry.list_agents()},
+        approved=set(args.approve or ()), on_event=announce)
+    board.save()
+
+    print()
+    if result.finished:
+        print("체인 완료. 모든 단계가 자기 판정으로 통과했습니다.")
+        return 0
+    if result.paused:
+        print(f"일시정지: {result.paused_at} - {result.stopped_because}")
+        print("한도가 돌아오면 같은 명령을 다시 실행하면 이어집니다:")
+        print(f"  python -m company.orchestrator.main team chain --game {game}")
+        return 4
+    if result.awaiting_review:
+        print(f"검토 대기: {result.awaiting_review} - {result.stopped_because}")
+        print("계속 진행하려면:")
+        print(f"  python -m company.orchestrator.main team chain --game {game} "
+              f"--approve {result.awaiting_review}")
+        return 0
+    print(f"중단: {result.stopped_because}")
+    return 1
+
+
+def _active_ollama_model() -> str:
+    """The model `ollama --use` selected, or "" when none is usable."""
+    try:
+        from company.orchestrator.ollama_client import OllamaClient
+        client = OllamaClient(
+            registry_path=CONFIG_DIR / "LICENSE_REGISTRY.json",
+            state_path=COMPANY_ROOT / "company" / "state" / "company_state.json",
+            timeout=3.0)
+        return client.active_model() or ""
+    except Exception:  # noqa: BLE001 - no local model is a normal state
+        return ""
+
+
 def cmd_team(args: argparse.Namespace) -> int:
     """The shared board Claude and Codex both work from.
 
@@ -431,6 +544,9 @@ def cmd_team(args: argparse.Namespace) -> int:
                 print(f"    [{task.status:11}] {task.id:10} {task.title}{blocked}")
             print()
         return 0
+
+    if args.action == "chain":
+        return _team_chain(args, board)
 
     if args.action == "next":
         candidates = [task for task in board.tasks
@@ -812,7 +928,9 @@ def main(argv: list[str] | None = None) -> int:
     dashboard.set_defaults(func=cmd_dashboard)
 
     team = sub.add_parser("team", help="the shared board Claude and Codex both work from")
-    team.add_argument("action", choices=["board", "run", "agents", "status", "order", "next"],
+    team.add_argument("--approve", action="append", default=None,
+                      help="for 'chain': task id to continue past a review pause")
+    team.add_argument("action", choices=["board", "run", "agents", "status", "order", "next", "chain"],
                       help="inspect roles/board, plan an order, or run the next Codex task")
     team.add_argument("--task", default=None, help="task id, for 'run'")
     team.add_argument("--game", default="game01",

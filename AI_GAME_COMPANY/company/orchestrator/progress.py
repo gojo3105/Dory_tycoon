@@ -126,6 +126,8 @@ ACTION_LABEL = {
     "codex-doctor": "Codex 진단",
     "git-status": "변경 파일 확인",
     "ollama-list": "설치된 모델 확인",
+    "chain-run": "체인 진행",
+    "chain-continue": "계속 진행",
     "dashboard": "대시보드 새로고침",
 }
 
