@@ -309,15 +309,20 @@ class RenderTests(unittest.TestCase):
             {"id": "C-BLOCKED", "title": "blocked", "owner": "codex", "status": "blocked"},
             {"id": "C-REVIEW", "title": "review", "owner": "codex", "status": "review"},
             {"id": "C-DONE", "title": "done", "owner": "codex", "status": "done"},
+            {"id": "C-CANCELLED", "title": "cancelled", "owner": "codex", "status": "cancelled"},
             {"id": "CLAUDE-TODO", "title": "claude", "owner": "claude", "status": "todo"},
         ])
 
         board = self.section(page, "공유 작업판")
-        for task_id in ("C-TODO", "C-WIP", "C-BLOCKED", "C-REVIEW",
-                        "C-DONE", "CLAUDE-TODO"):
+        for task_id in ("C-TODO", "C-WIP", "C-BLOCKED", "C-REVIEW", "CLAUDE-TODO"):
             self.assertIn(task_id, board)
+        self.assertNotIn("C-DONE", board)
+        self.assertNotIn("C-CANCELLED", board)
         self.assertNotIn('class="btn task-run"', board)
         self.assertNotIn('data-act="team-run"', board)
+        self.assertIn('data-task-action="complete"', board)
+        self.assertIn('data-task-action="cancel"', board)
+        self.assertIn('data-task-action="delete"', board)
 
     def test_the_queue_is_the_only_task_execution_surface(self):
         page = self.task_page([
@@ -326,6 +331,7 @@ class RenderTests(unittest.TestCase):
         queue = self.section(page, "작업 대기열")
         board = self.section(page, "공유 작업판")
         self.assertIn('data-arg-value="C-TODO"', queue)
+        self.assertIn('data-task-action="cancel"', queue)
         self.assertNotIn('data-arg-value="C-TODO"', board)
 
     def test_static_board_has_no_task_start_buttons(self):
@@ -335,6 +341,7 @@ class RenderTests(unittest.TestCase):
 
         self.assertNotIn('class="btn task-run"', page)
         self.assertNotIn('data-act="team-run"', page)
+        self.assertNotIn('data-task-action=', page)
 
     def test_unmet_dependency_disables_button_and_names_blocker(self):
         page = self.task_page([
@@ -358,15 +365,33 @@ class RenderTests(unittest.TestCase):
         self.assertEqual(len(declarations), len(set(declarations)),
                          "two agent states render identically in the office")
 
-    def test_an_unmapped_agent_is_rendered_in_the_etc_department(self):
+    def test_an_unmapped_agent_is_hidden_from_the_roster(self):
         snapshot = dash.collect(REPO)
         snapshot.company_roles = []
         snapshot.agents.append(dash.Agent(
             "Future Assistant", "새 역할", dash.UNKNOWN, "아직 매핑되지 않음"))
         html_out = dash.render(snapshot)
-        self.assertIn("Future Assistant", html_out)
-        self.assertIn("기타", html_out)
-        self.assertIn("office-agent--etc", html_out)
+        self.assertNotIn("Future Assistant", html_out)
+
+    def test_unusable_and_unknown_agents_are_hidden_from_the_roster(self):
+        snapshot = dash.collect(REPO)
+        snapshot.company_roles = []
+        snapshot.agents = [
+            dash.Agent("Ready AI", "가능", dash.READY, "ok"),
+            dash.Agent("Waiting AI", "대기", dash.GATED, "gate"),
+            dash.Agent("Blocked AI", "불가", dash.BLOCKED, "blocked"),
+            dash.Agent("Unknown AI", "모름", dash.UNKNOWN, "unknown"),
+        ]
+        page = dash.render(snapshot, control_token="test-token")
+        profile = self.section(page, "연동된 AI")
+
+        self.assertIn("Ready AI", profile)
+        self.assertIn("Waiting AI", profile)
+        self.assertNotIn("Blocked AI", profile)
+        self.assertNotIn("Unknown AI", profile)
+        self.assertIn("연동 도구 2개", profile)
+        self.assertNotIn("사용 불가", profile)
+        self.assertNotIn("확인 불가", profile)
 
     def test_virtual_office_agents_walk_when_idle(self):
         agents = [dash.Agent("Claude Code", "개발", dash.READY, "사용 가능")]
@@ -388,7 +413,14 @@ class RenderTests(unittest.TestCase):
         snapshot = dash.collect(REPO)
         self.assertEqual(12, len(snapshot.company_roles))
         self.assertEqual("ceo", snapshot.company_roles[0].id)
+        self.assertEqual("Codex CEO Agent", snapshot.company_roles[0].ai_name)
         self.assertEqual("빌드출시부", snapshot.company_roles[-1].department)
+
+    def test_company_role_cards_show_the_ai_name_under_the_title(self):
+        snapshot = dash.collect(REPO)
+        page = dash.render(snapshot)
+        self.assertIn("AI · Codex CEO Agent", page)
+        self.assertIn("AI · Gemini Image Agent", page)
 
     def test_company_runtime_uses_taskboard_status_and_dependencies(self):
         roles = dash.collect(REPO).company_roles
@@ -475,6 +507,30 @@ class RenderTests(unittest.TestCase):
             if item["src"]:
                 self.assertTrue(item["src"].startswith(("data:image/png", "data:image/jpeg")),
                                 f"{item['name']} is not an embedded image")
+
+    def test_gallery_delete_buttons_only_attach_to_generated_images(self):
+        base = {
+            "src": "data:image/png;base64,x",
+            "name": "shot.png",
+            "label": "shot",
+            "dimensions": "32x32",
+            "kb": 1.0,
+            "pixel_art": True,
+            "note": "",
+        }
+        groups = [{
+            "title": "이미지",
+            "note": "test",
+            "empty": "empty",
+            "items": [
+                {**base, "rel": "AI_GAME_COMPANY/generated/shot.png"},
+                {**base, "rel": "Assets/GameFactory/shot.png"},
+            ],
+        }]
+        html_out = dash._gallery_html(groups, manage=True)
+
+        self.assertIn('data-image-path="AI_GAME_COMPANY/generated/shot.png"', html_out)
+        self.assertNotIn('data-image-path="Assets/GameFactory/shot.png"', html_out)
 
 class ArtPlanTests(unittest.TestCase):
     """Why the gallery is shorter than the plan - three distinct reasons."""

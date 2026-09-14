@@ -63,7 +63,8 @@
         "RISKS",
         "HANDOFF_TO",
         "HANDOFF_REASON"
-      ]
+      ],
+      "ai_name": "Codex CEO Agent"
     },
     {
       "order": 2,
@@ -96,7 +97,8 @@
         "RISKS",
         "HANDOFF_TO",
         "HANDOFF_REASON"
-      ]
+      ],
+      "ai_name": "Codex Agent"
     },
     {
       "order": 3,
@@ -131,7 +133,8 @@
         "RISKS",
         "HANDOFF_TO",
         "HANDOFF_REASON"
-      ]
+      ],
+      "ai_name": "Gemini + Codex"
     },
     {
       "order": 4,
@@ -167,7 +170,8 @@
         "RISKS",
         "HANDOFF_TO",
         "HANDOFF_REASON"
-      ]
+      ],
+      "ai_name": "Codex Technical Agent"
     },
     {
       "order": 5,
@@ -203,7 +207,8 @@
         "RISKS",
         "HANDOFF_TO",
         "HANDOFF_REASON"
-      ]
+      ],
+      "ai_name": "Codex Gameplay Agent"
     },
     {
       "order": 6,
@@ -240,7 +245,8 @@
         "RISKS",
         "HANDOFF_TO",
         "HANDOFF_REASON"
-      ]
+      ],
+      "ai_name": "Codex Systems Agent"
     },
     {
       "order": 7,
@@ -276,7 +282,8 @@
         "RISKS",
         "HANDOFF_TO",
         "HANDOFF_REASON"
-      ]
+      ],
+      "ai_name": "Codex UI Agent + Gemini"
     },
     {
       "order": 8,
@@ -312,7 +319,8 @@
         "RISKS",
         "HANDOFF_TO",
         "HANDOFF_REASON"
-      ]
+      ],
+      "ai_name": "Gemini Image Agent"
     },
     {
       "order": 9,
@@ -347,7 +355,8 @@
         "RISKS",
         "HANDOFF_TO",
         "HANDOFF_REASON"
-      ]
+      ],
+      "ai_name": "Codex Level Agent"
     },
     {
       "order": 10,
@@ -381,7 +390,8 @@
         "RISKS",
         "HANDOFF_TO",
         "HANDOFF_REASON"
-      ]
+      ],
+      "ai_name": "Unity Test Runner"
     },
     {
       "order": 11,
@@ -415,7 +425,8 @@
         "RISKS",
         "HANDOFF_TO",
         "HANDOFF_REASON"
-      ]
+      ],
+      "ai_name": "Codex Review Agent"
     },
     {
       "order": 12,
@@ -450,7 +461,8 @@
         "RISKS",
         "HANDOFF_TO",
         "HANDOFF_REASON"
-      ]
+      ],
+      "ai_name": "Unity Build Runner"
     }
   ]
 }

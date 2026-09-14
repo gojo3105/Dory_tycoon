@@ -134,6 +134,8 @@ class AllowlistTests(unittest.TestCase):
                                     save=False)
         self.assertEqual("codex", placed.task.owner)
         self.assertEqual(TODO, placed.task.status)
+        self.assertEqual("gameplay_engineer", placed.task.agent_role)
+        self.assertEqual("gameplay_code", placed.task.task_type)
 
 
 class RejectionTests(unittest.TestCase):

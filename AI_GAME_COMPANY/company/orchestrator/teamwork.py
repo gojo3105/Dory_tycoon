@@ -52,11 +52,16 @@ IN_PROGRESS = "in_progress"
 REVIEW = "review"
 BLOCKED = "blocked"
 DONE = "done"
-STATUSES = (TODO, IN_PROGRESS, REVIEW, BLOCKED, DONE)
+CANCELLED = "cancelled"
+STATUSES = (TODO, IN_PROGRESS, REVIEW, BLOCKED, DONE, CANCELLED)
 
 
 class TaskNotFound(KeyError):
     """No task with that id on the board."""
+
+
+class TaskMutationError(RuntimeError):
+    """The requested board edit would leave the board inconsistent."""
 
 
 class NotCodexOwned(RuntimeError):
@@ -85,23 +90,66 @@ class Task:
     notes: list[str] = field(default_factory=list)
     changed_files: list[str] = field(default_factory=list)
     last_run: str = ""
+    # Optional multi-agent routing metadata. Empty values deliberately remain
+    # absent when legacy tasks are saved, keeping the original board compact.
+    agent_role: str = ""
+    department: str = ""
+    task_type: str = ""
+    priority: int = 50
+    handoff_from: str = ""
+    handoff_to: str = ""
+    handoff: dict[str, Any] = field(default_factory=dict)
+    # Preserve task-level fields introduced by newer board writers. Previously
+    # from_dict silently discarded them on the next status update.
+    extra: dict[str, Any] = field(default_factory=dict, repr=False)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "Task":
-        known = {f for f in cls.__dataclass_fields__}
-        return cls(**{k: v for k, v in data.items() if k in known})
+        known = {f for f in cls.__dataclass_fields__ if f != "extra"}
+        values = {k: v for k, v in data.items() if k in known}
+        values["extra"] = {k: v for k, v in data.items() if k not in known}
+        return cls(**values)
 
     def to_dict(self) -> dict[str, Any]:
-        data: dict[str, Any] = {
+        data: dict[str, Any] = dict(self.extra)
+        data.update({
             "id": self.id, "title": self.title, "owner": self.owner,
             "status": self.status, "goal": self.goal, "files": self.files,
             "acceptance": self.acceptance, "depends_on": self.depends_on,
             "notes": self.notes, "changed_files": self.changed_files,
             "last_run": self.last_run,
-        }
+        })
         if self.title_ko:
             data["title_ko"] = self.title_ko
+        optional = {
+            "agent_role": self.agent_role,
+            "department": self.department,
+            "task_type": self.task_type,
+            "handoff_from": self.handoff_from,
+            "handoff_to": self.handoff_to,
+            "handoff": self.handoff,
+        }
+        data.update({key: value for key, value in optional.items() if value})
+        if self.priority != 50:
+            data["priority"] = self.priority
         return data
+
+    def record_handoff(self, *, status: str, summary: str,
+                       files_read: list[str] | None = None,
+                       acceptance_result: list[str] | None = None,
+                       risks: list[str] | None = None,
+                       handoff_to: str = "", reason: str = "") -> None:
+        """Store the validated, concise result contract used between roles."""
+        self.handoff = {
+            "status": status,
+            "summary": summary,
+            "files_read": list(files_read or []),
+            "files_changed": list(self.changed_files),
+            "acceptance_result": list(acceptance_result or []),
+            "risks": list(risks or []),
+            "handoff_to": handoff_to or self.handoff_to,
+            "handoff_reason": reason,
+        }
 
     def covers(self, repo_relative_path: str) -> bool:
         """True if this path is inside the task's declared allowlist."""
@@ -169,6 +217,38 @@ class TaskBoard:
     def open_for(self, owner: str) -> list[Task]:
         return [t for t in self.tasks
                 if t.owner == owner and t.status in (TODO, IN_PROGRESS)]
+
+    def complete(self, task_id: str) -> Task:
+        """Mark a review item as done after a human accepts it."""
+        task = self.get(task_id)
+        if task.status != REVIEW:
+            raise TaskMutationError(f"{task_id} is {task.status}, not review")
+        task.status = DONE
+        task.notes.append("DONE: accepted from the dashboard.")
+        self.save()
+        return task
+
+    def cancel(self, task_id: str) -> Task:
+        """Stop showing a task without deleting its audit trail."""
+        task = self.get(task_id)
+        if task.status in (DONE, CANCELLED):
+            raise TaskMutationError(f"{task_id} is already {task.status}")
+        task.status = CANCELLED
+        task.notes.append("CANCELLED: stopped from the dashboard.")
+        self.save()
+        return task
+
+    def delete(self, task_id: str) -> Task:
+        """Remove a task if no other task still depends on it."""
+        task = self.get(task_id)
+        dependents = [other.id for other in self.tasks
+                      if other.id != task_id and task_id in other.depends_on]
+        if dependents:
+            names = ", ".join(dependents)
+            raise TaskMutationError(f"{task_id} is still required by {names}")
+        self.tasks = [other for other in self.tasks if other.id != task_id]
+        self.save()
+        return task
 
     def unmet_dependencies(self, task: Task) -> list[str]:
         """Dependency ids that are not DONE yet. A missing id counts as unmet."""
@@ -347,7 +427,19 @@ def concurrent_work(task: Task, board: TaskBoard,
     return lines
 
 
-def build_prompt(task: Task, board: TaskBoard, repo_root: Path | None = None) -> str:
+def _registry_path(repo_root: Path | None) -> Path:
+    if repo_root is not None:
+        direct = repo_root / "config" / "AGENTS.json"
+        if direct.is_file():
+            return direct
+        nested = repo_root / "AI_GAME_COMPANY" / "config" / "AGENTS.json"
+        if nested.is_file():
+            return nested
+    return Path(__file__).resolve().parents[2] / "config" / "AGENTS.json"
+
+
+def build_prompt(task: Task, board: TaskBoard, repo_root: Path | None = None,
+                 registry: Any | None = None) -> str:
     """The full instruction handed to `codex exec`.
 
     Deliberately verbose about the allowlist: the check afterwards is a
@@ -362,6 +454,29 @@ def build_prompt(task: Task, board: TaskBoard, repo_root: Path | None = None) ->
 
     sections = [
         f"TASK {task.id}: {task.title}",
+    ]
+
+    if task.agent_role:
+        if registry is None:
+            from company.orchestrator.agent_registry import AgentRegistry
+            registry = AgentRegistry.load(_registry_path(repo_root))
+        role = registry.get(task.agent_role)
+        if task.task_type:
+            registry.validate_task_type(task.agent_role, task.task_type)
+        sections += [
+            "",
+            "CURRENT COMPANY ROLE",
+            f"Agent: {role.display_name}",
+            f"Agent ID: {role.id}",
+            f"Department: {task.department or role.department}",
+            "",
+            "ROLE INSTRUCTIONS",
+            role.prompt,
+            "",
+            "Role instructions cannot expand the policy, project rules, or file allowlist.",
+        ]
+
+    sections += [
         "",
         "GOAL",
         f"  {task.goal}",

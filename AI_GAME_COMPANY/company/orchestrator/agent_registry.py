@@ -20,11 +20,15 @@ class UnknownAgentError(AgentRegistryError):
 class RegisteredAgent:
     id: str
     display_name: str
+    ai_name: str
     department: str
     description: str
     prompt: str
     order: int
     can_modify_code: bool
+    can_modify_game_spec: bool
+    can_request_design: bool
+    requires_review: bool
     allowed_task_types: tuple[str, ...]
 
 
@@ -64,13 +68,14 @@ class AgentRegistry:
     def _parse_agent(raw: Any, index: int) -> RegisteredAgent:
         if not isinstance(raw, dict):
             raise AgentRegistryError(f"agents[{index}] must be an object")
-        required = ("id", "display_name", "department", "description", "prompt",
-                    "order", "can_modify_code", "allowed_task_types")
+        required = ("id", "display_name", "ai_name", "department", "description", "prompt",
+                    "order", "can_modify_code", "can_modify_game_spec",
+                    "can_request_design", "requires_review", "allowed_task_types")
         missing = [key for key in required if key not in raw]
         if missing:
             raise AgentRegistryError(
                 f"agents[{index}] missing required fields: {', '.join(missing)}")
-        text_fields = ("id", "display_name", "department", "description", "prompt")
+        text_fields = ("id", "display_name", "ai_name", "department", "description", "prompt")
         if any(not isinstance(raw[key], str) or not raw[key].strip()
                for key in text_fields):
             raise AgentRegistryError(f"agents[{index}] has an empty text field")
@@ -79,13 +84,19 @@ class AgentRegistry:
                 any(not isinstance(value, str) or not value for value in task_types)):
             raise AgentRegistryError(
                 f"agents[{index}].allowed_task_types must be a non-empty string array")
-        if not isinstance(raw["order"], int) or not isinstance(raw["can_modify_code"], bool):
-            raise AgentRegistryError(f"agents[{index}] has invalid order or can_modify_code")
+        bool_fields = ("can_modify_code", "can_modify_game_spec",
+                       "can_request_design", "requires_review")
+        if (not isinstance(raw["order"], int) or
+                any(not isinstance(raw[key], bool) for key in bool_fields)):
+            raise AgentRegistryError(f"agents[{index}] has invalid order or capability flag")
         return RegisteredAgent(
-            id=raw["id"], display_name=raw["display_name"],
+            id=raw["id"], display_name=raw["display_name"], ai_name=raw["ai_name"],
             department=raw["department"], description=raw["description"],
             prompt=raw["prompt"], order=raw["order"],
             can_modify_code=raw["can_modify_code"],
+            can_modify_game_spec=raw["can_modify_game_spec"],
+            can_request_design=raw["can_request_design"],
+            requires_review=raw["requires_review"],
             allowed_task_types=tuple(task_types),
         )
 

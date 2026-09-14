@@ -35,7 +35,6 @@ from pathlib import Path
 from typing import Any
 
 from company.orchestrator.agent_registry import AgentRegistry, AgentRegistryError, RegisteredAgent
-from company.orchestrator import orders
 from company.orchestrator import progress as progress_mod
 from company.orchestrator.hardware import HardwareProfile
 from company.orchestrator.ollama_client import OllamaClient, OllamaUnavailable
@@ -1096,7 +1095,7 @@ section{margin-top:44px;}
 .q-id{grid-column:2; font-size:11.5px; color:var(--muted); letter-spacing:0.05em;}
 .q-deps{grid-column:2; margin-top:5px; font-size:11.5px; color:var(--blocked);}
 .q-deps code{font-size:11px;}
-.q-act{grid-column:2; margin-top:9px;}
+.q-act{grid-column:2; margin-top:9px; display:flex; flex-wrap:wrap; gap:8px; align-items:center;}
 .q-act .btn{padding:6px 11px; font-size:12px;}
 .q-empty{font-size:13px; color:var(--muted); padding:6px 0 2px;}
 
@@ -1142,6 +1141,7 @@ section{margin-top:44px;}
 .task .files{margin-top:5px; font-size:11.5px; color:var(--muted); line-height:1.7;}
 .task-action{display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:9px;}
 .task-action .btn{padding:6px 11px; font-size:12px;}
+.task-manage{border-top:1px dashed var(--line); padding-top:8px;}
 .task-blockers{font-size:11.5px; color:var(--blocked);}
 .task-blockers code{font-size:11px;}
 .tag{font-size:11px; font-weight:600; letter-spacing:0.05em; padding:2px 8px;
@@ -1150,6 +1150,7 @@ section{margin-top:44px;}
 .s-in_progress{--st:var(--accent); --st-soft:var(--accent-soft);}
 .s-review{--st:var(--gate); --st-soft:var(--gate-soft);}
 .s-done{--st:var(--ok); --st-soft:var(--ok-soft);}
+.s-cancelled{--st:var(--muted); --st-soft:var(--sunk);}
 .s-blocked-tag{--st:var(--blocked); --st-soft:var(--blocked-soft);}
 
 /* ---- pipeline + facts ---- */
@@ -1208,6 +1209,8 @@ section{margin-top:44px;}
   text-overflow:ellipsis; white-space:nowrap;}
 .shot .cap b{font-weight:500;}
 .shot .cap span{color:var(--muted);}
+.shot-actions{display:flex; gap:6px; padding:0 9px 9px;}
+.shot-actions .btn{padding:5px 9px; font-size:11px;}
 .shot .miss{grid-column:1/-1; color:var(--muted); font-size:11px; text-align:center;
             padding:0 6px;}
 .gal-empty{background:var(--surface); border:1px dashed var(--line); border-radius:3px;
@@ -1257,8 +1260,12 @@ section{margin-top:44px;}
 .creator-form textarea{min-height:88px; resize:vertical; line-height:1.65;}
 .creator-form input:focus-visible,.creator-form textarea:focus-visible,.creator-form select:focus-visible{
   outline:2px solid var(--accent); outline-offset:1px; border-color:transparent;}
-.creator-options{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:9px;}
+.creator-options{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:9px;}
 .creator-actions{display:flex; flex-wrap:wrap; gap:9px; align-items:center;}
+.creator-check{display:flex; gap:8px; align-items:flex-start; font-size:12px; line-height:1.55;
+  color:var(--ink-2); padding:8px 10px; background:#F4FAFD; border:1px solid var(--line);
+  border-radius:6px;}
+.creator-check input{width:auto; margin-top:2px;}
 .creator-actions .btn.primary{padding:11px 20px; border-radius:7px; font-size:14px;
   background:linear-gradient(135deg,#ff7656,#ff4f72); border:0; box-shadow:0 8px 18px rgba(255,79,114,.22);}
 .creator-actions .btn.preview{border-radius:7px; background:#fff; color:var(--ink); border-color:var(--line);}
@@ -1294,6 +1301,8 @@ section{margin-top:44px;}
      background:var(--accent); border:1px solid var(--accent);}
 .btn:hover{filter:brightness(1.12);}
 .btn.ghost{background:transparent; color:var(--ink); border-color:var(--line);}
+.btn.muted{background:var(--sunk); color:var(--ink-2); border-color:var(--line);}
+.btn.danger{background:var(--blocked); color:#fff; border-color:var(--blocked);}
 .btn:disabled{opacity:.45; cursor:not-allowed; filter:none;}
 .btn:focus-visible, select:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
 .combo{display:flex; gap:0; align-items:stretch; min-width:0; max-width:100%;}
@@ -1305,24 +1314,6 @@ section{margin-top:44px;}
 .combo .btn{border-radius:0 2px 2px 0;}
 @media(max-width:620px){.control-row{grid-template-columns:1fr; gap:7px;}}
 
-/* ---- order box ---- */
-.order{display:grid; gap:11px;}
-.order-row{display:flex; flex-wrap:wrap; gap:10px; align-items:center;}
-.order-row .btn{margin-left:auto;}
-.order select{font-family:'Archivo','Noto Sans KR',sans-serif; font-size:13px;
-  padding:9px 11px; background:var(--surface-2); color:var(--ink);
-  border:1px solid var(--line); border-radius:2px; max-width:100%;}
-.order textarea{font-family:'Noto Sans KR',sans-serif; font-size:14px; line-height:1.7;
-  padding:12px 14px; background:var(--surface-2); color:var(--ink);
-  border:1px solid var(--line); border-radius:2px; resize:vertical; min-height:96px;
-  width:100%; box-sizing:border-box;}
-.order textarea:focus-visible{outline:2px solid var(--accent); outline-offset:1px;}
-.order-scope{font-size:11.5px; color:var(--muted); min-width:0; word-break:break-word;}
-.order-check{display:flex; gap:7px; align-items:center; font-size:12.5px; color:var(--ink-2);}
-.order-how{font-size:12px; line-height:1.75; color:var(--muted);
-  padding:10px 12px; background:var(--sunk); border-radius:2px;}
-.order-how b{color:var(--ink);}
-.order-closed{font-size:11.5px; color:var(--gate);}
 .term{margin-top:14px; background:var(--sunk); border:1px solid var(--line); border-radius:2px;
       padding:12px 14px; font-family:'JetBrains Mono',monospace; font-size:12px;
       line-height:1.65; white-space:pre-wrap; word-break:break-word;
@@ -1448,17 +1439,21 @@ section{scroll-margin-top:12px; margin-top:22px; padding:14px; background:#FFFDF
   border:2px solid var(--st); box-shadow:inset -3px -3px 0 rgba(65,54,40,.12);}
 .company-role-card b{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11px;}
 .company-role-dept{grid-column:1/-1; color:#6D8190; font-size:9px;}
+.company-role-ai{grid-column:1/-1; color:#245E7A; font-size:9px; font-weight:700;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .company-role-state{color:var(--st); font-size:9px; font-weight:700; white-space:nowrap;}
 .company-role-card small{grid-column:1/-1; overflow:hidden; text-overflow:ellipsis;
   white-space:nowrap; color:#6D8190; font-size:8px;}
 .agent-hotspot.company-state--working{animation:office-pulse 1.1s steps(2,end) infinite;}
 .panel,.q-lane,.task,.studio,.ctl,.roster,.row,.shot,.g,.term,.warn,
-.creator-result,.creator-input,.order textarea,.order select,.control-row{
+.creator-result,.creator-input,.control-row{
   border-radius:0!important; box-shadow:none;}
 .row,.q-lane,.panel,.task,.ctl,.studio{background:#FFFDF4;}
 .btn{font-family:'Courier New','Malgun Gothic',monospace; border:2px solid #315368;
   border-radius:0; box-shadow:3px 3px 0 #8AA8B7; background:#72B6CF; color:#17394A;
   font-size:12px; text-transform:uppercase;}
+.btn.muted{background:#E2EEF2; color:#40576A; border-color:#7896A8;}
+.btn.danger{background:#F49AA4; color:#243544; border-color:#B84656;}
 .btn:hover{filter:none; background:#FFF3A8;}
 .btn:active{transform:translate(2px,2px); box-shadow:1px 1px 0 #8AA8B7;}
 input,select,textarea{font-family:'Courier New','Malgun Gothic',monospace!important;
@@ -1539,6 +1534,8 @@ section{margin-top:18px; padding:18px; border:1px solid #C7D9E0; border-radius:1
 .btn{border:1px solid #2E708B; border-radius:8px; box-shadow:none; background:#2E7E9C;
   color:#FFFFFF; font-family:'Noto Sans KR',sans-serif; text-transform:none;}
 .btn.ghost{background:#FFFFFF; color:#315D70; border-color:#B9CFD8;}
+.btn.muted{background:#EEF4F7; color:#40576A; border-color:#B9CFD8;}
+.btn.danger{background:#B84656; color:#FFFFFF; border-color:#B84656;}
 .btn:hover{filter:none; background:#1F6985; color:#FFFFFF;}
 .btn:active{transform:translateY(1px); box-shadow:none;}
 input,select,textarea{border:1px solid #BFD2DA!important; border-radius:8px!important;
@@ -1546,6 +1543,7 @@ input,select,textarea{border:1px solid #BFD2DA!important; border-radius:8px!impo
 .company-role-grid{gap:6px; padding:8px; background:#4B453D;}
 .company-role-card{padding:10px; border-width:1px; border-radius:5px;}
 .company-role-card b{font-size:12px;}
+.company-role-ai{font-size:9.5px;}
 .company-detail-fold{background:#4B453D;}
 .company-detail-fold summary{cursor:pointer; list-style:none; padding:10px 12px; color:#F8E8BA;
   background:#3D3933; font-size:10px; font-weight:700; text-align:center;}
@@ -1931,6 +1929,7 @@ def _company_office_html(roles: list[RegisteredAgent],
         shirt = shirt_tokens[index % len(shirt_tokens)]
         role_id = e(role.id)
         display = e(role.display_name)
+        ai_name = e(role.ai_name)
         department = e(role.department)
         current = e(item["current_task"])
         last_result = e(item["last_result"])
@@ -1959,6 +1958,7 @@ def _company_office_html(roles: list[RegisteredAgent],
             f'<article class="company-role-card company-state--{state.lower()} s-{tone}" '
             f'id="company-agent-{role_id}"><span class="company-role-dept">{department}</span>'
             f'<b>{display}</b><span class="company-role-state">{state} · {label}</span>'
+            f'<span class="company-role-ai">AI · {ai_name}</span>'
             f'<small>현재 · {current}</small><small>최근 · {last_result}</small></article>')
 
     legend = "".join(
@@ -2191,6 +2191,13 @@ def _queue_item(index: int, task: dict[str, Any], served: bool,
                   f'data-act="team-run" data-arg-value="{e(task.get("id", ""))}"'
                   f' data-agent-role="{e(task.get("agent_role", ""))}"'
                   f'{disabled}>{button}</button></div>')
+    if served and not running and status not in ("done", "cancelled"):
+        cancel = (f'<button class="btn muted" type="button" data-task-action="cancel" '
+                  f'data-task-id="{e(task.get("id", ""))}">취소</button>')
+        if action:
+            action = action.replace("</div>", cancel + "</div>", 1)
+        else:
+            action = f'<div class="q-act">{cancel}</div>'
 
     return f"""        <div class="q-item {kind}">
           <span class="q-seat" aria-hidden="true">{e(seat)}</span>
@@ -2278,11 +2285,12 @@ def task_title(task: dict[str, Any]) -> str:
 
 
 def _task_row(task: dict[str, Any], served: bool = False,
-              unmet_dependencies: list[str] | None = None) -> str:
+              unmet_dependencies: list[str] | None = None,
+              manage: bool = False) -> str:
     status = str(task.get("status", "todo"))
     css = "s-blocked-tag" if status == "blocked" else f"s-{status}"
     label = {"todo": "대기", "in_progress": "진행 중", "review": "검토 필요",
-             "blocked": "막힘", "done": "완료"}.get(status, status)
+             "blocked": "막힘", "done": "완료", "cancelled": "취소"}.get(status, status)
 
     paths = task.get("files", []) or []
     files = " · ".join(_short_path(p) for p in paths[:4])
@@ -2304,6 +2312,20 @@ def _task_row(task: dict[str, Any], served: bool = False,
                   f'data-arg-value="{e(task.get("id", ""))}" '
                   f'data-agent-role="{e(task.get("agent_role", ""))}"{disabled}>'
                   f'{button_label}</button>{blockers}</div>')
+    management = ""
+    if manage:
+        task_id = e(task.get("id", ""))
+        pieces = []
+        if status == "review":
+            pieces.append(f'<button class="btn" type="button" data-task-action="complete" '
+                          f'data-task-id="{task_id}">완료</button>')
+        if status not in ("done", "cancelled"):
+            pieces.append(f'<button class="btn muted" type="button" data-task-action="cancel" '
+                          f'data-task-id="{task_id}">취소</button>')
+        pieces.append(f'<button class="btn danger" type="button" data-task-action="delete" '
+                      f'data-task-id="{task_id}">삭제</button>')
+        management = ('\n          <div class="task-action task-manage">'
+                      + "".join(pieces) + "</div>")
     original = str(task.get("title", ""))
     hover = f' title="{e(original)}"' if task.get("title_ko") and original else ""
     return f"""        <div class="task">
@@ -2312,7 +2334,7 @@ def _task_row(task: dict[str, Any], served: bool = False,
             <span class="tag {css}">{e(label)}</span>
           </div>
           <div class="id mono">{e(task.get('id', ''))}</div>
-          <div class="files mono">{e(files)}</div>{action}
+          <div class="files mono">{e(files)}</div>{action}{management}
         </div>"""
 
 
@@ -2403,7 +2425,7 @@ def _link_panel_run(run: dict[str, str]) -> str:
     return f'<div class="panel"><h3>마지막 오케스트레이터 실행</h3>{body}</div>'
 
 
-def _gallery_html(groups: list[dict[str, Any]]) -> str:
+def _gallery_html(groups: list[dict[str, Any]], manage: bool = False) -> str:
     blocks = []
     for group in groups:
         items = group["items"]
@@ -2419,12 +2441,18 @@ def _gallery_html(groups: list[dict[str, Any]]) -> str:
                     figure = f'<div class="miss">{e(item["note"])}</div>'
                 meta = " · ".join(x for x in (item["dimensions"],
                                               f"{item['kb']:.0f} KB") if x)
+                actions = ""
+                if manage and str(item["rel"]).replace("\\", "/").startswith(
+                        "AI_GAME_COMPANY/generated/"):
+                    actions = (f'<div class="shot-actions"><button class="btn danger" '
+                               f'type="button" data-image-delete '
+                               f'data-image-path="{e(item["rel"])}">삭제</button></div>')
                 shots.append(
                     f'<figure class="shot" style="margin:0">'
                     f'<div class="frame">{figure}</div>'
                     f'<figcaption class="cap"><b title="{e(item["rel"])}">'
                     f'{e(item["label"])}</b>'
-                    f'<span class="mono">{e(meta)}</span></figcaption></figure>')
+                    f'<span class="mono">{e(meta)}</span></figcaption>{actions}</figure>')
             body = f'<div class="gal">{"".join(shots)}</div>'
 
         count = f'{len(items)}장' if items else "0장"
@@ -2557,6 +2585,19 @@ def _studio_html(snapshot: Snapshot) -> str:
             <input id="creator-title" maxlength="60" placeholder="도리 캔디 러시">
           </label>
           <div class="creator-options">
+            <label>게임 장르
+              <select id="creator-genre">
+                <option value="auto">AI 추천</option>
+                <option value="runner">Runner · 쿠키런형</option>
+                <option value="rpg">RPG · 성장/퀘스트</option>
+                <option value="fps">FPS · 슈팅</option>
+                <option value="idle">Idle · 방치형</option>
+                <option value="puzzle">Puzzle · 퍼즐</option>
+                <option value="defense">Defense · 디펜스</option>
+                <option value="arcade">Arcade · 짧은 반복 플레이</option>
+                <option value="simulation">Simulation · 경영/시뮬</option>
+              </select>
+            </label>
             <label>플레이 스타일
               <select id="creator-style">
                 <option value="auto">AI 추천</option>
@@ -2565,14 +2606,22 @@ def _studio_html(snapshot: Snapshot) -> str:
                 <option value="gravity">중력 반전</option>
                 <option value="speed">스피드 탈출</option>
                 <option value="endurance">무한 생존</option>
+                <option value="combat">액션 전투</option>
+                <option value="collection">수집 성장</option>
+                <option value="management">경영 자동화</option>
+                <option value="merge">머지 강화</option>
+                <option value="roguelite">로그라이트</option>
+                <option value="rhythm">리듬 콤보</option>
               </select>
             </label>
             <label>난이도
               <select id="creator-difficulty">
                 <option value="auto">AI 추천</option>
+                <option value="Relaxed">편안함</option>
                 <option value="Easy">쉬움</option>
                 <option value="Medium">보통</option>
                 <option value="Hard">어려움</option>
+                <option value="Expert">전문가</option>
               </select>
             </label>
             <label>세계관
@@ -2584,6 +2633,13 @@ def _studio_html(snapshot: Snapshot) -> str:
                 <option value="Forest">포레스트</option>
                 <option value="Neon">네온</option>
                 <option value="Lava">라바</option>
+                <option value="Ocean">오션</option>
+                <option value="Space">스페이스</option>
+                <option value="Desert">데저트</option>
+                <option value="Ice">아이스</option>
+                <option value="Office">오피스</option>
+                <option value="Dungeon">던전</option>
+                <option value="Kingdom">킹덤</option>
               </select>
             </label>
             <label>자동화 범위
@@ -2595,6 +2651,10 @@ def _studio_html(snapshot: Snapshot) -> str:
               </select>
             </label>
           </div>
+          <label class="creator-check">
+            <input id="creator-character-assets" type="checkbox">
+            Gemini로 도리 캐릭터 측면 이미지와 움직이는 팔·다리 파츠 자동 생성
+          </label>
           <div class="creator-actions">
             <button class="btn preview" id="creator-preview" type="button">AI 기획 미리보기</button>
             <button class="btn primary" id="creator-create" type="button">새 게임 자동 생성</button>
@@ -2602,82 +2662,6 @@ def _studio_html(snapshot: Snapshot) -> str:
           </div>
         </div>
         <div class="creator-result" id="creator-result" aria-live="polite"></div>
-      </div>
-    </div>
-  </section>
-
-"""
-
-
-def _order_html(snapshot: Snapshot) -> str:
-    """The command window: one sentence in, real work out.
-
-    Rendered only behind a server, like the rest of the control panel - a
-    static copy has nothing to POST to, and a box that swallowed an
-    instruction and did nothing with it would be the worst control on the page.
-
-    What it does NOT do is as important as what it does, and is said on the
-    page rather than only in the code: the text becomes a task on the board,
-    Codex reads it, and Codex cannot compile. So the order runs the Unity
-    tests afterwards, and the page says that is why.
-    """
-    teams = []
-    for dept in orders.DEPARTMENTS.values():
-        if dept.unavailable:
-            teams.append(
-                f'<option value="{e(dept.id)}" disabled>'
-                f'{e(dept.label)} · 지금은 맡길 수 없음</option>')
-            continue
-        teams.append(
-            f'<option value="{e(dept.id)}" '
-            f'data-summary="{e(dept.summary)}" '
-            f'data-files="{e(" · ".join(_scope_label(f) for f in dept.files))}" '
-            f'data-seat="{e(dept.seat)}">{e(dept.label)} · {e(dept.summary)}</option>')
-
-    closed = [d for d in orders.DEPARTMENTS.values() if d.unavailable]
-    closed_note = "".join(
-        f'<div class="order-closed">{e(d.label)} — {e(d.unavailable)}</div>'
-        for d in closed)
-
-    games = [g for g in snapshot.games if g["spec"]]
-    game_options = "".join(
-        f'<option value="{e(g["id"])}">{e(g["id"])}</option>' for g in games)
-    if games:
-        verify_row = (
-            '<label class="order-check"><input type="checkbox" id="order-verify" checked> '
-            '끝나면 Unity 테스트까지 돌린다</label>'
-            f'<select id="order-game" aria-label="테스트할 게임">{game_options}</select>')
-    else:
-        # No GameSpec means nothing to test against. Said, not silently
-        # dropped: an order will still run, it just cannot be checked.
-        verify_row = ('<span class="control-note">GameSpec 이 없어서 테스트 단계는 '
-                      '건너뜁니다. Codex 결과는 컴파일 확인 없이 남습니다.</span>')
-
-    return f"""  <section>
-    <div class="head">
-      <h2>제작 지시</h2>
-      <span class="note">한 줄로 지시하면 담당 팀이 일합니다 · 최대 {orders.MAX_ORDER_CHARS}자</span>
-    </div>
-    <div class="ctl">
-      <div class="order">
-        <div class="order-row">
-          <select id="order-dept" aria-label="지시를 맡길 팀">{"".join(teams)}</select>
-          <span class="order-scope mono" id="order-scope"></span>
-        </div>
-        <textarea id="order-text" rows="4" maxlength="{orders.MAX_ORDER_CHARS}"
-          aria-label="지시 내용"
-          placeholder="예) 점프를 더 무겁게. 올라갈 때보다 내려올 때가 빠르게 느껴지도록."></textarea>
-        <div class="order-row">
-          {verify_row}
-          <button class="btn" id="order-send">지시 보내기</button>
-        </div>
-        <div class="order-how">
-          지시는 작업판에 <span class="mono">ORDER-날짜-번호</span> 로 접수되고, Codex가
-          그 글을 그대로 읽고 작업합니다. <b>Codex는 컴파일을 못 합니다</b> — 그래서
-          끝나면 Unity 테스트를 이어서 돌립니다. 커밋과 푸시는 하지 않으니
-          결과는 검토한 뒤 직접 커밋하세요.
-        </div>
-        {closed_note}
       </div>
     </div>
   </section>
@@ -2807,7 +2791,8 @@ def _control_html(snapshot: Snapshot, token: str,
     const busy = document.getElementById('busy');
     const live = document.getElementById('live');
     const buttons = [...document.querySelectorAll('.btn[data-act]')];
-    const send = document.getElementById('order-send');
+    const taskButtons = [...document.querySelectorAll('.btn[data-task-action]')];
+    const imageButtons = [...document.querySelectorAll('.btn[data-image-delete]')];
     const creatorPreview = document.getElementById('creator-preview');
     const creatorCreate = document.getElementById('creator-create');
     const creatorResult = document.getElementById('creator-result');
@@ -2832,9 +2817,8 @@ def _control_html(snapshot: Snapshot, token: str,
 
     function lock(on, label) {{
       buttons.forEach(b => {{ b.disabled = on || b.dataset.blocked === 'true'; }});
-      // The order button is not a data-act button - it posts to /order, not
-      // /run - but one job at a time is one job at a time, so it locks too.
-      if (send) send.disabled = on;
+      taskButtons.forEach(b => {{ b.disabled = on; }});
+      imageButtons.forEach(b => {{ b.disabled = on; }});
       if (creatorPreview) creatorPreview.disabled = on;
       if (creatorCreate) creatorCreate.disabled = on;
       busy.className = on ? 'running' : '';
@@ -2939,16 +2923,75 @@ def _control_html(snapshot: Snapshot, token: str,
 
     buttons.forEach(b => b.addEventListener('click', () => start(b)));
 
+    async function mutateTask(button) {{
+      const operation = button.dataset.taskAction;
+      const task = button.dataset.taskId;
+      const prompt = {{
+        complete: '이 작업을 완료 처리할까요?',
+        cancel: '이 작업을 취소할까요?',
+        delete: '이 작업을 완전히 삭제할까요?'
+      }}[operation] || '작업을 수정할까요?';
+      if (!window.confirm(prompt)) return;
+      term.textContent = '';
+      lock(true, button.textContent);
+      try {{
+        const res = await fetch('/task', {{
+          method: 'POST',
+          headers: {{ 'Content-Type': 'application/json' }},
+          body: JSON.stringify({{ token: TOKEN, operation, task }})
+        }});
+        const data = await res.json();
+        if (!res.ok) {{
+          term.textContent = '거절: ' + (data.error || res.status);
+          lock(false);
+          return;
+        }}
+        location.reload();
+      }} catch (err) {{
+        term.textContent = '서버에 연결할 수 없습니다: ' + err;
+        lock(false);
+      }}
+    }}
+
+    async function deleteImage(button) {{
+      const path = button.dataset.imagePath;
+      if (!window.confirm('이 생성 이미지를 삭제할까요?')) return;
+      term.textContent = '';
+      lock(true, button.textContent);
+      try {{
+        const res = await fetch('/image', {{
+          method: 'POST',
+          headers: {{ 'Content-Type': 'application/json' }},
+          body: JSON.stringify({{ token: TOKEN, operation: 'delete', path }})
+        }});
+        const data = await res.json();
+        if (!res.ok) {{
+          term.textContent = '거절: ' + (data.error || res.status);
+          lock(false);
+          return;
+        }}
+        location.reload();
+      }} catch (err) {{
+        term.textContent = '서버에 연결할 수 없습니다: ' + err;
+        lock(false);
+      }}
+    }}
+
+    taskButtons.forEach(b => b.addEventListener('click', () => mutateTask(b)));
+    imageButtons.forEach(b => b.addEventListener('click', () => deleteImage(b)));
+
     // ---- AI game creator ----
     function creatorBody() {{
       return {{
         token: TOKEN,
         idea: document.getElementById('creator-idea').value,
         title: document.getElementById('creator-title').value,
+        genre: document.getElementById('creator-genre').value,
         style: document.getElementById('creator-style').value,
         difficulty: document.getElementById('creator-difficulty').value,
         theme: document.getElementById('creator-theme').value,
         pipeline: document.getElementById('creator-pipeline').value,
+        character_assets: document.getElementById('creator-character-assets').checked,
       }};
     }}
 
@@ -2964,8 +3007,11 @@ def _control_html(snapshot: Snapshot, token: str,
       creatorResult.innerHTML =
         '<h3>' + esc(plan.title) + ' <small class="mono">' + esc(plan.game_id) + '</small></h3>' +
         '<p>' + esc(plan.pitch) + '</p>' +
-        '<p><b>' + esc(plan.style_label) + '</b> · ' + esc(level.difficulty) +
+        '<p><b>' + esc(plan.genre_label || game.genre || 'Mobile') + '</b> · ' +
+          esc(plan.style_label) + ' · ' + esc(level.difficulty) +
           ' · ' + esc(theme.environment) + ' · 속도 ' + esc(player.moveSpeed) + '</p>' +
+        '<p class="mono">Git · ' + esc(plan.git_branch || 'planned') +
+          ' / 지침 · ' + esc(plan.requirements_path || '-') + '</p>' +
         '<div class="creator-tags">' + tags + '</div>' +
         '<div class="creator-spec mono">' +
           (saved ? '저장됨 · GameSpecs/' + esc(plan.game_id) + '.json' :
@@ -3022,76 +3068,6 @@ def _control_html(snapshot: Snapshot, token: str,
     if (creatorPreview) creatorPreview.addEventListener('click', () => createGame(true));
     if (creatorCreate) creatorCreate.addEventListener('click', () => createGame(false));
 
-    // ---- the order box ----
-    const dept = document.getElementById('order-dept');
-    const scope = document.getElementById('order-scope');
-    const text = document.getElementById('order-text');
-
-    // Which files that team may touch, shown as the team is chosen. This is
-    // the allowlist the run is checked against, so the user should see the
-    // boundary BEFORE typing an instruction that falls outside it.
-    function showScope() {{
-      if (!dept || !scope) return;
-      const picked = dept.options[dept.selectedIndex];
-      const files = picked ? picked.dataset.files : '';
-      const seat = picked ? picked.dataset.seat : '';
-      scope.textContent = files ? (seat + ' · ' + files) : '';
-    }}
-    if (dept) {{ dept.addEventListener('change', showScope); showScope(); }}
-
-    async function order() {{
-      const body = {{
-        token: TOKEN,
-        department: dept ? dept.value : '',
-        text: text ? text.value : '',
-      }};
-      const verifyBox = document.getElementById('order-verify');
-      const gameBox = document.getElementById('order-game');
-      // No checkbox on the page means there was no GameSpec to test, which
-      // the section already says. Sending verify:false keeps the server from
-      // having to guess what a missing field meant.
-      body.verify = verifyBox ? verifyBox.checked : false;
-      body.game = (body.verify && gameBox) ? gameBox.value : '';
-
-      term.textContent = '';
-      live.innerHTML = '';
-      lock(true, '지시 처리');
-      try {{
-        const res = await fetch('/order', {{
-          method: 'POST',
-          headers: {{ 'Content-Type': 'application/json' }},
-          body: JSON.stringify(body)
-        }});
-        const data = await res.json();
-        if (!res.ok) {{
-          term.textContent = '거부됨: ' + (data.error || res.status) +
-            (data.note ? '\\n' + data.note : '');
-          lock(false);
-          return;
-        }}
-        let head = '접수: ' + data.order + ' → ' + data.department_label +
-                   '\\n단계: ' + (data.steps || []).join(' → ');
-        if (data.duplicate_of) {{
-          head += '\\n같은 지시가 이미 ' + data.duplicate_of + ' 로 대기 중입니다.';
-        }}
-        term.textContent = head + '\\n\\n';
-        // Cleared only once the order is accepted: a rejected order should
-        // leave the text where the user can fix it instead of retyping it.
-        if (text) text.value = '';
-        showLive(data);
-        watch(data.job, '지시 처리');
-      }} catch (err) {{
-        term.textContent = '서버에 연결할 수 없습니다: ' + err;
-        lock(false);
-      }}
-    }}
-
-    if (send) send.addEventListener('click', order);
-    // Ctrl+Enter sends, because Enter has to stay a newline in a textarea -
-    // an order is often two or three sentences.
-    if (text) text.addEventListener('keydown', ev => {{
-      if ((ev.ctrlKey || ev.metaKey) && ev.key === 'Enter' && !send.disabled) order();
-    }});
   }});
   </script>
 """
@@ -3112,7 +3088,8 @@ def render(snapshot: Snapshot, control_token: str | None = None,
     if control_token is None:
         live_job = None
 
-    counts = {state: sum(1 for a in snapshot.agents if a.state == state)
+    visible_agents = [a for a in snapshot.agents if a.state in (READY, GATED)]
+    counts = {state: sum(1 for a in visible_agents if a.state == state)
               for state in (READY, GATED, BLOCKED, UNKNOWN)}
 
     working_prefix = (progress_mod.agent_prefix_for(str(live_job.get("action", "")))
@@ -3123,13 +3100,19 @@ def render(snapshot: Snapshot, control_token: str | None = None,
     office = (_company_office_html(
         snapshot.company_roles, snapshot.tasks, snapshot.office_image, live_job)
         if snapshot.company_roles
-        else _virtual_office_html(snapshot.agents, snapshot.office_image, working_prefix))
-    roster = "\n".join(_agent_row(agent) for agent in snapshot.agents)
+        else _virtual_office_html(visible_agents, snapshot.office_image, working_prefix))
+    roster = "\n".join(_agent_row(agent) for agent in visible_agents)
 
     task_models = [Task.from_dict(task) for task in snapshot.tasks]
     task_board = TaskBoard(path=Path(), tasks=task_models)
+    hidden_task_statuses = {"done", "cancelled"}
+    visible_board_tasks = [
+        t for t in snapshot.tasks
+        if str(t.get("status", "")) not in hidden_task_statuses
+    ]
     unmet_by_id = {task.id: task_board.unmet_dependencies(task)
-                   for task in task_models if task.owner == "codex" and task.status != "done"}
+                   for task in task_models if task.owner == "codex"
+                   and task.status not in hidden_task_statuses}
     open_work = sum(task.status in ("todo", "in_progress") for task in task_models)
     review_work = sum(task.status in ("review", "blocked") for task in task_models)
     company_runtime = _company_role_runtime(
@@ -3142,13 +3125,14 @@ def render(snapshot: Snapshot, control_token: str | None = None,
 
     lanes = []
     for owner, label in (("claude", "Claude"), ("codex", "Codex")):
-        owned = [t for t in snapshot.tasks if t.get("owner") == owner]
+        owned = [t for t in visible_board_tasks if t.get("owner") == owner]
         rows = "\n".join(
             # The queue above is the one execution surface. The full board is
             # an audit/history view, so repeating run buttons here only made
             # the same action appear twice.
             _task_row(t, served=False,
-                      unmet_dependencies=unmet_by_id.get(str(t.get("id", "")), []))
+                      unmet_dependencies=unmet_by_id.get(str(t.get("id", "")), []),
+                      manage=control_token is not None)
             for t in owned) or \
             '<div class="task"><span class="files">배정된 작업이 없습니다.</span></div>'
         lanes.append(f"""      <div class="lane">
@@ -3219,11 +3203,7 @@ def render(snapshot: Snapshot, control_token: str | None = None,
     hardware = snapshot.profile.get("hardware", {})
     unity = snapshot.profile.get("unity", {})
 
-    # Order box first, then the fixed-button panel. Both only exist behind a
-    # server: the static copy has nothing to POST to, and section 10's rule
-    # that a control which cannot act should not be drawn covers a text box
-    # every bit as much as a button.
-    control = (_studio_html(snapshot) + _order_html(snapshot)
+    control = (_studio_html(snapshot)
                + _control_html(snapshot, control_token, live_job)
                if control_token else "")
     shot_count = sum(len(g["items"]) for g in snapshot.gallery)
@@ -3232,7 +3212,7 @@ def render(snapshot: Snapshot, control_token: str | None = None,
     plan_note = (f'{len(plan.get("present", []))}개 반영 · '
                  f'{len(plan.get("missing", []))}개 미복사 · '
                  f'{len(plan.get("queued", []))}개 대기 · '
-                 f'{e(plan.get("source") or "근거 파일 없음")}')
+                 f'{e(plan.get("source") or "근거 없음")}')
     # Said plainly rather than left to the reader: the static copy has no
     # server, so it has no buttons, and that difference should not look like
     # a missing feature.
@@ -3278,7 +3258,7 @@ def render(snapshot: Snapshot, control_token: str | None = None,
 
   <div class="verdict">
     <b>연동 도구 {counts[READY]}개 작업 가능</b>
-    <span>{counts[GATED]}개 대기 · {counts[BLOCKED]}개 사용 불가 · {counts[UNKNOWN]}개 확인 불가</span>
+    <span>{counts[GATED]}개 대기 · 사용 가능한 AI만 표시</span>
     <span>설치된 것과 실제로 돌아가는 것은 다릅니다. 아래 각 줄은 그 판단의 근거 파일을 함께 표시합니다.</span>
   </div>
   {missing_block}
@@ -3304,7 +3284,7 @@ def render(snapshot: Snapshot, control_token: str | None = None,
       <span class="note">근거 = 이 상태를 읽어온 파일</span>
     </div>
     <details class="fold">
-      <summary>연동 도구 {len(snapshot.agents)}개 상세 보기</summary>
+      <summary>연동 도구 {len(visible_agents)}개 상세 보기</summary>
       <div class="fold-body roster">
 {roster}
       </div>
@@ -3341,7 +3321,7 @@ def render(snapshot: Snapshot, control_token: str | None = None,
       <span class="note">AI_GAME_COMPANY/config/TASKBOARD.json · 완료는 빌드 통과 후 사람이 정합니다</span>
     </div>
     <details class="fold">
-      <summary>전체 작업 기록 {len(snapshot.tasks)}개 보기</summary>
+      <summary>진행 중 작업 {len(visible_board_tasks)}개 보기</summary>
       <div class="fold-body board">
 {chr(10).join(lanes)}
       </div>
@@ -3378,7 +3358,7 @@ def render(snapshot: Snapshot, control_token: str | None = None,
     <details class="fold">
       <summary>이미지 {shot_count}장과 아트 계획 보기</summary>
       <div class="fold-body">
-{_gallery_html(snapshot.gallery)}
+{_gallery_html(snapshot.gallery, manage=control_token is not None)}
         <div class="gal-wrap">
           <div class="h"><b>계획 대비 실제</b><span>{e(plan_note)}</span></div>
 {_art_plan_html(snapshot.art_plan)}

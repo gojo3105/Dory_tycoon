@@ -20,9 +20,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from company.orchestrator.agent_registry import AgentRegistry  # noqa: E402
 from company.orchestrator.teamwork import (  # noqa: E402
-    BLOCKED, CODEX, DONE, IN_PROGRESS, REVIEW, TODO, TOOL_OWNED_PATHS,
-    AllowlistViolation, NotCodexOwned, Task, TaskBoard, TaskNotFound,
+    BLOCKED, CANCELLED, CODEX, DONE, IN_PROGRESS, REVIEW, TODO, TOOL_OWNED_PATHS,
+    AllowlistViolation, NotCodexOwned, Task, TaskBoard, TaskMutationError, TaskNotFound,
     build_prompt, changed_paths, concurrent_work, run_task,
 )
 
@@ -113,6 +114,39 @@ class AllowlistTests(unittest.TestCase):
         # deny-by-default rule the policy module uses for the same reason.
         task = Task(id="T", title="t", files=[])
         self.assertFalse(task.covers("anything.cs"))
+
+
+class BoardMutationTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.path = Path(self.tmp.name) / "board.json"
+        self.board = TaskBoard(path=self.path, tasks=[
+            Task(id="R", title="review", status=REVIEW),
+            Task(id="T", title="todo", status=TODO),
+            Task(id="D", title="depends", status=TODO, depends_on=["T"]),
+        ])
+        self.board.save()
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_complete_accepts_only_review_items(self):
+        self.board.complete("R")
+        self.assertEqual(DONE, TaskBoard.load(self.path).get("R").status)
+        with self.assertRaises(TaskMutationError):
+            self.board.complete("T")
+
+    def test_cancel_preserves_the_task_as_a_hidden_audit_record(self):
+        self.board.cancel("T")
+        task = TaskBoard.load(self.path).get("T")
+        self.assertEqual(CANCELLED, task.status)
+        self.assertTrue(any("CANCELLED" in note for note in task.notes))
+
+    def test_delete_refuses_tasks_that_are_still_dependencies(self):
+        with self.assertRaises(TaskMutationError):
+            self.board.delete("T")
+        self.board.delete("R")
+        self.assertFalse(any(task.id == "R" for task in TaskBoard.load(self.path).tasks))
 
 
 class ChangedPathsTests(RepoTestCase):
@@ -351,6 +385,20 @@ class PromptTests(RepoTestCase):
         self.assertIn("C1", prompt)
         self.assertIn("SAME WORKING TREE", prompt)
 
+    def test_role_prompt_is_injected_before_goal_and_keeps_higher_rules(self):
+        registry = AgentRegistry.load(
+            Path(__file__).resolve().parents[1] / "config" / "AGENTS.json")
+        task = self.board.get("T1")
+        task.agent_role = "gameplay_engineer"
+        task.department = "게임개발부"
+        task.task_type = "gameplay_code"
+        prompt = build_prompt(task, self.board, self.repo, registry=registry)
+        self.assertIn("Agent ID: gameplay_engineer", prompt)
+        self.assertIn("Unity 모바일 게임 Gameplay Engineer", prompt)
+        self.assertLess(prompt.index("ROLE INSTRUCTIONS"), prompt.index("GOAL"))
+        self.assertIn("PROJECT RULES", prompt)
+        self.assertIn("src/allowed.cs", prompt)
+
 
 class ToolChurnTests(RepoTestCase):
     """CODEX-BOARD1 defect 1: a file a TOOL rewrote must not block the task."""
@@ -435,6 +483,25 @@ class BoardMetaTests(unittest.TestCase):
             self.assertIn("Shared task board", data["_comment"])
             self.assertEqual(1, data["_version"])
 
+    def test_optional_agent_and_future_fields_survive_round_trip(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "board.json"
+            path.write_text(json.dumps({"tasks": [{
+                "id": "A", "title": "a", "owner": "codex", "status": "todo",
+                "goal": "g", "files": ["x"], "acceptance": ["a"],
+                "depends_on": [], "notes": [], "changed_files": [], "last_run": "",
+                "agent_role": "qa_engineer", "department": "품질보증부",
+                "task_type": "qa", "priority": 90,
+                "future_field": {"keep": True},
+            }]}, ensure_ascii=False), encoding="utf-8")
+            board = TaskBoard.load(path)
+            self.assertEqual("qa_engineer", board.get("A").agent_role)
+            board.save()
+            saved = json.loads(path.read_text(encoding="utf-8"))["tasks"][0]
+            self.assertEqual("qa", saved["task_type"])
+            self.assertEqual(90, saved["priority"])
+            self.assertEqual({"keep": True}, saved["future_field"])
+
 
 class ConcurrentWorkTests(RepoTestCase):
     """CODEX-BOARD1 defect 3: the warning tracks the tree, not the status."""
@@ -493,7 +560,7 @@ class CommittedBoardTests(unittest.TestCase):
             self.skipTest("no board committed")
         for task in TaskBoard.load(BOARD).tasks:
             self.assertIn(task.owner, ("claude", "codex"), task.id)
-            self.assertIn(task.status, (TODO, IN_PROGRESS, REVIEW, BLOCKED, DONE), task.id)
+            self.assertIn(task.status, (TODO, IN_PROGRESS, REVIEW, BLOCKED, DONE, CANCELLED), task.id)
             self.assertTrue(task.goal, f"{task.id} has no goal")
             # A Codex task with no allowlist could never pass the check, so it
             # would be an impossible handoff rather than a permissive one.

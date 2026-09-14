@@ -23,7 +23,14 @@ if __package__ in (None, ""):
 from company.orchestrator.codex_runner import (  # noqa: E402
     CodexLimited, CodexRunner, CodexUnavailable, ReviewNotRun,
 )
+from company.orchestrator.agent_dispatcher import (  # noqa: E402
+    AgentDispatchError, AgentDispatcher,
+)
+from company.orchestrator.agent_registry import (  # noqa: E402
+    AgentRegistry, AgentRegistryError,
+)
 from company.orchestrator.hardware import HardwareProfile  # noqa: E402
+from company.orchestrator.manager import CompanyManager, PlanValidationError  # noqa: E402
 from company.orchestrator.ollama_client import (  # noqa: E402
     ModelDoesNotFit, ModelNotApproved, ModelNotInstalled,
     NonLocalEndpointRefused, OllamaClient, OllamaUnavailable,
@@ -343,6 +350,67 @@ def cmd_team(args: argparse.Namespace) -> int:
     on the CLI being available.
     """
     board = _board()
+    try:
+        registry = AgentRegistry.load(CONFIG_DIR / "AGENTS.json")
+    except AgentRegistryError as exc:
+        print(f"ERROR: invalid AGENTS.json: {exc}")
+        return 2
+
+    if args.action == "agents":
+        print("=== COMPANY AGENTS ===")
+        for agent in registry.list_agents():
+            mode = "WRITE" if agent.can_modify_code else "READ/PLAN"
+            print(f"  {agent.order:02d} {agent.id:22} {agent.display_name}")
+            print(f"     {agent.department} · {agent.ai_name} · {mode}")
+        return 0
+
+    if args.action == "status":
+        print("=== COMPANY STATUS ===")
+        for agent in registry.list_agents():
+            all_assigned = [task for task in board.tasks if task.agent_role == agent.id]
+            assigned = [task for task in all_assigned
+                        if task.status not in ("done", "cancelled")]
+            current = next((task for task in assigned if task.status == "in_progress"), None)
+            waiting = next((task for task in assigned if task.status == "todo"), None)
+            recent = next((task for task in reversed(all_assigned)
+                           if task.status in ("done", "review", "blocked")), None)
+            state = ("WORKING" if current else "WAITING" if waiting else
+                     "REVIEWING" if recent and recent.status == "review" else
+                     "BLOCKED" if recent and recent.status == "blocked" else
+                     "DONE" if recent and recent.status == "done" else "IDLE")
+            task = current or waiting or recent
+            print(f"  [{state:9}] {agent.display_name:24} "
+                  f"{task.id + ' ' + task.title if task else '-'}")
+        return 0
+
+    if args.action == "order":
+        try:
+            manager = CompanyManager(registry, REPO_ROOT)
+            plan = manager.plan(args.game, args.goal,
+                                {task.id for task in board.tasks})
+        except (PlanValidationError, AgentDispatchError) as exc:
+            print(f"REFUSED: {exc}")
+            return 2
+
+        print("=== CEO / PRODUCER PLAN ===")
+        print(json.dumps(plan.as_dict(), ensure_ascii=False, indent=2))
+        if args.dry_run:
+            print("\nDRY RUN - plan was not written and no task was started.")
+            return 0
+
+        try:
+            manager.add_to_board(plan, board)
+            plan_path = manager.write_plan(
+                plan, COMPANY_ROOT / "company" / "plans" / f"{args.game}.json")
+        except (PlanValidationError, OSError) as exc:
+            print(f"ERROR: could not persist plan: {exc}")
+            return 1
+        print(f"\n  plan: {plan_path}")
+        print(f"  added: {len(plan.tasks)} tasks")
+        # Start the first executable stage immediately. REVIEW remains a gate;
+        # team next continues only after the prior stage has been accepted.
+        args.task = plan.tasks[0].id
+        args.action = "run"
 
     if not board.tasks:
         print(f"No tasks on {board.path}.")
@@ -363,6 +431,17 @@ def cmd_team(args: argparse.Namespace) -> int:
                 print(f"    [{task.status:11}] {task.id:10} {task.title}{blocked}")
             print()
         return 0
+
+    if args.action == "next":
+        candidates = [task for task in board.tasks
+                      if task.owner == "codex" and task.status == "todo" and
+                      not board.unmet_dependencies(task)]
+        if not candidates:
+            print("No executable TODO task. Finish a REVIEW gate or resolve a BLOCKED task first.")
+            return 1
+        candidates.sort(key=lambda task: (-task.priority, board.tasks.index(task)))
+        args.task = candidates[0].id
+        args.action = "run"
 
     # Everything below actually invokes Codex.
     if not args.task:
@@ -395,10 +474,17 @@ def cmd_team(args: argparse.Namespace) -> int:
 
     print("  running codex exec --sandbox workspace-write ...\n")
 
+    dispatcher = AgentDispatcher(registry, REPO_ROOT)
     try:
-        run = run_task(board, args.task, codex, REPO_ROOT,
-                       timeout_seconds=args.timeout)
+        with dispatcher.writing_slot(task) as agent:
+            if task.agent_role:
+                print(f"  role: {agent.display_name} / {agent.department}")
+            run = run_task(board, args.task, codex, REPO_ROOT,
+                           timeout_seconds=args.timeout)
     except NotCodexOwned as exc:
+        print(f"REFUSED: {exc}")
+        return 2
+    except AgentDispatchError as exc:
         print(f"REFUSED: {exc}")
         return 2
     except CodexLimited as exc:
@@ -444,6 +530,14 @@ def cmd_team(args: argparse.Namespace) -> int:
     if not run.ok:
         print("\nBLOCKED - the run changed nothing. That is not progress.")
         return 1
+
+    run.task.record_handoff(
+        status="REVIEW", summary=run.summary,
+        acceptance_result=["NOT_VERIFIED: pending QA/review gate"],
+        handoff_to=run.task.handoff_to,
+        reason="Implementation changed only allowlisted files and awaits verification.",
+    )
+    board.save()
 
     print(f"\n  status -> {run.task.status} (NOT done: nothing here compiled the project)")
     print(f"  next: python -m company.orchestrator.main build --game {args.game}")
@@ -718,11 +812,13 @@ def main(argv: list[str] | None = None) -> int:
     dashboard.set_defaults(func=cmd_dashboard)
 
     team = sub.add_parser("team", help="the shared board Claude and Codex both work from")
-    team.add_argument("action", choices=["board", "run"],
-                      help="board: print who is doing what. run: hand a task to Codex")
+    team.add_argument("action", choices=["board", "run", "agents", "status", "order", "next"],
+                      help="inspect roles/board, plan an order, or run the next Codex task")
     team.add_argument("--task", default=None, help="task id, for 'run'")
     team.add_argument("--game", default="game01",
-                      help="game id used in the follow-up build suggestion")
+                      help="game id for order planning and the follow-up build")
+    team.add_argument("--goal", default="",
+                      help="one-sentence CEO goal, for 'order'")
     team.add_argument("--model", default=None, help="override the Codex model")
     team.add_argument("--timeout", type=int, default=1800,
                       help="seconds before the Codex run is abandoned (default 1800)")

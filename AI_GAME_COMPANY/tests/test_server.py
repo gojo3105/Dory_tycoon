@@ -28,6 +28,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from company.orchestrator import server as srv  # noqa: E402
+from company.orchestrator.teamwork import DONE, REVIEW, TODO, Task, TaskBoard  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[2]
 COMPANY = REPO / "AI_GAME_COMPANY"
@@ -106,6 +107,8 @@ class ArgumentGuardTests(unittest.TestCase):
 
     def test_an_action_without_an_argument_needs_no_validation(self):
         self.assertEqual((True, ""), self.guard("git-status", ""))
+        self.assertEqual((True, ""), self.guard("character-side", ""))
+        self.assertEqual((True, ""), self.guard("character-rig", ""))
 
     def test_unknown_action_is_refused_before_anything_runs(self):
         job, why = self.runner.start("rm -rf /", "")
@@ -179,10 +182,21 @@ class LiveServerTests(unittest.TestCase):
         status, body = self.get("/")
         self.assertEqual(200, status)
         page = body.decode("utf-8")
-        self.assertIn("도리 AI 게임 스튜디오", page)
+        self.assertIn("도리 AI 게임 자동화 공장", page)
+        self.assertIn("새 게임 생산 요청", page)
+        self.assertIn("게임 장르", page)
+        self.assertIn("creator-character-assets", page)
+        self.assertIn("Gemini로 도리 캐릭터", page)
+        self.assertIn("로그라이트", page)
+        self.assertIn("전문가", page)
+        self.assertIn("던전", page)
         self.assertIn("/plan-game", page)
         self.assertIn("/create-game", page)
-        self.assertIn("AI 제어", page)
+        self.assertIn("/task", page)
+        self.assertNotIn("제작 지시", page)
+        self.assertNotIn("order-send", page)
+        self.assertNotIn("'/order'", page)
+        self.assertIn('data-act="dashboard"', page)
         self.assertIn("const TOKEN", page)
 
     def test_the_static_file_has_no_control_panel(self):
@@ -250,6 +264,70 @@ class LiveServerTests(unittest.TestCase):
         status, body = self.post({"token": self.token, "action": "deploy"})
         self.assertEqual(409, status)
 
+    def test_task_complete_cancel_and_delete_update_the_board(self):
+        board = self.runner.board()
+        board.tasks.extend([
+            Task(id="HTTP-REVIEW", title="review", owner="codex", status=REVIEW),
+            Task(id="HTTP-TODO", title="todo", owner="codex", status=TODO),
+            Task(id="HTTP-DELETE", title="delete", owner="codex", status=TODO),
+        ])
+        board.save()
+
+        status, body = self.post({
+            "token": self.token, "operation": "complete", "task": "HTTP-REVIEW",
+        }, path="/task")
+        self.assertEqual(200, status)
+        self.assertTrue(body["ok"])
+        self.assertEqual(DONE, self.runner.board().get("HTTP-REVIEW").status)
+
+        status, _ = self.post({
+            "token": self.token, "operation": "cancel", "task": "HTTP-TODO",
+        }, path="/task")
+        self.assertEqual(200, status)
+        self.assertEqual("cancelled", self.runner.board().get("HTTP-TODO").status)
+
+        status, _ = self.post({
+            "token": self.token, "operation": "delete", "task": "HTTP-DELETE",
+        }, path="/task")
+        self.assertEqual(200, status)
+        self.assertFalse(any(t.id == "HTTP-DELETE" for t in self.runner.board().tasks))
+
+    def test_task_delete_refuses_a_dependency(self):
+        board = self.runner.board()
+        board.tasks.extend([
+            Task(id="HTTP-PARENT", title="parent", owner="codex", status=TODO),
+            Task(id="HTTP-CHILD", title="child", owner="codex", status=TODO,
+                 depends_on=["HTTP-PARENT"]),
+        ])
+        board.save()
+
+        status, body = self.post({
+            "token": self.token, "operation": "delete", "task": "HTTP-PARENT",
+        }, path="/task")
+        self.assertEqual(409, status)
+        self.assertIn("HTTP-CHILD", body["error"])
+
+    def test_generated_image_delete_is_limited_to_that_folder(self):
+        target = self.repo / "AI_GAME_COMPANY" / "generated" / "test-shot.png"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(b"png")
+
+        status, body = self.post({
+            "token": self.token,
+            "operation": "delete",
+            "path": "AI_GAME_COMPANY/generated/test-shot.png",
+        }, path="/image")
+        self.assertEqual(200, status)
+        self.assertTrue(body["ok"])
+        self.assertFalse(target.exists())
+
+        status, _ = self.post({
+            "token": self.token,
+            "operation": "delete",
+            "path": "Assets/GameFactory/source.png",
+        }, path="/image")
+        self.assertEqual(400, status)
+
     def test_log_for_an_unknown_job_is_not_a_success(self):
         status, body = self.get("/log?job=deadbeef")
         payload = json.loads(body)
@@ -275,6 +353,9 @@ class LiveServerTests(unittest.TestCase):
         self.assertFalse(body["saved"])
         self.assertEqual("Dori_Default", body["plan"]["character"])
         self.assertEqual("game02", body["plan"]["game_id"])
+        self.assertEqual("ai-game/game02", body["plan"]["git_branch"])
+        self.assertEqual("GameSpecs/game02_REQUIREMENTS.md",
+                         body["plan"]["requirements_path"])
         self.assertFalse(target.exists())
 
     def test_game_create_can_save_a_spec_without_starting_a_process(self):
@@ -290,10 +371,13 @@ class LiveServerTests(unittest.TestCase):
             self.assertTrue(body["saved"])
             self.assertTrue(body["done"])
             self.assertTrue(target.is_file())
+            self.assertEqual("not_git", body["plan"]["git_status"])
+            self.assertTrue((self.repo / "GameSpecs" / "game02_REQUIREMENTS.md").is_file())
             spec = json.loads(target.read_text(encoding="utf-8"))
             self.assertEqual("Dori_Default", spec["theme"]["character"])
         finally:
             target.unlink(missing_ok=True)
+            (self.repo / "GameSpecs" / "game02_REQUIREMENTS.md").unlink(missing_ok=True)
 
     def test_game_creator_rejects_unlisted_pipeline(self):
         status, body = self.post({
@@ -303,6 +387,21 @@ class LiveServerTests(unittest.TestCase):
         }, path="/create-game")
         self.assertEqual(409, status)
         self.assertIn("지원하지 않는", body["error"])
+
+    def test_character_asset_steps_can_precede_a_build_pipeline(self):
+        steps, why = self.runner.plan([
+            ("character-side", ""),
+            ("character-rig", ""),
+            ("test", "game01"),
+            ("build", "game01"),
+        ])
+        self.assertEqual("", why)
+        self.assertEqual(
+            ["character-side", "character-rig", "test", "build"],
+            [step.action for step in steps],
+        )
+        self.assertIn("--side", steps[0].argv)
+        self.assertIn("Assets/Common/Art/Runner/player_side.png", steps[1].argv)
 
 
 class JobProgressTests(unittest.TestCase):

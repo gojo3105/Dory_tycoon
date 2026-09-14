@@ -71,6 +71,8 @@ class Department:
     label: str
     seat: str                        # the agent that works here
     summary: str                     # what to send here, in the user's words
+    agent_role: str
+    task_type: str
     files: tuple[str, ...] = ()
     acceptance: tuple[str, ...] = ()
     # An order to this department cannot be run by this machine at all. The
@@ -104,6 +106,8 @@ DEPARTMENTS: dict[str, Department] = {
         label="게임개발팀",
         seat="Codex CLI",
         summary="움직임, 점프, 충돌, 코인, 게임 규칙",
+        agent_role="gameplay_engineer",
+        task_type="gameplay_code",
         files=(
             "Assets/GameFactory/Gameplay/**",
             "Assets/GameFactory/Core/**",
@@ -116,6 +120,8 @@ DEPARTMENTS: dict[str, Department] = {
         label="UI팀",
         seat="Codex CLI",
         summary="화면, 버튼, 글자, 상점, 안내 문구",
+        agent_role="ui_ux_engineer",
+        task_type="ui_code",
         files=(
             "Assets/GameFactory/UI/**",
         ),
@@ -126,6 +132,8 @@ DEPARTMENTS: dict[str, Department] = {
         label="레벨생성팀",
         seat="Codex CLI",
         summary="맵 생성, 장애물 배치, 씬·프리팹 생성기",
+        agent_role="level_designer",
+        task_type="level_design",
         files=(
             "Assets/GameFactory/LevelGeneration/**",
             "Assets/GameFactory/Editor/**",
@@ -137,6 +145,8 @@ DEPARTMENTS: dict[str, Department] = {
         label="품질관리팀",
         seat="Codex CLI",
         summary="테스트 추가·수정",
+        agent_role="qa_engineer",
+        task_type="qa",
         files=(
             "Assets/GameFactory/Tests/**",
         ),
@@ -151,6 +161,8 @@ DEPARTMENTS: dict[str, Department] = {
         label="기획팀",
         seat="Codex CLI",
         summary="GameSpec 수치, 기획 문서",
+        agent_role="game_director",
+        task_type="game_design",
         files=(
             "GameSpecs/*.json",
             "docs/**",
@@ -169,6 +181,8 @@ DEPARTMENTS: dict[str, Department] = {
         label="디자인팀",
         seat="Gemini",
         summary="캐릭터·배경 그림 (Gemini 담당)",
+        agent_role="art_director",
+        task_type="art_direction",
         unavailable=(
             "디자인은 Gemini 몫이고, GEMINI_API_KEY 가 아직 없습니다. "
             "키를 넣으면 이 방이 열립니다."
@@ -288,6 +302,9 @@ def place_order(board: TaskBoard, department_id: str, text: str,
         goal=instruction,
         files=list(dept.files),
         acceptance=list(dept.acceptance),
+        agent_role=dept.agent_role,
+        department=dept.label,
+        task_type=dept.task_type,
         notes=[
             f"제어판 명령창에서 {dept.label}으로 접수. "
             f"지시 원문은 goal 에 그대로 있습니다.",

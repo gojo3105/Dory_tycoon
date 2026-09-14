@@ -56,7 +56,7 @@ from company.orchestrator import dashboard as dash
 from company.orchestrator import game_creator as creation
 from company.orchestrator import orders as ordering
 from company.orchestrator import progress as prog
-from company.orchestrator.teamwork import TaskBoard
+from company.orchestrator.teamwork import TaskBoard, TaskMutationError, TaskNotFound
 
 LOOPBACK = "127.0.0.1"
 MAX_BODY = 16384
@@ -111,6 +111,17 @@ ACTIONS: dict[str, Action] = {
         lambda root, arg: [_python(), "-m", "company.orchestrator.main",
                            "test", "--game", arg, "--platform", "playmode"],
         needs="game", timeout=3600),
+    "character-side": Action(
+        "Gemini 측면 캐릭터",
+        lambda root, arg: [_python(), "-m", "company.orchestrator.main",
+                           "character", "--side", "--force"],
+        timeout=900),
+    "character-rig": Action(
+        "Gemini 캐릭터 파츠",
+        lambda root, arg: [_python(), "-m", "company.orchestrator.main",
+                           "character", "--force",
+                           "--reference", "Assets/Common/Art/Runner/player_side.png"],
+        timeout=1800),
     # Read-only: lists what is installed and whether each model passes the
     # licence and RAM checks. Installing is deliberately NOT here - policy
     # never_auto_install covers ollama_models, and which model is acceptable
@@ -443,7 +454,7 @@ class Handler(BaseHTTPRequestHandler):
             self._discard_body()
             self._json(403, {"error": "cross-site 요청은 거부됩니다."})
             return
-        if self.path not in ("/run", "/order", "/plan-game", "/create-game"):
+        if self.path not in ("/run", "/order", "/plan-game", "/create-game", "/task", "/image"):
             self._discard_body()
             self._json(404, {"error": "not found"})
             return
@@ -458,6 +469,10 @@ class Handler(BaseHTTPRequestHandler):
             self._plan_game(payload)
         elif self.path == "/create-game":
             self._create_game(payload)
+        elif self.path == "/task":
+            self._task_action(payload)
+        elif self.path == "/image":
+            self._image_action(payload)
         else:
             self._run_action(payload)
 
@@ -509,6 +524,66 @@ class Handler(BaseHTTPRequestHandler):
         print(f"  [실행] {' '.join(job.step.argv)}")
         self._json(200, {"job": job.id})
 
+    def _task_action(self, payload: dict[str, Any]) -> None:
+        """Apply small dashboard edits to the shared task board."""
+        task_id = str(payload.get("task", ""))
+        operation = str(payload.get("operation", ""))
+        if not SAFE_ID.match(task_id):
+            self._json(400, {"error": "올바르지 않은 작업 id입니다."})
+            return
+
+        job = self.runner.current
+        if (job is not None and not job.done
+                and job.action == "team-run" and job.arg == task_id):
+            self._json(409, {"error": "실행 중인 작업은 끝난 뒤에 수정할 수 있습니다."})
+            return
+
+        board = self.runner.board()
+        try:
+            if operation == "complete":
+                task = board.complete(task_id)
+            elif operation == "cancel":
+                task = board.cancel(task_id)
+            elif operation == "delete":
+                task = board.delete(task_id)
+            else:
+                self._json(400, {"error": "알 수 없는 작업 명령입니다."})
+                return
+        except TaskNotFound as exc:
+            self._json(404, {"error": str(exc)})
+            return
+        except TaskMutationError as exc:
+            self._json(409, {"error": str(exc)})
+            return
+
+        self._json(200, {"ok": True, "task": task.id, "operation": operation})
+
+    def _image_action(self, payload: dict[str, Any]) -> None:
+        """Delete only generated gallery files, never source or game art."""
+        operation = str(payload.get("operation", ""))
+        rel = str(payload.get("path", "")).replace("\\", "/")
+        if operation != "delete":
+            self._json(400, {"error": "알 수 없는 이미지 명령입니다."})
+            return
+        if (".." in rel.split("/") or not rel.startswith("AI_GAME_COMPANY/generated/")
+                or Path(rel).suffix.lower() not in (".png", ".jpg", ".jpeg", ".webp")):
+            self._json(400, {"error": "생성 이미지 폴더의 이미지 파일만 삭제할 수 있습니다."})
+            return
+
+        root = (self.runner.repo_root / "AI_GAME_COMPANY" / "generated").resolve()
+        target = (self.runner.repo_root / rel).resolve()
+        try:
+            target.relative_to(root)
+        except ValueError:
+            self._json(400, {"error": "생성 이미지 폴더 밖의 파일은 삭제할 수 없습니다."})
+            return
+        if not target.is_file():
+            self._json(404, {"error": "이미지 파일이 없습니다."})
+            return
+
+        target.unlink()
+        self._json(200, {"ok": True, "path": rel, "operation": operation})
+
     def _plan_game(self, payload: dict[str, Any]) -> None:
         """Return a complete preview without writing a file or starting Unity."""
         try:
@@ -541,6 +616,8 @@ class Handler(BaseHTTPRequestHandler):
             "build": [("build", plan.game_id)],
             "full": [("test", plan.game_id), ("build", plan.game_id)],
         }[pipeline]
+        if payload.get("character_assets") is True:
+            pairs = [("character-side", ""), ("character-rig", ""), *pairs]
         response: dict[str, Any] = {
             "plan": plan.as_dict(),
             "saved": True,
@@ -563,6 +640,8 @@ class Handler(BaseHTTPRequestHandler):
 
         job.append(
             f"GameSpec created: GameSpecs/{plan.game_id}.json\n"
+            f"Requirements: {plan.requirements_path}\n"
+            f"Git branch: {plan.git_branch} ({plan.git_status})\n"
             f"Character locked: {creation.SHARED_CHARACTER}\n"
         )
         response.update(job.snapshot())

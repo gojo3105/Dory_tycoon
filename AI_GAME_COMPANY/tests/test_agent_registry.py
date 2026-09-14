@@ -24,6 +24,7 @@ class AgentRegistryTests(unittest.TestCase):
         registry = AgentRegistry.load(ROOT / "config" / "AGENTS.json")
         self.assertEqual(12, len(registry.list_agents()))
         self.assertEqual("경영실", registry.department("ceo"))
+        self.assertEqual("Codex CEO Agent", registry.get("ceo").ai_name)
         self.assertIn("Unity 모바일 게임", registry.prompt("gameplay_engineer"))
 
     def test_utf8_bom_is_accepted(self):

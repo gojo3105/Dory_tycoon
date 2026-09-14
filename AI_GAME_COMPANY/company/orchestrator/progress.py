@@ -84,6 +84,21 @@ MARKERS: dict[str, tuple[Marker, ...]] = {
         _m(r"^TESTS_FAILED", "실패 · 테스트가 통과하지 못했습니다"),
         _m(r"^(REFUSED|ERROR)", "실패"),
     ),
+    "character-side": (
+        _m(r"^=== CHARACTER RIG", "Gemini 캐릭터 생성 준비 중"),
+        _m(r"^\s*Gemini READY", "Gemini 이미지 모델 확인됨"),
+        _m(r"^\s*redrawing ", "측면 캐릭터를 그리는 중", SLOW),
+        _m(r"^\s*wrote ", "측면 캐릭터 저장됨"),
+        _m(r"^\s*FAILED:", "실패"),
+    ),
+    "character-rig": (
+        _m(r"^=== CHARACTER RIG", "Gemini 캐릭터 파츠 생성 준비 중"),
+        _m(r"^\s*Gemini READY", "Gemini 이미지 모델 확인됨"),
+        _m(r"^\s*reference: ", "기준 캐릭터 이미지를 읽는 중"),
+        _m(r"^\s*model: ", "팔·다리 파츠를 그리는 중", SLOW),
+        _m(r"^\s*wrote \d+ parts", "캐릭터 파츠 저장됨"),
+        _m(r"^\s*FAILED:", "실패"),
+    ),
     "codex-doctor": (
         _m(r"^=== CODEX ===", "Codex CLI 상태를 확인하는 중"),
         _m(r"^=== codex doctor", "codex doctor 원문을 읽는 중"),
@@ -106,6 +121,8 @@ ACTION_LABEL = {
     "team-run": "Codex 작업 실행",
     "build": "Unity 빌드",
     "test": "Unity 테스트",
+    "character-side": "Gemini 측면 캐릭터",
+    "character-rig": "Gemini 캐릭터 파츠",
     "codex-doctor": "Codex 진단",
     "git-status": "변경 파일 확인",
     "ollama-list": "설치된 모델 확인",
@@ -119,6 +136,8 @@ ACTION_AGENT_PREFIX = {
     "codex-doctor": "Codex",
     "build": "Unity",
     "test": "Unity",
+    "character-side": "Gemini",
+    "character-rig": "Gemini",
 }
 
 STARTING = "시작하는 중"
