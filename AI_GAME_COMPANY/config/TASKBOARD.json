@@ -770,7 +770,7 @@
       "id": "CODEX-MA-REGISTRY",
       "title": "Complete the validated twelve-role agent registry",
       "owner": "codex",
-      "status": "review",
+      "status": "done",
       "goal": "Make AGENTS.json the single validated source for all twelve role names, AI names, permissions, task types, departments and prompts.",
       "files": [
         "AI_GAME_COMPANY/config/AGENTS.json",
@@ -784,7 +784,8 @@
       ],
       "depends_on": [],
       "notes": [
-        "Executed by Codex on 2026-09-15; included in the 469-test passing suite."
+        "Executed by Codex on 2026-09-15; included in the 469-test passing suite.",
+        "DONE: accepted after full Python regression, Unity tests and Android build passed."
       ],
       "changed_files": [
         "AI_GAME_COMPANY/config/AGENTS.json",
@@ -803,7 +804,7 @@
       "id": "CODEX-MA-SCHEMA",
       "title": "Add backward-compatible role and handoff fields to Task",
       "owner": "codex",
-      "status": "review",
+      "status": "done",
       "goal": "Extend Task with optional agent role, department, task type, priority and structured handoff fields without losing legacy or future fields.",
       "files": [
         "AI_GAME_COMPANY/company/orchestrator/teamwork.py",
@@ -818,7 +819,8 @@
         "CODEX-MA-REGISTRY"
       ],
       "notes": [
-        "Executed by Codex on 2026-09-15; included in the 469-test passing suite."
+        "Executed by Codex on 2026-09-15; included in the 469-test passing suite.",
+        "DONE: accepted after full Python regression, Unity tests and Android build passed."
       ],
       "changed_files": [
         "AI_GAME_COMPANY/company/orchestrator/teamwork.py",
@@ -837,7 +839,7 @@
       "id": "CODEX-MA-DISPATCH",
       "title": "Validate role routing and enforce one shared-tree writer",
       "owner": "codex",
-      "status": "review",
+      "status": "done",
       "goal": "Route each task type to a registered role, reject invalid/read-only production edits, and prevent simultaneous code writers in the shared working tree.",
       "files": [
         "AI_GAME_COMPANY/company/orchestrator/agent_dispatcher.py",
@@ -852,7 +854,8 @@
         "CODEX-MA-SCHEMA"
       ],
       "notes": [
-        "Executed by Codex on 2026-09-15; included in the 469-test passing suite."
+        "Executed by Codex on 2026-09-15; included in the 469-test passing suite.",
+        "DONE: accepted after full Python regression, Unity tests and Android build passed."
       ],
       "changed_files": [
         "AI_GAME_COMPANY/company/orchestrator/agent_dispatcher.py",
@@ -871,7 +874,7 @@
       "id": "CODEX-MA-MANAGER",
       "title": "Create the seven-stage structured CEO and Producer planner",
       "owner": "codex",
-      "status": "review",
+      "status": "done",
       "goal": "Turn one sentence into a validated seven-stage, Codex-owned, role-assigned dependency plan and persist it before execution.",
       "files": [
         "AI_GAME_COMPANY/company/orchestrator/manager.py",
@@ -888,7 +891,8 @@
         "CODEX-MA-DISPATCH"
       ],
       "notes": [
-        "Executed by Codex on 2026-09-15; dry-run for Game02 produced exactly seven validated stages."
+        "Executed by Codex on 2026-09-15; dry-run for Game02 produced exactly seven validated stages.",
+        "DONE: accepted after full Python regression, Unity tests and Android build passed."
       ],
       "changed_files": [
         "AI_GAME_COMPANY/company/orchestrator/manager.py",
@@ -909,7 +913,7 @@
       "id": "CODEX-MA-GATES",
       "title": "Add evidence-based QA, quality and release gates",
       "owner": "codex",
-      "status": "review",
+      "status": "done",
       "goal": "Prevent unverified tests, invented visual scores, critical defects or missing APKs from being promoted to release success.",
       "files": [
         "AI_GAME_COMPANY/company/orchestrator/quality_gates.py",
@@ -924,7 +928,8 @@
         "CODEX-MA-MANAGER"
       ],
       "notes": [
-        "Executed by Codex on 2026-09-15; included in the 469-test passing suite."
+        "Executed by Codex on 2026-09-15; included in the 469-test passing suite.",
+        "DONE: accepted after full Python regression, Unity tests and Android build passed."
       ],
       "changed_files": [
         "AI_GAME_COMPANY/company/orchestrator/quality_gates.py",
@@ -943,7 +948,7 @@
       "id": "CODEX-MA-CLI-UI",
       "title": "Expose role workflow through CLI and live office dashboard",
       "owner": "codex",
-      "status": "review",
+      "status": "done",
       "goal": "Provide team agents, status, order and next commands while showing real task-derived role state, AI name, current task and last result in the office.",
       "files": [
         "AI_GAME_COMPANY/company/orchestrator/main.py",
@@ -959,7 +964,8 @@
         "CODEX-MA-GATES"
       ],
       "notes": [
-        "Executed by Codex on 2026-09-15; CLI agents, status and Game02 order dry-run were observed."
+        "Executed by Codex on 2026-09-15; CLI agents, status and Game02 order dry-run were observed.",
+        "DONE: accepted after full Python regression, Unity tests and Android build passed."
       ],
       "changed_files": [
         "AI_GAME_COMPANY/company/orchestrator/main.py",
@@ -979,7 +985,7 @@
       "id": "CODEX-MA-DOCS-VALIDATE",
       "title": "Document and regression-test the multi-agent workflow",
       "owner": "codex",
-      "status": "review",
+      "status": "done",
       "goal": "Document organization, lifecycle, handoffs, commands, human gates and Game01/Game02 procedures, then run the complete Python regression suite.",
       "files": [
         "AI_GAME_COMPANY/AGENT_TEAM.md",
@@ -995,7 +1001,8 @@
         "CODEX-MA-CLI-UI"
       ],
       "notes": [
-        "Executed by Codex on 2026-09-15: 469 Python tests passed in 100.825 seconds. Unity validation remains the next evidence step."
+        "Executed by Codex on 2026-09-15: 469 Python tests passed in 100.825 seconds.",
+        "DONE: Unity EditMode 8/8, PlayMode 16/16 and Android build passed; APK 28.76 MB verified."
       ],
       "changed_files": [
         "AI_GAME_COMPANY/AGENT_TEAM.md",
