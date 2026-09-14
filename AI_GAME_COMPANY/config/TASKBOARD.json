@@ -1333,6 +1333,45 @@
       "agent_role": "systems_engineer",
       "task_type": "core_system",
       "priority": 55
+    },
+    {
+      "id": "CLAUDE-BOARDSAVE1",
+      "title": "TaskBoard.save must merge, not overwrite",
+      "owner": "claude",
+      "status": "review",
+      "goal": "load() reads the board into memory and save() wrote the whole list back, so anything written to the file in between was erased. 2026-09-15 에 실제로 발생: team chain 이 로컬 모델 타임아웃 2회를 기다리며 작업판을 20분간 들고 있다가 저장했고, 그 사이 추가된 CODEX-BUILDGATE1 / CODEX-QAGATE1 / CODEX-QUALITYSTEP1 세 건이 사라졌다. sync-and-run.ps1 이 'chore: task board updated by a run' (caa5fa4) 로 그대로 커밋까지 했다. 예외도 경고도 없었다.",
+      "files": [
+        "AI_GAME_COMPANY/company/orchestrator/board_merge.py",
+        "AI_GAME_COMPANY/company/orchestrator/teamwork.py",
+        "AI_GAME_COMPANY/tools/merge-taskboard.py",
+        "AI_GAME_COMPANY/tests/test_teamwork.py"
+      ],
+      "acceptance": [
+        "A task added to the file while a run holds the board survives that run's save.",
+        "TaskBoard.delete still deletes - a merge must not resurrect it.",
+        "Both sides' notes are kept; a status both sides moved keeps the run's and records the other.",
+        "One merge implementation, shared with the git merge driver.",
+        "The board is written atomically, so a reader never sees half a file."
+      ],
+      "depends_on": [],
+      "notes": [
+        "2026-09-15: DONE BY CLAUDE, not Codex. 사용자 지시 '작업판 덮어쓰기 문제'. 규칙 1 예외, CLAUDE.md 2절에 기록.",
+        "병합 규칙은 이미 tools/merge-taskboard.py 에 있었다(git 충돌용). 같은 모양이라 company/orchestrator/board_merge.py 로 옮겨 저장 경로와 git 드라이버가 한 구현을 공유한다. 사본 두 개가 어긋나면 그 결과는 '누군가의 작업이 조용히 사라지는 것' 이라서.",
+        "삭제만 다르다: git 병합은 한쪽에만 있는 작업을 절대 버리지 않는데 (오래된 브랜치일 가능성이 크므로), 저장 시점에는 delete() 가 실제 기능이라 되살아나면 안 된다. merge_for_save 가 base 와 비교해 '우리가 지운 것' 과 '우리가 몰랐던 것' 을 구분한다.",
+        "남은 창: read-merge-write 구간(밀리초). 예전 20분과 달리 실제로 부딪히기 어렵고, 완전히 막으려면 stale lock 처리까지 필요해서 실제로 발생하면 그때 하는 편이 낫다. 문서에 그대로 적어뒀다.",
+        "검증: 옛 save() 를 되돌려 새 테스트 12개 중 8개가 실패하는 것을 확인. 전체 544개 통과."
+      ],
+      "changed_files": [
+        "AI_GAME_COMPANY/company/orchestrator/board_merge.py",
+        "AI_GAME_COMPANY/company/orchestrator/teamwork.py",
+        "AI_GAME_COMPANY/tools/merge-taskboard.py",
+        "AI_GAME_COMPANY/tests/test_teamwork.py"
+      ],
+      "last_run": "",
+      "title_ko": "작업판 저장이 덮어쓰지 않고 병합하도록",
+      "agent_role": "systems_engineer",
+      "task_type": "core_system",
+      "priority": 95
     }
   ]
 }

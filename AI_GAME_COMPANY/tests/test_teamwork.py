@@ -584,5 +584,235 @@ class CommittedBoardTests(unittest.TestCase):
                 self.assertIn(dependency, ids, f"{task.id} depends on a missing task")
 
 
+
+class ConcurrentSaveTests(unittest.TestCase):
+    """2026-09-15: a run held the board for twenty minutes and then saved.
+
+    load() reads the file into memory, save() wrote the whole list back, and
+    everything added in between was gone. It happened for real: a `team chain`
+    run waited out two 600-second local-model timeouts while three task specs
+    were written beside it, and the save erased all three.
+    sync-and-run.ps1 then committed the loss as "chore: task board updated by
+    a run". Nothing raised. Nothing looked wrong.
+    """
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.path = Path(self.temp.name) / "board.json"
+
+    def write(self, tasks, **meta):
+        data = {"_comment": "board", "_version": 1}
+        data.update(meta)
+        data["tasks"] = tasks
+        self.path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+
+    @staticmethod
+    def entry(task_id, status=TODO, notes=None, **extra):
+        data = {"id": task_id, "title": task_id, "owner": CODEX, "status": status,
+                "goal": "", "files": [], "acceptance": [], "depends_on": [],
+                "notes": list(notes or []), "changed_files": [], "last_run": ""}
+        data.update(extra)
+        return data
+
+    def saved(self):
+        return json.loads(self.path.read_text(encoding="utf-8"))
+
+    def ids(self):
+        return [t["id"] for t in self.saved()["tasks"]]
+
+    def task(self, task_id):
+        return next(t for t in self.saved()["tasks"] if t["id"] == task_id)
+
+    # -- the incident ------------------------------------------------------
+
+    def test_a_spec_written_while_a_run_held_the_board_survives(self):
+        self.write([self.entry("GAME02-DESIGN")])
+        running = TaskBoard.load(self.path)          # the chain starts
+
+        # Twenty minutes pass. Somebody writes three specs into the file.
+        self.write([self.entry("GAME02-DESIGN"),
+                    self.entry("CODEX-BUILDGATE1"),
+                    self.entry("CODEX-QAGATE1"),
+                    self.entry("CODEX-QUALITYSTEP1")])
+
+        running.get("GAME02-DESIGN").status = BLOCKED   # the chain finishes
+        running.save()
+
+        self.assertEqual(["GAME02-DESIGN", "CODEX-BUILDGATE1", "CODEX-QAGATE1",
+                          "CODEX-QUALITYSTEP1"], self.ids())
+        # And the run's own result is still what it said it was.
+        self.assertEqual(BLOCKED, self.task("GAME02-DESIGN")["status"])
+
+    def test_the_in_memory_board_catches_up_so_a_second_save_keeps_them(self):
+        """A merged-away task must not come back off the stale in-memory list."""
+        self.write([self.entry("A")])
+        board = TaskBoard.load(self.path)
+        self.write([self.entry("A"), self.entry("B")])
+
+        board.save()
+        board.get("A").status = REVIEW
+        board.save()
+
+        self.assertEqual(["A", "B"], self.ids())
+
+    # -- what each side owns ----------------------------------------------
+
+    def test_both_sides_notes_are_kept(self):
+        self.write([self.entry("A", notes=["base note"])])
+        board = TaskBoard.load(self.path)
+        self.write([self.entry("A", notes=["base note", "written beside us"])])
+
+        board.get("A").notes.append("written by the run")
+        board.save()
+
+        self.assertEqual(["base note", "written by the run", "written beside us"],
+                         self.task("A")["notes"])
+
+    def test_the_run_wins_a_status_it_and_somebody_else_both_moved(self):
+        self.write([self.entry("A", status=TODO)])
+        board = TaskBoard.load(self.path)
+        self.write([self.entry("A", status=CANCELLED)])
+
+        board.get("A").status = DONE
+        board.save()
+
+        self.assertEqual(DONE, self.task("A")["status"])
+        # The discarded claim is written down, not dropped.
+        self.assertTrue(any("cancelled" in note for note in self.task("A")["notes"]),
+                        self.task("A")["notes"])
+
+    def test_a_status_only_the_other_side_moved_is_respected(self):
+        self.write([self.entry("A", status=TODO)])
+        board = TaskBoard.load(self.path)
+        self.write([self.entry("A", status=REVIEW)])
+
+        board.get("A").notes.append("ran, no status change")
+        board.save()
+
+        self.assertEqual(REVIEW, self.task("A")["status"])
+
+    # -- deletion, which a git merge deliberately ignores ------------------
+
+    def test_our_own_delete_is_not_undone_by_the_merge(self):
+        """The bug the fix could have introduced: delete, merge, task is back."""
+        self.write([self.entry("A"), self.entry("B")])
+        board = TaskBoard.load(self.path)
+        self.write([self.entry("A", notes=["someone else was here"]),
+                    self.entry("B")])
+
+        board.delete("B")
+
+        self.assertEqual(["A"], self.ids())
+        self.assertIn("someone else was here", self.task("A")["notes"])
+
+    def test_somebody_elses_delete_is_honoured_when_we_did_not_touch_it(self):
+        self.write([self.entry("A"), self.entry("B")])
+        board = TaskBoard.load(self.path)
+        self.write([self.entry("A")])                  # they deleted B
+
+        board.get("A").status = REVIEW
+        board.save()
+
+        self.assertEqual(["A"], self.ids())
+
+    def test_a_task_we_wrote_to_is_kept_even_if_they_deleted_it(self):
+        """Losing the record of a run is the one thing this must never do.
+
+        A task that comes back is a question somebody can answer. A note about
+        what a run did, gone, is not recoverable.
+        """
+        self.write([self.entry("A"), self.entry("B")])
+        board = TaskBoard.load(self.path)
+        self.write([self.entry("A")])                  # they deleted B
+
+        board.get("B").notes.append("the run wrote this")
+        board.save()
+
+        self.assertEqual(["A", "B"], self.ids())
+        self.assertIn("the run wrote this", self.task("B")["notes"])
+
+    def test_approving_a_review_does_not_bring_the_review_note_back(self):
+        """The 계속 진행 button clears task.extra["review_note"].
+
+        A merge that restored it would leave the button on a finished task,
+        which is the chain asking a question it has already been answered.
+        """
+        self.write([self.entry("A", status=REVIEW, review_note="unsure")])
+        board = TaskBoard.load(self.path)
+        self.write([self.entry("A", status=REVIEW, review_note="unsure"),
+                    self.entry("Z")])          # somebody else adds a task
+
+        approved = board.get("A")
+        approved.extra.pop("review_note")
+        approved.status = DONE
+        board.save()
+
+        self.assertEqual(DONE, self.task("A")["status"])
+        self.assertNotIn("review_note", self.task("A"))
+        self.assertEqual(["A", "Z"], self.ids())
+
+    def test_a_field_the_other_side_actively_set_is_not_cleared(self):
+        """Removed by us, changed by them: they are the ones who just decided."""
+        self.write([self.entry("A", review_note="unsure")])
+        board = TaskBoard.load(self.path)
+        self.write([self.entry("A", review_note="asked a person")])
+
+        board.get("A").extra.pop("review_note")
+        board.save()
+
+        self.assertEqual("asked a person", self.task("A")["review_note"])
+
+    # -- the ordinary path stays ordinary ----------------------------------
+
+    def test_an_untouched_file_takes_the_plain_path(self):
+        self.write([self.entry("A")])
+        board = TaskBoard.load(self.path)
+        first = board.get("A")
+
+        first.status = REVIEW
+        board.save()
+
+        self.assertEqual(REVIEW, self.task("A")["status"])
+        self.assertEqual([], self.task("A")["notes"])
+        # No merge happened, so the caller's Task object is still the board's.
+        self.assertIs(first, board.get("A"))
+
+    def test_no_temporary_file_is_left_beside_the_board(self):
+        """The write lands through a .tmp and os.replace, so a reader never
+        sees half a file. This checks only the visible half of that - that the
+        temporary is gone afterwards; atomicity itself is the OS's promise."""
+        self.write([self.entry("A")])
+        board = TaskBoard.load(self.path)
+        board.get("A").status = DONE
+        board.save()
+
+        siblings = [p.name for p in self.path.parent.iterdir()]
+        self.assertEqual(["board.json"], siblings)
+
+    def test_an_unreadable_file_does_not_cost_the_run_its_results(self):
+        """Cannot merge with what cannot be parsed - but do not raise either.
+
+        Raising here would throw away everything the run just did, at the last
+        possible moment, which is worse than overwriting a file that is already
+        unusable.
+        """
+        self.write([self.entry("A")])
+        board = TaskBoard.load(self.path)
+        self.path.write_text("<<<<<<< HEAD not json", encoding="utf-8")
+
+        board.get("A").status = DONE
+        board.save()
+
+        self.assertEqual(DONE, self.task("A")["status"])
+
+    def test_a_board_that_was_built_rather_than_loaded_keeps_what_it_found(self):
+        """No baseline means no "before", so nothing on disk is assumed stale."""
+        self.write([self.entry("A"), self.entry("B")])
+        TaskBoard(path=self.path, tasks=[Task(id="A", title="A", status=DONE)]).save()
+
+        self.assertEqual(["A", "B"], self.ids())
+        self.assertEqual(DONE, self.task("A")["status"])
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -36,12 +36,16 @@ risky part:
 
 from __future__ import annotations
 
+import copy
 import fnmatch
 import json
+import os
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
+from company.orchestrator.board_merge import merge_boards, merge_for_save
 
 CLAUDE = "claude"
 CODEX = "codex"
@@ -183,6 +187,9 @@ class TaskBoard:
     # person had put there - which is how CODEX-BOARD1 came to carry a note
     # that begins "recorded here because _comment gets overwritten".
     meta: dict[str, Any] = field(default_factory=dict)
+    #: The file exactly as load() parsed it. save() needs it to tell a change
+    #: somebody else made from one this process made - see save().
+    baseline: dict[str, Any] | None = field(default=None, repr=False)
 
     @classmethod
     def load(cls, path: Path) -> "TaskBoard":
@@ -192,10 +199,9 @@ class TaskBoard:
         data = json.loads(path.read_text(encoding="utf-8-sig"))
         meta = {k: v for k, v in data.items() if k != "tasks"}
         return cls(path=path, tasks=[Task.from_dict(t) for t in data.get("tasks", [])],
-                   meta=meta)
+                   meta=meta, baseline=copy.deepcopy(data))
 
-    def save(self) -> None:
-        self.path.parent.mkdir(parents=True, exist_ok=True)
+    def _payload(self) -> dict[str, Any]:
         payload: dict[str, Any] = {}
         # Defaults only fill a gap; anything the file already had wins.
         payload["_comment"] = self.meta.get("_comment", DEFAULT_BOARD_COMMENT)
@@ -204,9 +210,65 @@ class TaskBoard:
             if key not in payload:
                 payload[key] = value
         payload["tasks"] = [t.to_dict() for t in self.tasks]
-        self.path.write_text(
-            json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
-        )
+        return payload
+
+    def _current(self) -> dict[str, Any] | None:
+        """The file as it stands now, or None if it is gone or unreadable."""
+        try:
+            return json.loads(self.path.read_text(encoding="utf-8-sig"))
+        except (OSError, ValueError):
+            return None
+
+    def save(self) -> None:
+        """Write the board, merging in whatever changed while we held it.
+
+        WHY THIS IS NOT A PLAIN WRITE. load() reads the file into memory and a
+        process can hold it for a long time: a `team chain` run held it for
+        twenty minutes on 2026-09-15 while a local model timed out twice.
+        Writing the whole in-memory list back then erased three task specs
+        added during that window, and sync-and-run.ps1 committed the result as
+        "chore: task board updated by a run". Nothing raised and nothing was
+        broken - the run simply had no way to know.
+
+        So when the file is no longer what load() saw, the two are merged by
+        the same code the git merge driver uses, with this process as "local":
+        it is the one that actually ran the task, which is exactly the
+        tie-break board_merge already encodes. A run's own results still win;
+        a spec written beside it survives.
+
+        The remaining window is the read-merge-write below, milliseconds rather
+        than minutes. Two saves in the same instant can still lose a side, and
+        closing that needs a lock with stale-lock handling - worth doing if it
+        ever actually happens, not worth pretending is already done.
+        """
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        payload = self._payload()
+        current = self._current()
+
+        if current is not None and current != self.baseline:
+            if self.baseline is None:
+                # Built rather than loaded, so there is no "before" and a task
+                # this board does not hold is one it never knew about, not one
+                # it deleted. merge_boards keeps everything; using the file as
+                # the base still lets our own values win where they collide.
+                payload = merge_boards(current, payload, current)
+            else:
+                payload = merge_for_save(self.baseline, payload, current)
+            # The in-memory board is now behind the file it is about to write,
+            # and a caller that kept using it would put the merged-away state
+            # back on the next save. Rebuilt only on this path: on the ordinary
+            # one nothing changed, and swapping every Task for a copy would
+            # detach references a caller is still holding.
+            self.tasks = [Task.from_dict(t) for t in payload.get("tasks", [])]
+            self.meta = {k: v for k, v in payload.items() if k != "tasks"}
+
+        text = json.dumps(payload, indent=2, ensure_ascii=False) + "\n"
+        # Written beside the board and moved into place, so a reader never sees
+        # half a file. os.replace is atomic on Windows and POSIX alike.
+        temporary = self.path.with_suffix(self.path.suffix + ".tmp")
+        temporary.write_text(text, encoding="utf-8")
+        os.replace(temporary, self.path)
+        self.baseline = copy.deepcopy(payload)
 
     def get(self, task_id: str) -> Task:
         for task in self.tasks:
