@@ -1,10 +1,10 @@
 ﻿# Auto-sync status
 
-Generated: 2026-09-15 21:55:50
-Outcome: BLOCKED
-Reason: Uncommitted changes to tracked files: M AI_GAME_COMPANY/AGENT_TEAM.md |  M AI_GAME_COMPANY/company/orchestrator/agent_dispatcher.py |  M AI_GAME_COMPANY/company/orchestrator/dashboard.py |  M AI_GAME_COMPANY/company/orchestrator/executors.py |  M AI_GAME_COMPANY/company/orchestrator/game_creator.py |  M AI_GAME_COMPANY/company/orchestrator/main.py |  M AI_GAME_COMPANY/company/orchestrator/manager.py |  M AI_GAME_COMPANY/company/orchestrator/server.py |  M AI_GAME_COMPANY/config/AGENTS.json |  M AI_GAME_COMPANY/tests/test_agent_routing.py |  M AI_GAME_COMPANY/tests/test_dashboard.py |  M AI_GAM...
+Generated: 2026-09-15 22:10:50
+Outcome: FAILED
+Reason: Uncommitted changes to tracked files - stopping. Commit or stash them first: |  | M AI_GAME_COMPANY/AGENT_TEAM.md |  M AI_GAME_COMPANY/company/orchestrator/agent_dispatcher.py |  M AI_GAME_COMPANY/company/orchestrator/dashboard.py |  M AI_GAME_COMPANY/company/orchestrator/executors.py |  M AI_GAME_COMPANY/company/orchestrator/game_creator.py |  M AI_GAME_COMPANY/company/orchestrator/main.py |  M AI_GAME_COMPANY/company/orchestrator/manager.py |  M AI_GAME_COMPANY/company/orchestrator/server.py |  M AI_GAME_COMPANY/config/AGENTS.json |  M AI_GAME_COMPANY/tests/test_agent_routing.py |  M AI_GAME...
 Last-Success: 2026-09-15 01:40:57
-Local-Head: 184ba81
+Local-Head: 95f48d5
 Upstream-Head: 646dd7a
 Branch: claude/delete-current-content-mgn4xm
 
