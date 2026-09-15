@@ -1307,7 +1307,7 @@
       "id": "CODEX-QUALITYSTEP1",
       "title": "quality_gate needs a step that can honestly refuse to score",
       "owner": "codex",
-      "status": "todo",
+      "status": "review",
       "goal": "quality_gate scores seven dimensions against a 100-point rubric and refuses to\naccept graphics, ui_ux or animation_vfx scores unless visually_inspected is\ntrue. That refusal is the interesting part: it is a guard against an agent\nthat never saw the screen inventing a number for how the game looks.\n\nNothing calls it. The chain's quality_reviewer step writes a document instead.\n\nWire it into the review step. The hard part is not the call, it is being\nhonest about visually_inspected: pass true only when a screenshot or a device\nrun actually happened in this chain. If nothing looked at the screen, the\nvisual dimensions stay None and the gate returns NOT_VERIFIED, which is the\ncorrect answer and must not be worked around.\n\nOllama is running Qwen3-VL here, which has vision and could look at a\nscreenshot. That is a legitimate way to set visually_inspected, but only if a\nreal image was actually passed to it - and the summary must say which model\nlooked and at what, so the score can be doubted later.",
       "files": [
         "AI_GAME_COMPANY/company/orchestrator/executors.py",
@@ -1325,9 +1325,20 @@
       ],
       "notes": [
         "Claude 가 명세만 작성. 세 게이트 중 마지막 미연결분.",
-        "2026-09-15: 아직 미연결. BUILDGATE1/QAGATE1 은 Claude 가 직접 했지만 이 건은 '무엇을 실제로 봤는가' 를 정직하게 기록하는 부분이라 남겨둡니다."
+        "2026-09-15: 아직 미연결. BUILDGATE1/QAGATE1 은 Claude 가 직접 했지만 이 건은 '무엇을 실제로 봤는가' 를 정직하게 기록하는 부분이라 남겨둡니다.",
+        "2026-09-15: DONE BY CLAUDE, not Codex. 사용자 지시 '버그가 없는 선으로 너가 직접 작업해' 및 '123 순서대로'. 규칙 1 예외, CLAUDE.md 2절에 기록.",
+        "executors.ReviewExecutor 가 task_type 'code_review' 를 잡습니다. 순서가 중요합니다: 관찰을 먼저 하고 그 결과를 작업 notes 에 써서 build_prompt 로 검토자에게 전달합니다. 나중에 하면 점수를 먼저 매기고 나중에 보는 셈이라서요.",
+        "핵심 사실: 이 저장소에는 스크린샷을 찍는 코드가 없습니다. Unity 가 -batchmode -nographics 로 도는 한 만들 수 없습니다. 그래서 아무도 안 본 상태의 정답은 NOT_VERIFIED 이고, 그걸 재시도가 아니라 '계속 진행' 버튼으로 보냅니다 - 같은 에이전트에게 다시 물어도 같은 침묵이 돌아오니까요. QA 단계의 NOT_VERIFIED('테스트가 안 돌았다')는 기계 문제라 재시도가 맞고, 여기는 사람만 답할 수 있습니다. 그래서 매핑을 executor 별로 뒀습니다.",
+        "지금도 답할 수 있는 길은 있습니다: 기기에서 APK 를 띄우고 찍은 사진을 Reports/quality/<game>-screen.png 에 두면 Qwen3-VL 이 실제로 그 이미지를 보고, visually_inspected 가 true 가 되며, 요약에 어떤 모델이 어떤 파일을 봤는지 남습니다.",
+        "가장 중요한 비-변경: 점수를 게이트에 넣기 전에 비우지 않습니다. 안 본 차원에 점수를 매긴 검토서는 GateValidationError 로 거부되고 그대로 보고됩니다. 미리 null 로 만들면 깔끔한 NOT_VERIFIED 가 나오지만 그건 가드를 영구히 끄는 것입니다. 그 지름길을 적용하면 테스트 2개가 실패하는 것을 확인했습니다.",
+        "검증: ReviewExecutorTests 23개. decide() 까지 태워서 실제로 REVIEW_WAIT 이 나오는지(=계속 진행 버튼이 생기는지) 확인했습니다. 전체 573개 통과.",
+        "미커밋 상태: 같은 작업 트리에서 다른 세션이 -ART 단계/AGENTS.json/play_store_growth.py 를 작업 중이라, tests/test_executors.py 가 그쪽 manager.py 변경에 의존합니다. 제 파일만 커밋하면 깨진 트리가 되므로 커밋하지 않고 둡니다."
       ],
-      "changed_files": [],
+      "changed_files": [
+        "AI_GAME_COMPANY/company/orchestrator/executors.py",
+        "AI_GAME_COMPANY/company/orchestrator/main.py",
+        "AI_GAME_COMPANY/tests/test_executors.py"
+      ],
       "last_run": "",
       "title_ko": "quality_gate 를 검토 단계에 연결 (안 본 것은 점수 없음)",
       "agent_role": "systems_engineer",
