@@ -418,9 +418,11 @@ class RenderTests(unittest.TestCase):
 
     def test_company_role_cards_show_the_ai_name_under_the_title(self):
         snapshot = dash.collect(REPO)
-        page = dash.render(snapshot)
+        page = dash.render(snapshot, control_token="test-token")
         self.assertIn("AI · Codex CEO Agent", page)
         self.assertIn("AI · Gemini Image Agent", page)
+        self.assertIn("아이콘/피처/스크린샷 A/B 3안", page)
+        self.assertIn("Play Store 성장 패키지", page)
 
     def test_company_runtime_uses_taskboard_status_and_dependencies(self):
         roles = dash.collect(REPO).company_roles

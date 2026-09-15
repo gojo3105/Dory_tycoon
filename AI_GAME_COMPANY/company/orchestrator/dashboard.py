@@ -1444,6 +1444,9 @@ section{scroll-margin-top:12px; margin-top:22px; padding:14px; background:#FFFDF
 .company-role-state{color:var(--st); font-size:9px; font-weight:700; white-space:nowrap;}
 .company-role-card small{grid-column:1/-1; overflow:hidden; text-overflow:ellipsis;
   white-space:nowrap; color:#6D8190; font-size:8px;}
+.company-role-mission{grid-column:1/-1; white-space:normal!important; line-height:1.45;}
+.company-role-growth{grid-column:1/-1; color:#7A4B14; font-size:9px; font-weight:800;
+  padding:5px 7px; background:#FFF5D8; border:1px solid #E6C778;}
 .agent-hotspot.company-state--working{animation:office-pulse 1.1s steps(2,end) infinite;}
 .panel,.q-lane,.task,.studio,.ctl,.roster,.row,.shot,.g,.term,.warn,
 .creator-result,.creator-input,.control-row{
@@ -1930,6 +1933,7 @@ def _company_office_html(roles: list[RegisteredAgent],
         role_id = e(role.id)
         display = e(role.display_name)
         ai_name = e(role.ai_name)
+        description = e(role.description)
         department = e(role.department)
         current = e(item["current_task"])
         last_result = e(item["last_result"])
@@ -1954,11 +1958,17 @@ def _company_office_html(roles: list[RegisteredAgent],
             f'aria-label="{display} - {label}">'
             f'<span class="agent-photo-dot" aria-hidden="true"></span>'
             f'<span class="agent-hotspot-text"><b>{display}</b><span>{label}</span></span></a>')
+        growth_line = (
+            '<span class="company-role-growth">게임 생성 시 · 아이콘/피처/스크린샷 A/B 3안 · '
+            '스토어 문구 · KPI · 정책 체크 자동 생성</span>'
+            if role.id == "art_director" else ""
+        )
         cards.append(
             f'<article class="company-role-card company-state--{state.lower()} s-{tone}" '
             f'id="company-agent-{role_id}"><span class="company-role-dept">{department}</span>'
             f'<b>{display}</b><span class="company-role-state">{state} · {label}</span>'
             f'<span class="company-role-ai">AI · {ai_name}</span>'
+            f'<small class="company-role-mission">역할 · {description}</small>{growth_line}'
             f'<small>현재 · {current}</small><small>최근 · {last_result}</small></article>')
 
     legend = "".join(
@@ -2778,6 +2788,7 @@ def _control_html(snapshot: Snapshot, token: str,
           <div class="control-body"><div class="combo">
             <select id="game" aria-label="빌드할 게임">{game_options}</select>
             <button class="btn" data-act="build" data-arg="game">빌드</button>
+            <button class="btn" data-act="device-run" data-arg="game">기기에서 실행</button>
           </div></div>
         </div>
         <div class="control-row"><div class="control-name">점검</div>
@@ -3022,6 +3033,10 @@ def _control_html(snapshot: Snapshot, token: str,
           ' · ' + esc(theme.environment) + ' · 속도 ' + esc(player.moveSpeed) + '</p>' +
         '<p class="mono">Git · ' + esc(plan.git_branch || 'planned') +
           ' / 지침 · ' + esc(plan.requirements_path || '-') + '</p>' +
+        '<p><b>Play Store 성장 패키지</b> · 시장 포지션 · 아이콘/피처/스크린샷 A/B 3안 · ' +
+          '스토어 문구 · KPI · 출시 체크리스트 ' +
+          (saved ? '자동 생성 완료' : '생성 예정') + '</p>' +
+        '<p class="mono">' + esc((plan.growth_paths || []).join(' · ')) + '</p>' +
         '<div class="creator-tags">' + tags + '</div>' +
         '<div class="creator-spec mono">' +
           (saved ? '저장됨 · GameSpecs/' + esc(plan.game_id) + '.json' :

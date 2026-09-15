@@ -21,12 +21,14 @@ class ManagerPlanningTests(unittest.TestCase):
         self.registry = AgentRegistry.load(ROOT / "config" / "AGENTS.json")
         self.manager = CompanyManager(self.registry)
 
-    def test_one_sentence_produces_structured_seven_stage_plan(self):
+    def test_one_sentence_produces_structured_eight_stage_plan(self):
         plan = self.manager.plan("game02", "Game02 만들어.")
         self.assertEqual("game02", plan.project)
         self.assertEqual("Game02 만들어.", plan.raw_goal)
-        self.assertEqual(7, len(plan.tasks))
+        self.assertEqual(8, len(plan.tasks))
         self.assertEqual("game_director", plan.tasks[0].agent_role)
+        self.assertEqual("art_director", plan.tasks[1].agent_role)
+        self.assertEqual("store_listing", plan.tasks[1].task_type)
         self.assertEqual("release_engineer", plan.tasks[-1].agent_role)
         self.assertTrue(all(task.owner == "codex" for task in plan.tasks))
 
@@ -62,7 +64,7 @@ class ManagerPlanningTests(unittest.TestCase):
             plan = self.manager.plan("game02", "Game02 만들어.")
             self.manager.add_to_board(plan, board)
             path = self.manager.write_plan(plan, root / "plans" / "game02.json")
-            self.assertEqual(7, len(TaskBoard.load(board.path).tasks))
+            self.assertEqual(8, len(TaskBoard.load(board.path).tasks))
             self.assertEqual("game02", json.loads(path.read_text(encoding="utf-8"))["project"])
             with self.assertRaises(PlanValidationError):
                 self.manager.add_to_board(plan, board)

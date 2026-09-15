@@ -86,9 +86,12 @@ class GameCreatorTests(unittest.TestCase):
         self.assertEqual("ai-game/game02", plan.git_branch)
         self.assertEqual("not_git", plan.git_status)
         self.assertEqual("GameSpecs/game02_REQUIREMENTS.md", plan.requirements_path)
+        self.assertEqual(6, len(plan.growth_paths))
         guide = self.repo / "GameSpecs" / "game02_REQUIREMENTS.md"
         self.assertTrue(guide.is_file())
         self.assertIn("꼭 지켜야 하는 필수 부분", guide.read_text(encoding="utf-8"))
+        self.assertTrue(all((self.repo / path).is_file() for path in plan.growth_paths))
+        self.assertTrue((self.repo / "Growth" / "game02" / "STORE_LISTING.json").is_file())
         self.assertFalse(path.with_suffix(".json.tmp").exists())
 
     def test_create_switches_to_a_per_game_git_branch_when_possible(self):

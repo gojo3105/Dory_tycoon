@@ -356,6 +356,7 @@ class LiveServerTests(unittest.TestCase):
         self.assertEqual("ai-game/game02", body["plan"]["git_branch"])
         self.assertEqual("GameSpecs/game02_REQUIREMENTS.md",
                          body["plan"]["requirements_path"])
+        self.assertEqual(6, len(body["plan"]["growth_paths"]))
         self.assertFalse(target.exists())
 
     def test_game_create_can_save_a_spec_without_starting_a_process(self):
@@ -373,11 +374,13 @@ class LiveServerTests(unittest.TestCase):
             self.assertTrue(target.is_file())
             self.assertEqual("not_git", body["plan"]["git_status"])
             self.assertTrue((self.repo / "GameSpecs" / "game02_REQUIREMENTS.md").is_file())
+            self.assertTrue((self.repo / "Growth" / "game02" / "KPI_GATES.json").is_file())
             spec = json.loads(target.read_text(encoding="utf-8"))
             self.assertEqual("Dori_Default", spec["theme"]["character"])
         finally:
             target.unlink(missing_ok=True)
             (self.repo / "GameSpecs" / "game02_REQUIREMENTS.md").unlink(missing_ok=True)
+            shutil.rmtree(self.repo / "Growth" / "game02", ignore_errors=True)
 
     def test_game_creator_rejects_unlisted_pipeline(self):
         status, body = self.post({

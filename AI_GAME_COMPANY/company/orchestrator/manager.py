@@ -71,10 +71,11 @@ class CompanyManager:
         objective = f"Create a verified, distinct mobile game vertical slice for {game}: {raw_goal}"
         success = [
             "core loop is playable and distinct from existing games",
+            "Art Director produced testable store creatives and a truthful listing",
             "GameSpec and generated content stay backward compatible",
             "save, tutorial, settings, missions, rewards and growth are verified",
             "automated tests pass with no BLOCKER or CRITICAL finding",
-            "Android APK exists and belongs to the current build",
+            "Android artifact exists and Play launch quality evidence is complete",
         ]
         p = 80
         tasks = [
@@ -85,20 +86,30 @@ class CompanyManager:
                 ["Core fantasy, loop, failure, rewards and progression are explicit.",
                  "At least two mechanics differ from Game01."], [], p),
             self._task(
+                f"{prefix}-ART", f"{game} Play Store creative strategy", "art_director", "store_listing",
+                "Create a coherent in-game visual direction plus testable icon, feature graphic and screenshot variants from the generated Play Store growth package.",
+                [f"Growth/{game}/**", f"Assets/Common/Art/{game}/**",
+                 "AI_GAME_COMPANY/asset_staging/**", "AI_GAME_COMPANY/generated/**"],
+                ["Icon, feature graphic and screenshot concepts each have a measurable hypothesis.",
+                 "Store visuals and descriptions match real gameplay and contain no unverified claims.",
+                 "Every generated or reused asset has its source and licence recorded."],
+                [f"{prefix}-DESIGN"], p - 3),
+            self._task(
                 f"{prefix}-ARCH", f"{game} technical architecture", "technical_director", "architecture",
                 "Map the approved design onto existing Core, Gameplay, Modules, UI, Editor and GameSpec boundaries.",
                 [f"GameSpecs/{game}.json", f"docs/{prefix}_ARCHITECTURE.md"],
                 ["Existing reusable systems are identified before new modules.",
                  "Every GameSpec field change lists Data, Validator, Docs and Generator impact."],
-                [f"{prefix}-DESIGN"], p - 5),
+                [f"{prefix}-ART"], p - 5),
             self._task(
                 f"{prefix}-SYSTEMS", f"{game} gameplay and systems implementation", "systems_engineer", "core_system",
-                "Implement the approved reusable gameplay, save, economy and progression systems without weakening Game01.",
+                "Implement the approved reusable gameplay, save, economy, progression and privacy-safe KPI event contract without weakening Game01.",
                 ["Assets/GameFactory/Core/**", "Assets/GameFactory/Gameplay/**",
                  "Assets/GameFactory/Modules/**", "Assets/GameFactory/Editor/**",
                  f"GameSpecs/{game}.json", "docs/GAME_SPEC.md"],
                 ["The core loop starts and reaches a reward/failure state.",
                  "Save and economy values remain isolated by game id.",
+                 "Tutorial, session, retention and funnel events are defined without silently transmitting personal data.",
                  "Runtime code has no UnityEditor reference."],
                 [f"{prefix}-ARCH"], p - 10),
             self._task(
@@ -116,6 +127,7 @@ class CompanyManager:
                 ["Assets/GameFactory/Tests/**", "AI_GAME_COMPANY/tests/**", "Reports/**"],
                 ["Acceptance results use PASS, FAIL or NOT_VERIFIED.",
                  "BLOCKER and CRITICAL failures prevent release.",
+                 "Pre-launch stability, performance and accessibility checks are represented.",
                  "Game01 regression coverage is retained."],
                 [f"{prefix}-UI"], p - 20),
             self._task(
@@ -131,7 +143,8 @@ class CompanyManager:
                 "Run the existing generate, validate, test and Android build pipeline and verify the current APK.",
                 ["Reports/errors/**", "Reports/build-status/**", "Reports/runs/**",
                  "Reports/sync-status/**", "Builds/**"],
-                ["Process, Unity Build Report and current APK all prove success.",
+                ["Process, Unity Build Report and current Android artifact all prove success.",
+                 "Store listing, Data safety, pre-launch report and Android vitals checklist are complete.",
                  "Failure has a defined build failure category.",
                  "Device-only checks remain HUMAN_GATE_DEVICE_TEST."],
                 [f"{prefix}-REVIEW"], p - 30),

@@ -122,6 +122,15 @@ ACTIONS: dict[str, Action] = {
         lambda root, arg: [_python(), "-m", "company.orchestrator.main",
                            "test", "--game", arg, "--platform", "playmode"],
         needs="game", timeout=3600),
+    # The step that gives this pipeline eyes. Unity builds with -nographics,
+    # so until this existed nothing had seen a frame of these games and the
+    # review gate could only ever answer NOT_VERIFIED. The screenshot lands
+    # where ReviewExecutor already looks for it.
+    "device-run": Action(
+        "기기에서 실행",
+        lambda root, arg: [_python(), "-m", "company.orchestrator.main",
+                           "device", "--game", arg],
+        needs="game", timeout=900),
     "character-side": Action(
         "Gemini 측면 캐릭터",
         lambda root, arg: [_python(), "-m", "company.orchestrator.main",
@@ -674,6 +683,7 @@ class Handler(BaseHTTPRequestHandler):
         job.append(
             f"GameSpec created: GameSpecs/{plan.game_id}.json\n"
             f"Requirements: {plan.requirements_path}\n"
+            f"Play Store growth pack: Growth/{plan.game_id}/ (6 files)\n"
             f"Git branch: {plan.git_branch} ({plan.git_status})\n"
             f"Character locked: {creation.SHARED_CHARACTER}\n"
         )

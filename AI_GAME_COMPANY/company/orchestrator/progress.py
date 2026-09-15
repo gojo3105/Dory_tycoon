@@ -128,6 +128,7 @@ ACTION_LABEL = {
     "ollama-list": "설치된 모델 확인",
     "chain-run": "체인 진행",
     "chain-continue": "계속 진행",
+    "device-run": "기기에서 실행",
     "dashboard": "대시보드 새로고침",
 }
 

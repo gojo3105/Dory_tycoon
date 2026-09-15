@@ -21,6 +21,7 @@ The cases worth the most are the ones where a lesser answer looks fine:
 from __future__ import annotations
 
 import itertools
+import json
 import os
 import sys
 import tempfile
@@ -31,13 +32,16 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from company.orchestrator.agent_registry import AgentRegistry  # noqa: E402
-from company.orchestrator.chain_runner import StepResult, read_verdict  # noqa: E402
+from company.orchestrator.chain_runner import (  # noqa: E402
+    RETRY, REVIEW_WAIT, StepResult, decide, read_verdict,
+)
 from company.orchestrator.executors import (  # noqa: E402
-    BuildExecutor, TestExecutor, findings_from, game_id_of, quote_foreign,
-    step_kind,
+    BuildExecutor, ReviewExecutor, TestExecutor, find_screen, findings_from,
+    game_id_of, quote_foreign, step_kind,
 )
 from company.orchestrator.manager import CompanyManager  # noqa: E402
 from company.orchestrator.policy import Policy  # noqa: E402
+from company.orchestrator.quality_gates import QUALITY_WEIGHTS  # noqa: E402
 from company.orchestrator.teamwork import Task  # noqa: E402
 from company.orchestrator.unity_runner import (  # noqa: E402
     ENTRY_BUILD, ENTRY_GENERATE, ENTRY_VALIDATE, UnityResult, UnityRunner,
@@ -359,6 +363,282 @@ class FindingsTests(unittest.TestCase):
         self.assertEqual([], list(findings_from([generate, suite])))
 
 
+
+class SeeingExecutor(ReviewExecutor):
+    """The real executor with its one network call replaced.
+
+    Everything between the image on disk and the StepResult is the production
+    path; only the HTTP round trip to Ollama is stubbed.
+    """
+
+    def _ask_about(self, image: Path):
+        self.seen.append(image)
+        if self.boom is not None:
+            raise self.boom
+        return self.answer
+
+
+class ReviewExecutorTests(ExecutorTestCase):
+    """The step that must be willing to say "nobody looked at this".
+
+    quality_gate refuses a graphics score unless something actually saw the
+    screen, and nothing in this repository takes a screenshot - Unity runs
+    -nographics. So the honest default here is NOT_VERIFIED, routed to a
+    person rather than to a retry, and the tests that matter most are the ones
+    where an easier answer is available and wrong.
+    """
+
+    GOOD = {"gameplay": 18, "graphics": 18, "ui_ux": 13, "animation_vfx": 13,
+            "audio": 9, "stability": 9, "mobile": 9}          # 89 >= 85
+    THIN = {"gameplay": 10, "graphics": 10, "ui_ux": 8, "animation_vfx": 8,
+            "audio": 5, "stability": 5, "mobile": 5}          # 51 < 85
+    UNSEEN = dict(GOOD, graphics=None, ui_ux=None, animation_vfx=None)
+
+    REPORT = "Reports/quality/game02.json"
+    SCREEN = "Reports/quality/game02-screen.png"
+    DOC = "Reports/quality/game02-inspection.md"
+
+    @staticmethod
+    def review_task(task_id: str = "GAME02-REVIEW") -> Task:
+        return Task(id=task_id, title="review", task_type="code_review",
+                    agent_role="quality_reviewer")
+
+    def put(self, relative: str, text: str) -> Path:
+        path = self.root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+        return path
+
+    def screenshot(self) -> Path:
+        # A PNG header is enough: nothing here decodes it, and the executor
+        # only needs bytes to base64.
+        path = self.root / self.SCREEN
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"\x89PNG\r\n\x1a\n" + b"pretend pixels")
+        return path
+
+    def reviewer(self, scores=None, *, ok=True, limited=False,
+                 summary="STATUS: OK\nHANDOFF_TO: release_engineer",
+                 extra=None, raw=None):
+        """A write phase that leaves a quality report, as the real one does."""
+        def phase(task, role):
+            if raw is not None:
+                self.put(self.REPORT, raw)
+            elif scores is not None:
+                body = dict(scores)
+                body.update(extra or {})
+                self.put(self.REPORT, json.dumps(body, ensure_ascii=False))
+            return StepResult(ok=ok, limited=limited, summary=summary,
+                              changed=[self.REPORT],
+                              error="" if ok else "reviewer failed")
+        return phase
+
+    def run_review(self, *, scores=None, model="Qwen3-VL:4b",
+                   answer=("공장 배경, 좌하단에 코인 HUD, 글자 겹침 없음", ""),
+                   boom=None, task=None, **write):
+        executor = SeeingExecutor(repo_root=self.root,
+                                  write_phase=self.reviewer(scores, **write),
+                                  model=model)
+        executor.seen, executor.answer, executor.boom = [], answer, boom
+        subject = task if task is not None else self.review_task()
+        return executor(subject, "quality_reviewer"), executor, subject
+
+    # -- nothing looked, which is this repository's actual state ------------
+
+    def test_with_no_screenshot_the_visual_scores_are_a_question_for_a_person(self):
+        step, executor, task = self.run_review(scores=self.UNSEEN)
+
+        self.assertFalse(step.ok)
+        self.assertIn("GATE: NOT_VERIFIED", step.summary)
+        # Not FAILED: a retry asks the same agent the same thing and gets the
+        # same silence. chain_runner parks this for the 계속 진행 button.
+        verdict = read_verdict(step.summary)
+        self.assertTrue(verdict.needs_review, step.summary)
+        self.assertIsNone(verdict.succeeded)
+        self.assertEqual([], executor.seen, "nothing to look at, so no call")
+        self.assertIn("game02-screen.png 가 없습니다", step.summary)
+
+    def test_the_reviewer_is_told_to_leave_what_nobody_saw_empty(self):
+        _, _, task = self.run_review(scores=self.UNSEEN)
+        notes = [n for n in task.notes if n.startswith("INSPECTION:")]
+        self.assertEqual(1, len(notes), task.notes)
+        self.assertIn("null", notes[0])
+
+    def test_the_note_is_replaced_on_a_retry_not_stacked(self):
+        task = self.review_task()
+        self.run_review(scores=self.UNSEEN, task=task)
+        self.run_review(scores=self.UNSEEN, task=task)
+        self.assertEqual(1, len([n for n in task.notes
+                                 if n.startswith("INSPECTION:")]))
+
+    def test_scoring_what_nobody_saw_is_refused_and_not_quietly_blanked(self):
+        """The guard doing its job, and the fix that would have disabled it.
+
+        Nulling the visual scores before calling the gate would turn this into
+        a tidy NOT_VERIFIED and switch the guard off permanently. The scores
+        go in exactly as written so the refusal fires.
+        """
+        step, _, _ = self.run_review(scores=self.GOOD)   # no screenshot exists
+
+        self.assertFalse(step.ok)
+        self.assertIn("GATE: REFUSED", step.summary)
+        for dimension in ("graphics", "ui_ux", "animation_vfx"):
+            self.assertIn(dimension, step.summary)
+        self.assertIs(False, read_verdict(step.summary).succeeded)
+
+    # -- something looked ---------------------------------------------------
+
+    def test_a_screenshot_is_shown_to_the_model_before_the_reviewer_writes(self):
+        image = self.screenshot()
+        step, executor, task = self.run_review(scores=self.GOOD)
+
+        self.assertEqual([image], executor.seen)
+        self.assertTrue(step.ok, step.error)
+        self.assertIn("GATE: APPROVED", step.summary)
+        # Who looked at what, so the score can be doubted later.
+        self.assertIn("Qwen3-VL:4b", step.summary)
+        self.assertIn("game02-screen.png", step.summary)
+        # And the reviewer was told where to read what was seen.
+        note = next(n for n in task.notes if n.startswith("INSPECTION:"))
+        self.assertIn(self.DOC, note)
+
+    def test_what_the_model_saw_is_kept_as_a_file(self):
+        self.screenshot()
+        self.run_review(scores=self.GOOD, answer=("코인이 머리보다 큽니다", ""))
+        doc = (self.root / self.DOC).read_text(encoding="utf-8")
+        self.assertIn("코인이 머리보다 큽니다", doc)
+        self.assertIn("Qwen3-VL:4b", doc)
+
+    def test_a_low_total_is_rework_rather_than_a_question(self):
+        self.screenshot()
+        step, _, _ = self.run_review(scores=self.THIN)
+        self.assertIn("GATE: CHANGES_REQUIRED", step.summary)
+        self.assertIs(False, read_verdict(step.summary).succeeded)
+
+    # -- the ways looking can fail -----------------------------------------
+
+    def test_a_vision_model_that_cannot_be_reached_did_not_look(self):
+        self.screenshot()
+        step, _, _ = self.run_review(scores=self.UNSEEN,
+                                     boom=OSError("connection refused"))
+        self.assertIn("GATE: NOT_VERIFIED", step.summary)
+        self.assertIn("connection refused", step.summary)
+
+    def test_an_empty_answer_is_not_an_inspection(self):
+        self.screenshot()
+        step, _, _ = self.run_review(scores=self.GOOD, answer=("", ""))
+        # Still refused, because nothing actually saw the screen.
+        self.assertIn("GATE: REFUSED", step.summary)
+
+    def test_no_local_model_means_nobody_looked_even_with_a_screenshot(self):
+        self.screenshot()
+        step, executor, _ = self.run_review(scores=self.UNSEEN, model="")
+        self.assertEqual([], executor.seen)
+        self.assertIn("GATE: NOT_VERIFIED", step.summary)
+        self.assertIn("비전 모델", step.summary)
+
+    def test_a_cut_off_description_still_counts_as_having_looked(self):
+        """It had the image in front of it. Said out loud, not hidden."""
+        self.screenshot()
+        step, _, _ = self.run_review(scores=self.GOOD,
+                                     answer=("화면에는 공장 배경이", "length"))
+        self.assertTrue(step.ok, step.error)
+        doc = (self.root / self.DOC).read_text(encoding="utf-8")
+        self.assertIn("잘렸습니다", doc)
+
+    def test_an_empty_image_file_is_not_a_screenshot(self):
+        path = self.root / self.SCREEN
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"")
+        self.assertIsNone(find_screen(self.root, "game02"))
+
+    def test_the_newest_screenshot_wins_across_extensions(self):
+        old = self.put("Reports/quality/game02-screen.jpg", "old")
+        new = self.put("Reports/quality/game02-screen.png", "new")
+        os.utime(old, (time.time() - 3600, time.time() - 3600))
+        self.assertEqual(new, find_screen(self.root, "game02"))
+
+    # -- the report the reviewer is supposed to write -----------------------
+
+    def test_a_missing_report_never_reaches_the_gate(self):
+        """Nothing to judge is not the same as a judgement that came out badly."""
+        step, _, _ = self.run_review(scores=None)
+        self.assertFalse(step.ok)
+        self.assertNotIn("GATE:", step.summary)
+        self.assertIn(self.REPORT, step.summary)
+        self.assertIn('"gameplay"', step.summary)   # the shape it wants
+
+    def test_an_unreadable_report_is_the_reviewers_failure(self):
+        step, _, _ = self.run_review(raw="{not json")
+        self.assertFalse(step.ok)
+        self.assertNotIn("GATE:", step.summary)
+
+    def test_a_dimension_left_out_entirely_is_not_verified(self):
+        self.screenshot()
+        partial = {k: v for k, v in self.GOOD.items() if k != "audio"}
+        step, _, _ = self.run_review(scores=partial)
+        self.assertIn("GATE: NOT_VERIFIED", step.summary)
+        self.assertIn("audio", step.summary)
+
+    def test_the_reviewers_own_prose_in_the_file_is_ignored(self):
+        self.screenshot()
+        step, _, _ = self.run_review(scores=self.GOOD,
+                                     extra={"notes": "코인 크기 확인 필요"})
+        self.assertTrue(step.ok, step.error)
+
+    def test_every_dimension_is_listed_in_the_summary(self):
+        step, _, _ = self.run_review(scores=self.UNSEEN)
+        for name, weight in QUALITY_WEIGHTS.items():
+            self.assertIn(f"SCORE: {name} = ", step.summary)
+            self.assertIn(f"/{weight}", step.summary)
+
+    # -- the write phase ----------------------------------------------------
+
+    def test_a_codex_limit_pauses_the_step(self):
+        step, _, _ = self.run_review(scores=None, ok=False, limited=True)
+        self.assertTrue(step.limited)
+
+    def test_a_failed_write_phase_does_not_reach_the_gate(self):
+        step, _, _ = self.run_review(scores=None, ok=False,
+                                     summary="STATUS: FAILED")
+        self.assertFalse(step.ok)
+        self.assertNotIn("GATE:", step.summary)
+        self.assertIs(False, read_verdict(step.summary).succeeded)
+
+    def test_the_reviewer_cannot_overrule_the_gate_that_checks_it(self):
+        step, _, _ = self.run_review(scores=self.UNSEEN)
+        verdict = read_verdict(step.summary)
+        self.assertTrue(verdict.needs_review)
+        self.assertEqual("", verdict.handoff_to)
+        self.assertIn("[STATUS]: OK", step.summary)
+
+    def test_an_id_that_names_no_game_refuses(self):
+        step, executor, _ = self.run_review(
+            scores=self.GOOD, task=self.review_task("CODEX-QUALITYSTEP1"))
+        self.assertFalse(step.ok)
+        self.assertEqual([], executor.seen)
+
+    def test_the_chain_really_parks_this_for_a_person(self):
+        """The claim the whole design rests on, checked against decide().
+
+        Everything above asserts what the summary says. This asserts what
+        chain_runner does with it - REVIEW_WAIT is what sets review_note, and
+        review_note is what draws the 계속 진행 button.
+        """
+        step, _, _ = self.run_review(scores=self.UNSEEN)
+        action, why = decide(step, read_verdict(step.summary), attempt=1,
+                             max_retry=5, roles={"quality_reviewer",
+                                                 "release_engineer"})
+        self.assertEqual(REVIEW_WAIT, action)
+        self.assertIn("사람이", why)
+
+        # And a real shortfall is rework, not a question for a person.
+        self.screenshot()
+        thin, _, _ = self.run_review(scores=self.THIN)
+        again, _ = decide(thin, read_verdict(thin.summary), attempt=1,
+                          max_retry=5, roles={"quality_reviewer"})
+        self.assertEqual(RETRY, again)
+
 class RoutingTests(unittest.TestCase):
     """The planner's task_type strings and the chain's routing must agree.
 
@@ -383,8 +663,11 @@ class RoutingTests(unittest.TestCase):
         self.assertEqual("test", self.kind_of("-QA"))
 
     def test_the_five_authoring_steps_still_go_to_an_agent(self):
-        for suffix in ("-DESIGN", "-ARCH", "-SYSTEMS", "-UI", "-REVIEW"):
+        for suffix in ("-DESIGN", "-ART", "-ARCH", "-SYSTEMS", "-UI"):
             self.assertEqual("", self.kind_of(suffix), suffix)
+
+    def test_the_review_step_runs_the_quality_gate(self):
+        self.assertEqual("review", self.kind_of("-REVIEW"))
 
     def test_a_game_id_is_read_from_the_plan_id(self):
         self.assertEqual("game02", game_id_of(self.plan.tasks[-1]))

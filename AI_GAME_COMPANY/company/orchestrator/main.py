@@ -35,6 +35,9 @@ from company.orchestrator.ollama_client import (  # noqa: E402
     ModelDoesNotFit, ModelNotApproved, ModelNotInstalled,
     NonLocalEndpointRefused, OllamaClient, OllamaUnavailable,
 )
+from company.orchestrator.play_store_growth import (  # noqa: E402
+    TECHNICAL_GATES,
+)
 from company.orchestrator.policy import Policy  # noqa: E402
 from company.orchestrator.runlog import Recorder  # noqa: E402
 from company.orchestrator.report_generator import (  # noqa: E402
@@ -44,6 +47,9 @@ from company.orchestrator.state import CompanyState  # noqa: E402
 from company.orchestrator.tasks import TaskQueue  # noqa: E402
 from company.orchestrator.teamwork import (  # noqa: E402
     NotCodexOwned, TaskBoard, TaskNotFound, build_prompt, run_task,
+)
+from company.orchestrator.device_runner import (  # noqa: E402
+    DeviceRunner, DeviceUnavailable,
 )
 from company.orchestrator.unity_runner import UnityRunner  # noqa: E402
 
@@ -354,9 +360,10 @@ def _team_chain(args, board) -> int:
     """
     from company.orchestrator import chain_runner as chain
     from company.orchestrator.chain_runner import StepResult
+    from company.orchestrator.executors import find_screen
     from company.orchestrator.executors import (
-        BuildExecutor, CodexExecutor, OllamaExecutor, TestExecutor, step_kind,
-        writing_roles)
+        BuildExecutor, CodexExecutor, OllamaExecutor, ReviewExecutor,
+        TestExecutor, step_kind, writing_roles)
 
     game = (args.game or "").strip().lower()
     prefix = f"{game.upper()}-"
@@ -418,6 +425,10 @@ def _team_chain(args, board) -> int:
                                unity_path=unity_path)
     test_step = TestExecutor(repo_root=REPO_ROOT, policy=policy,
                              write_phase=agent_step, unity_path=unity_path)
+    # The same local model, used for the one thing a 4B model is actually
+    # better at than Codex: looking at a picture. Codex cannot see.
+    review_step = ReviewExecutor(repo_root=REPO_ROOT, write_phase=agent_step,
+                                 model=model)
 
     def execute(task, role):
         """Who runs this step - decided by the work, not by the job title.
@@ -432,6 +443,8 @@ def _team_chain(args, board) -> int:
             return build_step(task, role)
         if kind == "test":
             return test_step(task, role)
+        if kind == "review":
+            return review_step(task, role)
         return agent_step(task, role)
 
     def announce(record):
@@ -449,6 +462,16 @@ def _team_chain(args, board) -> int:
     else:
         print("  경고: Unity 편집기 경로가 없어 빌드/테스트 단계는 실패로 처리됩니다.")
         print("  AI_GAME_COMPANY/tools/detect-environment.ps1 을 먼저 실행하세요.")
+    screen = find_screen(REPO_ROOT, game)
+    if screen and model:
+        print(f"  검토 단계에서 화면을 봅니다: {screen.name} ({model})")
+    else:
+        # Said before the run rather than discovered at the review step, which
+        # is thirty minutes in.
+        print("  화면 스크린샷이 없어 graphics/ui_ux/animation_vfx 는 점수 없음"
+              "(NOT_VERIFIED)으로 끝나고 사람 검토를 기다립니다.")
+        print(f"  기기 화면 사진을 Reports/quality/{game}-screen.png 에 두면 "
+              "다음 실행에서 점수가 매겨집니다.")
     result = chain.run_chain(
         board, prefix, execute, roles={a.id for a in registry.list_agents()},
         approved=set(args.approve or ()), on_event=announce)
@@ -791,6 +814,102 @@ def cmd_build(args: argparse.Namespace) -> int:
     return 0
 
 
+def _application_id(repo_root: Path) -> str:
+    """The Android package id Unity was told to build, read from the project.
+
+    Read rather than assumed: launching the wrong package reports "Activity not
+    started" and looks exactly like a broken build.
+    """
+    settings = repo_root / "ProjectSettings" / "ProjectSettings.asset"
+    if not settings.is_file():
+        return ""
+    lines = settings.read_text(encoding="utf-8", errors="replace").splitlines()
+    for index, line in enumerate(lines):
+        if line.strip() == "applicationIdentifier:":
+            for following in lines[index + 1:index + 8]:
+                if following.strip().startswith("Android:"):
+                    return following.split(":", 1)[1].strip()
+            break
+    return ""
+
+
+def cmd_device(args: argparse.Namespace) -> int:
+    """Run the built APK on a real device and bring back what it looked like.
+
+    The one thing this pipeline could never do before. Unity builds with
+    -nographics, so nothing had ever seen a frame of these games; the review
+    gate's honest answer was NOT_VERIFIED and would have stayed that way
+    forever. The screenshot lands where ReviewExecutor already looks.
+    """
+    policy = _load_policy()
+    unity_path = args.unity_path or UnityRunner.unity_path_from_profile(
+        CONFIG_DIR / "HARDWARE_PROFILE.json")
+    adb = args.adb or DeviceRunner.adb_from_editor(unity_path)
+    if not adb:
+        print("ERROR: adb 를 찾지 못했습니다.")
+        print("  Unity Android Build Support 와 함께 설치됩니다. --adb 로 직접")
+        print("  지정하거나 tools/detect-environment.ps1 을 먼저 실행하세요.")
+        return 2
+
+    apk = Path(args.apk) if args.apk else UnityRunner(
+        repo_root=REPO_ROOT, policy=policy).find_apk(args.game)
+    if apk is None or not apk.is_file():
+        print(f"ERROR: {args.game} 의 APK 가 없습니다.")
+        print("  먼저: python -m company.orchestrator.main build --game "
+              f"{args.game}")
+        return 2
+
+    package = args.package or _application_id(REPO_ROOT)
+    if not package:
+        print("ERROR: 패키지 id 를 읽지 못했습니다. --package 로 넘기세요.")
+        return 2
+
+    print(f"=== DEVICE: {args.game} ===")
+    print(f"  adb: {adb}")
+    print(f"  apk: {apk} ({apk.stat().st_size / (1024 * 1024):.1f} MB)")
+    print(f"  패키지: {package}\n")
+
+    runner = DeviceRunner(repo_root=REPO_ROOT, adb=adb)
+    try:
+        evidence = runner.verify(args.game, apk, package,
+                                 settle_seconds=args.settle)
+    except DeviceUnavailable as exc:
+        print(f"REFUSED: {exc}")
+        print("  USB 디버깅을 켠 기기를 연결하면 그대로 다시 실행하면 됩니다.")
+        return 3
+    except Exception as exc:  # noqa: BLE001 - a failed session is data
+        print(f"ERROR: {type(exc).__name__}: {exc}")
+        return 1
+
+    print(f"  기기       {evidence.device}")
+    print(f"  설치       {'OK' if evidence.installed else 'FAILED'}")
+    print(f"  실행       {'OK' if evidence.launched else 'FAILED'}")
+    if evidence.cold_start_ms is not None:
+        limit = TECHNICAL_GATES["cold_start_seconds_max"]
+        seconds = evidence.cold_start_ms / 1000
+        mark = "OK" if seconds <= limit else "초과"
+        print(f"  콜드 스타트 {seconds:.2f}s (기준 {limit}s) {mark}")
+    for line in evidence.crashes:
+        print(f"  CRASH      {line[:160]}")
+    for line in evidence.anrs:
+        print(f"  ANR        {line}")
+    if evidence.detail:
+        print(f"  비고       {evidence.detail[:300]}")
+
+    if evidence.screenshot is None:
+        print("\n스크린샷을 얻지 못했습니다. 검토 단계는 화면을 보지 못한 "
+              "상태로 남습니다.")
+        return 1
+
+    print(f"\n스크린샷: {evidence.screenshot}")
+    print("  이제 검토 단계가 이 화면을 실제로 봅니다:")
+    print(f"  python -m company.orchestrator.main team chain --game {args.game}")
+    # One session is not a rate, and section 8 does not allow rounding that up.
+    print("\n한 번의 실행입니다. 크래시율/ANR률은 설치 수천 건에서 나오는 "
+          "값이라 여기서 알 수 없습니다.")
+    return 0 if evidence.ok else 1
+
+
 def cmd_test(args: argparse.Namespace) -> int:
     """Generate the scene and run locally verified Unity test suites."""
     policy = _load_policy()
@@ -990,6 +1109,22 @@ def main(argv: list[str] | None = None) -> int:
     test.add_argument("--unity-path", default=None,
                       help="Unity.exe path; defaults to the one in HARDWARE_PROFILE.json")
     test.set_defaults(func=cmd_test)
+
+    device = sub.add_parser(
+        "device", help="install the APK on a phone, launch it, photograph it")
+    device.add_argument("--game", default="game01")
+    device.add_argument("--apk", default=None,
+                        help="APK path; defaults to the newest under Builds/<game>")
+    device.add_argument("--package", default=None,
+                        help="application id; defaults to ProjectSettings")
+    device.add_argument("--adb", default=None,
+                        help="adb path; defaults to the one beside the editor")
+    device.add_argument("--unity-path", default=None,
+                        help="editor path, used only to locate adb")
+    device.add_argument("--settle", type=float, default=6.0,
+                        help="seconds to wait before the screenshot, so the "
+                             "splash screen is not what gets photographed")
+    device.set_defaults(func=cmd_device)
 
     gate = sub.add_parser("gate", help="may this game be called COMPLETE?")
     gate.add_argument("--game", default="game01")

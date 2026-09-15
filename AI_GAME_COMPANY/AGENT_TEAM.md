@@ -33,7 +33,7 @@ The role definitions, permissions, task types, prompts, departments, AI names, a
 | Gameplay Engineer | Player, combat, physics, obstacles, enemies, and game feel |
 | Systems Engineer | Save, economy, progression, input, pooling, audio, and shared systems |
 | UI/UX Engineer | Portrait mobile HUD, menus, shop, settings, tutorial, and safe area |
-| Art Director | Asset direction and policy-safe Gemini/local image requests |
+| Art Director | Game visuals, Play Store creatives, truthful listing assets and A/B hypotheses |
 | Level Designer | Stage flow, patterns, pacing, and procedural generation |
 | QA Engineer | Acceptance, regression, tests, severity, and evidence |
 | Quality Reviewer | Independent architecture, quality, performance, and release review |
@@ -80,7 +80,9 @@ python -m company.orchestrator.main team next
 python -m company.orchestrator.main team order --game game02 --goal "Game02 만들어."
 ```
 
-`team order` keeps the raw goal, creates a validated seven-stage structured plan, writes it to `company/plans/<game>.json`, adds Codex-owned role tasks to the shared board, shows the plan, and starts the first executable task. Use `--dry-run` to inspect without writing or executing.
+`team order` keeps the raw goal, creates a validated eight-stage structured plan including the Art Director's Play Store creative stage, writes it to `company/plans/<game>.json`, adds Codex-owned role tasks to the shared board, shows the plan, and starts the first executable task. Use `--dry-run` to inspect without writing or executing.
+
+Every new game also receives a measurable Play Store package under `Growth/<game>/`: store listing drafts, icon/feature/screenshot experiments, KPI gates, release checklist and an empty metrics template. See `docs/PLAY_STORE_GROWTH.md`.
 
 ## QA and release gates
 

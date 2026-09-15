@@ -31,6 +31,7 @@ truthful "nobody could tell" instead of an invented success.
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import re
@@ -45,7 +46,8 @@ from company.orchestrator.agent_dispatcher import AgentDispatcher
 from company.orchestrator.chain_runner import StepResult, read_verdict
 from company.orchestrator.manager import GAME_ID
 from company.orchestrator.quality_gates import (
-    Finding, ReleaseEvidence, qa_gate, release_gate)
+    QUALITY_WEIGHTS, Finding, GateValidationError, ReleaseEvidence, qa_gate,
+    quality_gate, release_gate)
 from company.orchestrator.unity_runner import BUILD_REPORT, UnityRunner
 
 #: Where a document-writing role leaves its output. Inside docs/, which is
@@ -296,36 +298,47 @@ def quote_foreign(text: str) -> str:
         lambda m: f"{m.group(1)}[{m.group(2)}]{m.group(3)}", text or "")
 
 
-def gate_summary(gate: Any, *, detail: Iterable[str] = ()) -> str:
+def gate_summary(gate: Any, *, detail: Iterable[str] = (), status: str = "",
+                 reason: str = "") -> str:
     """A GateResult as the contract block chain_runner reads.
 
     No HANDOFF_TO line: decide() reroutes the work when it sees one, and a
     gate is not an agent asking for a colleague - it is a measurement.
+    HANDOFF_REASON is different and safe: decide() reads it only for the
+    message it shows, and that message is what the 계속 진행 button says.
+
+    `status` overrides the OK/FAILED reading for a result that is neither.
+    Per executor on purpose - the QA step's NOT_VERIFIED means a suite did not
+    run, a machine fault worth retrying, while the review step's means nobody
+    looked at the screen, which only a person can settle.
     """
-    lines = [f"STATUS: {'OK' if gate.passed else 'FAILED'}",
+    lines = [f"STATUS: {status or ('OK' if gate.passed else 'FAILED')}",
              f"GATE: {gate.status}"]
-    lines += [f"REASON: {reason}" for reason in gate.reasons]
+    if reason:
+        lines.append(f"HANDOFF_REASON: {reason}")
+    lines += [f"REASON: {item}" for item in gate.reasons]
     lines += [line for line in detail if line]
     return "\n".join(lines)
 
 
-#: task_type values the planner emits for the two steps Unity runs, mapped to
-#: which executor they need. A dict rather than an `if` because the planner and
-#: the chain have to agree on these strings and a test can now read the same
-#: table both of them use - renaming a task_type in manager.py without touching
-#: this is how a wired gate quietly comes loose again.
-UNITY_STEPS = {"build": "build", "qa": "test", "test": "test"}
+#: task_type values the planner emits for the three steps a gate decides,
+#: mapped to which executor they need. A dict rather than an `if` because the
+#: planner and the chain have to agree on these strings and a test can read the
+#: same table both of them use - renaming a task_type in manager.py without
+#: touching this is how a wired gate quietly comes loose again.
+GATED_STEPS = {"build": "build", "qa": "test", "test": "test",
+               "code_review": "review"}
 
 
 def step_kind(task: Any) -> str:
-    """Which executor a step needs: "build", "test", or "" for an agent.
+    """Which executor a step needs: "build", "test", "review", or "".
 
     Asked of the WORK, not of the job title. Role does not distinguish these:
     the release step belongs to release_engineer, whose can_modify_code is
     false, so routing by role sent it to the document fallback and the chain
     finished on a document about a build that never ran.
     """
-    return UNITY_STEPS.get((getattr(task, "task_type", "") or "").strip().lower(), "")
+    return GATED_STEPS.get((getattr(task, "task_type", "") or "").strip().lower(), "")
 
 
 def game_id_of(task: Any) -> str:
@@ -566,5 +579,291 @@ class TestExecutor:
         return StepResult(
             ok=gate.passed, changed=list(written.changed),
             summary=(gate_summary(gate, detail=detail)
+                     + "\n\n" + quote_foreign(written.summary)),
+            error="" if gate.passed else "; ".join(gate.reasons))
+
+
+# ---------------------------------------------------------------------------
+# THE REVIEW STEP, AND THE ONE QUESTION A MODEL CANNOT ANSWER FROM CODE.
+#
+# quality_gate scores seven weighted dimensions against a hundred and refuses
+# a graphics, ui_ux or animation_vfx score unless visually_inspected is true.
+# That refusal is the best thing in quality_gates.py: it is a guard against an
+# agent that never saw the screen inventing a number for how the game looks.
+#
+# Which makes the honest answer here uncomfortable. NOTHING IN THIS REPOSITORY
+# TAKES A SCREENSHOT. Unity runs -batchmode -nographics, which renders nothing
+# by definition, and grep finds no capture anywhere. So on a machine where
+# nobody has looked, the correct result is NOT_VERIFIED - not a score, and not
+# a pass.
+#
+# A step that always fails would be useless, so NOT_VERIFIED is routed to the
+# 계속 진행 button rather than to a retry: "nobody looked at the screen" is a
+# question only a person can answer, and asking Codex the same thing a second
+# time produces the same silence. That is different from the QA step, where
+# NOT_VERIFIED means a suite did not run - a machine fault worth retrying.
+#
+# And there IS a way to answer it today. Drop a screenshot at
+# Reports/quality/<game>-screen.png - a photo of the phone running the APK is
+# exactly the evidence the gate is asking for - and this shows it to the local
+# vision model before the reviewer writes anything. visually_inspected then
+# becomes true because something really did look, and the summary names the
+# model and the file so the score can be doubted later.
+# ---------------------------------------------------------------------------
+
+#: Where the reviewer's scores go. The plan's allowlist for the review step is
+#: exactly this one file.
+QUALITY_REPORT = "Reports/quality/{game}.json"
+#: What a person or a build drops in for the visual dimensions to be scorable.
+SCREEN_IMAGE = "Reports/quality/{game}-screen"
+SCREEN_SUFFIXES = (".png", ".jpg", ".jpeg", ".webp")
+#: What the vision model said, kept as a file so the reviewer can cite it and
+#: a person can check it against the picture.
+INSPECTION_DOC = "Reports/quality/{game}-inspection.md"
+
+#: A description, not an essay. Measured on this PC 2026-09-15: Qwen3-VL:4b
+#: runs at 8-10 tokens/second on CPU, so this is about two minutes, and the
+#: timeout leaves room for loading 3.3 GB of weights that may not be resident.
+INSPECT_NUM_PREDICT = 1200
+INSPECT_TIMEOUT = 900.0
+
+#: Prefix for the note this executor leaves on the task, so the reviewer reads
+#: it in its prompt. Replaced rather than appended on a retry.
+INSPECTION_NOTE = "INSPECTION:"
+
+VISION_PROMPT = "\n".join([
+    "이 이미지는 모바일 게임 화면입니다.",
+    "실제로 보이는 것만 적으세요. 보이지 않는 것은 추측하지 마세요.",
+    "",
+    "1. 화면에 무엇이 있는지 - 요소, 배치, 색",
+    "2. 읽기 어렵거나, 겹치거나, 잘린 부분",
+    "3. 세로 모바일 화면으로서 손가락으로 누르기 어려워 보이는 부분",
+])
+
+SCORE_SHAPE = (
+    '{"gameplay": 0-20, "graphics": 0-20, "ui_ux": 0-15, "animation_vfx": 0-15, '
+    '"audio": 0-10, "stability": 0-10, "mobile": 0-10}'
+)
+
+
+@dataclass(frozen=True)
+class Inspection:
+    """Whether something actually looked at the screen, and what it saw.
+
+    `looked` is the whole point. It is set from what this code did, never from
+    what an agent said it did - an agent claiming an inspection is exactly the
+    thing quality_gate exists to refuse.
+    """
+    looked: bool
+    model: str = ""
+    image: str = ""
+    text: str = ""
+    detail: str = ""
+
+    @property
+    def line(self) -> str:
+        if self.looked:
+            return f"INSPECTION: {self.model} 가 {self.image} 를 봤습니다."
+        return f"INSPECTION: 없음 - {self.detail}"
+
+
+def find_screen(repo_root: Path, game: str) -> Path | None:
+    """The newest screenshot a person or a build left for this game."""
+    stem = repo_root / SCREEN_IMAGE.format(game=game)
+    found = [stem.with_suffix(suffix) for suffix in SCREEN_SUFFIXES
+             if stem.with_suffix(suffix).is_file()
+             and stem.with_suffix(suffix).stat().st_size > 0]
+    return max(found, key=lambda p: p.stat().st_mtime) if found else None
+
+
+@dataclass
+class ReviewExecutor:
+    """GAMENN-REVIEW: the reviewer scores, quality_gate decides, nobody guesses.
+
+    Order matters. The inspection runs FIRST so its result can be written onto
+    the task as a note, which build_prompt puts in front of the reviewer - a
+    reviewer that has been told what a vision model saw can score the visual
+    dimensions, and one that has been told nobody looked knows to leave them
+    null. Running it afterwards would mean scoring first and looking second.
+    """
+    repo_root: Path
+    write_phase: Callable[[Any, str], StepResult]
+    #: The local vision model, or "" when none is usable. No image is ever
+    #: sent anywhere but the local endpoint.
+    model: str = ""
+    url: str = "http://127.0.0.1:11434"
+    target: int = 85
+
+    # -- looking -----------------------------------------------------------
+
+    def _ask_about(self, image: Path) -> tuple[str, str]:
+        payload = {
+            "model": self.model,
+            "prompt": VISION_PROMPT,
+            "images": [base64.b64encode(image.read_bytes()).decode("ascii")],
+            "think": False,
+            "stream": False,
+            "options": {"num_predict": INSPECT_NUM_PREDICT},
+        }
+        request = urllib.request.Request(
+            f"{self.url}/api/generate",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(request, timeout=INSPECT_TIMEOUT) as response:
+            body = json.loads(response.read())
+        return (str(body.get("response") or "").strip(),
+                str(body.get("done_reason") or ""))
+
+    def inspect(self, game: str) -> Inspection:
+        image = find_screen(self.repo_root, game)
+        if image is None:
+            return Inspection(False, detail=(
+                f"{SCREEN_IMAGE.format(game=game)}.png 가 없습니다. "
+                "이 저장소에는 스크린샷을 찍는 코드가 없습니다"
+                "(Unity 가 -nographics 로 도는 한 만들 수 없습니다). "
+                "기기에서 APK 를 띄우고 찍은 사진을 그 경로에 두면 "
+                "다음 실행에서 화면 점수를 매길 수 있습니다."))
+        if not self.model:
+            return Inspection(False, image=_relative(image, self.repo_root),
+                              detail="로컬 비전 모델이 없어 이미지를 보지 못했습니다.")
+        try:
+            text, done_reason = self._ask_about(image)
+        except (urllib.error.URLError, OSError, ValueError) as exc:
+            return Inspection(False, model=self.model,
+                              image=_relative(image, self.repo_root),
+                              detail=f"비전 모델을 부르지 못했습니다: {exc}")
+        if not text:
+            return Inspection(False, model=self.model,
+                              image=_relative(image, self.repo_root),
+                              detail="비전 모델이 빈 응답을 냈습니다.")
+        # Truncated is still looked-at: the model had the image in front of it.
+        # Said out loud rather than hidden, because a description that stops
+        # mid-sentence is a weaker basis for a score.
+        detail = ("설명이 잘렸습니다 (done_reason=length)."
+                  if done_reason == "length" else "")
+        return Inspection(True, model=self.model,
+                          image=_relative(image, self.repo_root),
+                          text=text, detail=detail)
+
+    def _record(self, task: Any, game: str, inspection: Inspection) -> None:
+        """Put the inspection where both the reviewer and a person can read it."""
+        if inspection.looked:
+            doc = self.repo_root / INSPECTION_DOC.format(game=game)
+            doc.parent.mkdir(parents=True, exist_ok=True)
+            doc.write_text(
+                f"# {game} 화면 관찰\n\n"
+                f"모델: {inspection.model}  \n"
+                f"이미지: {inspection.image}  \n"
+                f"{inspection.detail}\n\n---\n\n{inspection.text}\n",
+                encoding="utf-8")
+            note = (f"{INSPECTION_NOTE} {inspection.model} 가 "
+                    f"{inspection.image} 를 봤습니다. 관찰 내용은 "
+                    f"{INSPECTION_DOC.format(game=game)} 에 있습니다. "
+                    "graphics / ui_ux / animation_vfx 점수는 그 문서를 근거로 "
+                    "매기세요.")
+        else:
+            note = (f"{INSPECTION_NOTE} 아무도 화면을 보지 않았습니다 "
+                    f"({inspection.detail}) 따라서 graphics / ui_ux / "
+                    "animation_vfx 는 반드시 null 로 두세요. 본 적 없는 것에 "
+                    "점수를 매기면 게이트가 거부합니다.")
+        # Replaced, not appended: a retry would otherwise stack a near-identical
+        # paragraph onto the prompt every attempt.
+        task.notes[:] = [n for n in task.notes if not n.startswith(INSPECTION_NOTE)]
+        task.notes.append(note)
+
+    # -- scoring -----------------------------------------------------------
+
+    def _read_scores(self, game: str) -> tuple[dict[str, Any] | None, str]:
+        path = self.repo_root / QUALITY_REPORT.format(game=game)
+        if not path.is_file():
+            return None, (f"{QUALITY_REPORT.format(game=game)} 이 없습니다. "
+                          f"일곱 차원 점수를 담은 JSON 을 쓰세요: {SCORE_SHAPE}. "
+                          "본 적 없는 차원은 null.")
+        try:
+            data = json.loads(path.read_text(encoding="utf-8-sig"))
+        except (OSError, ValueError) as exc:
+            return None, f"{QUALITY_REPORT.format(game=game)} 을 읽지 못했습니다: {exc}"
+        if not isinstance(data, dict):
+            return None, f"{QUALITY_REPORT.format(game=game)} 이 JSON 객체가 아닙니다."
+        # Exactly the seven the gate weighs. A dimension the reviewer left out
+        # is None, which is NOT_VERIFIED - the honest reading of "not scored".
+        # Extra keys (its own notes, a summary) are ignored rather than
+        # rejected: the file is for people too.
+        return {name: data.get(name) for name in QUALITY_WEIGHTS}, ""
+
+    def __call__(self, task: Any, role: str) -> StepResult:
+        game = game_id_of(task)
+        if not game:
+            return StepResult(
+                ok=False, summary="STATUS: FAILED",
+                error=f"'{task.id}' 이 GAMENN-단계 형식이 아니라 "
+                      "어느 게임을 검토할지 알 수 없습니다.")
+
+        inspection = self.inspect(game)
+        self._record(task, game, inspection)
+
+        written = self.write_phase(task, role)
+        if written.limited:
+            return written
+        if not written.ok:
+            return StepResult(
+                ok=False, changed=list(written.changed),
+                summary=("STATUS: FAILED\n"
+                         "REASON: 검토 문서를 쓰지 못해 점수를 읽을 수 없습니다.\n"
+                         f"{inspection.line}\n\n"
+                         + quote_foreign(written.summary)),
+                error=written.error or "검토 단계가 실패했습니다.")
+
+        scores, problem = self._read_scores(game)
+        if scores is None:
+            # Not the gate's business: there is nothing to judge, which is a
+            # different thing from a judgement that came out badly.
+            return StepResult(
+                ok=False, changed=list(written.changed),
+                summary=(f"STATUS: FAILED\nREASON: {problem}\n"
+                         f"{inspection.line}\n\n"
+                         + quote_foreign(written.summary)),
+                error=problem)
+
+        try:
+            gate = quality_gate(scores, visually_inspected=inspection.looked,
+                                target=self.target)
+        except GateValidationError as exc:
+            # The refusal doing its job - most often a reviewer that scored
+            # graphics without anything having looked. Reported as the failure
+            # it is, NOT worked around by nulling the scores first: blanking
+            # them would turn the guard off and call the result NOT_VERIFIED,
+            # which is precisely the weakening this step exists to prevent.
+            return StepResult(
+                ok=False, changed=list(written.changed),
+                summary=(f"STATUS: FAILED\nGATE: REFUSED\nREASON: {exc}\n"
+                         f"{inspection.line}\n\n"
+                         + quote_foreign(written.summary)),
+                error=str(exc))
+
+        # NOT_VERIFIED goes to a person, not to a retry. Asking the same agent
+        # again produces the same silence; what is missing is somebody looking
+        # at the game. chain_runner parks the task with a review_note and the
+        # panel grows a 계속 진행 button, which is exactly this case.
+        if gate.passed:
+            status = "OK"
+        elif gate.status == "NOT_VERIFIED":
+            status = "NEEDS_HUMAN_REVIEW"
+        else:
+            status = "FAILED"
+
+        detail = [inspection.line]
+        detail += [f"SCORE: {name} = "
+                   f"{'점수 없음' if scores[name] is None else scores[name]}"
+                   f"/{weight}"
+                   for name, weight in QUALITY_WEIGHTS.items()]
+        reason = ""
+        if status == "NEEDS_HUMAN_REVIEW":
+            reason = ("점수가 매겨지지 않은 항목: " + ", ".join(gate.reasons)
+                      + ". 사람이 게임을 보고 판단해야 합니다.")
+        return StepResult(
+            ok=gate.passed, changed=list(written.changed),
+            summary=(gate_summary(gate, detail=detail, status=status,
+                                  reason=reason)
                      + "\n\n" + quote_foreign(written.summary)),
             error="" if gate.passed else "; ".join(gate.reasons))

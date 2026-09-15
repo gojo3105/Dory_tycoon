@@ -17,6 +17,8 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
+from company.orchestrator import play_store_growth
+
 
 MAX_IDEA_CHARS = 800
 MAX_TITLE_CHARS = 60
@@ -75,6 +77,7 @@ class GamePlan:
     git_branch: str
     git_status: str
     requirements_path: str
+    growth_paths: tuple[str, ...] = ()
     planner: str = "로컬 자동 설계 엔진"
 
     def as_dict(self) -> dict[str, Any]:
@@ -91,6 +94,7 @@ class GamePlan:
             "git_branch": self.git_branch,
             "git_status": self.git_status,
             "requirements_path": self.requirements_path,
+            "growth_paths": list(self.growth_paths),
             "planner": self.planner,
             "spec": self.spec,
         }
@@ -332,6 +336,8 @@ def _requirements_markdown(plan: GamePlan) -> str:
 - 광고/결제는 무료 정책을 넘지 않는 연결 지점만 만든다.
 - 승인되지 않은 외부 에셋, 유료 API, 유료 모델을 자동으로 사용하지 않는다.
 - Unity 테스트와 APK 빌드 결과 없이는 출시 가능으로 표시하지 않는다.
+- Google Play 성장 패키지의 시장 포지션, 스토어 A/B안, KPI, 정책 체크리스트를 검토한다.
+- 순위 1위를 보장하거나 검증되지 않은 마케팅 문구를 사용하지 않는다.
 
 ## 자동 설계 핵심 기능
 
@@ -518,6 +524,7 @@ def plan_game(repo_root: Path, payload: dict[str, Any], *, game_id: str | None =
     title = title or _default_title(style, theme, genre)
     branch = _branch_name(chosen_id)
     requirements_path = _requirements_rel(chosen_id)
+    growth_paths = play_store_growth.expected_paths(chosen_id)
     spec["game"].update(
         id=chosen_id,
         title=title,
@@ -534,7 +541,7 @@ def plan_game(repo_root: Path, payload: dict[str, Any], *, game_id: str | None =
     )
     return GamePlan(chosen_id, title, style, STYLE_LABELS[style],
                     genre, GENRE_LABELS[genre], pitch, features, spec,
-                    idea, branch, "planned", requirements_path)
+                    idea, branch, "planned", requirements_path, growth_paths)
 
 
 def create_game(repo_root: Path, payload: dict[str, Any]) -> GamePlan:
@@ -554,4 +561,5 @@ def create_game(repo_root: Path, payload: dict[str, Any]) -> GamePlan:
     )
     temporary.replace(target)
     _write_requirements(repo_root, plan)
+    play_store_growth.write_growth_package(repo_root, plan)
     return plan

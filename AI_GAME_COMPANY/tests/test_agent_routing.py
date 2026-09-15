@@ -25,6 +25,7 @@ class AgentRoutingTests(unittest.TestCase):
         self.assertEqual("ui_ux_engineer", self.dispatcher.route("ui_code").id)
         self.assertEqual("qa_engineer", self.dispatcher.route("qa").id)
         self.assertEqual("release_engineer", self.dispatcher.route("build").id)
+        self.assertEqual("art_director", self.dispatcher.route("store_listing").id)
 
     def test_explicit_invalid_or_mismatched_role_is_rejected(self):
         with self.assertRaises(AgentDispatchError):
