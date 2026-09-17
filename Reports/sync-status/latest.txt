@@ -1,10 +1,10 @@
 ﻿# Auto-sync status
 
-Generated: 2026-09-17 09:10:55
-Outcome: UP-TO-DATE
-Reason: Nothing new on upstream/claude/delete-current-content-mgn4xm
+Generated: 2026-09-17 10:56:19
+Outcome: FAILED
+Reason: git fetch upstream failed (exit 128): | git.exe : fatal: unable to access 'https://github.com/gojo3105-a11/Dory_tycoon.git/': Could not resolve host: github.co | m | 위치 C:\Dory_tycoon\scripts\desktop\sync-and-run.ps1:178 문자:19 | +         $output = & git -C $RepoPath @Arguments 2>&1 | +                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ |     + CategoryInfo          : NotSpecified: (fatal: unable t...ost: github.com:String) [], RemoteException |     + FullyQualifiedErrorId : NativeCommandError
 Last-Success: 2026-09-17 09:10:55
-Local-Head: 6c85ff0
+Local-Head: 38b3536
 Upstream-Head: 646dd7a
 Branch: claude/delete-current-content-mgn4xm
 
