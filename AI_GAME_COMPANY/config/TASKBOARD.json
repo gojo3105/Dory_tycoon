@@ -1444,7 +1444,8 @@
         "AI_GAME_COMPANY/tests/test_dashboard.py",
         "AI_GAME_COMPANY/tests/test_server.py",
         "AI_GAME_COMPANY/tests/test_factory_workflow.py",
-        "AI_GAME_COMPANY/docs/DEVICE_WORKFLOW.md"
+        "AI_GAME_COMPANY/docs/DEVICE_WORKFLOW.md",
+        "AI_GAME_COMPANY/tests/test_dashboard_controls.js"
       ],
       "acceptance": [
         "Only ready, explicitly selected or sole connected device is targeted; every device command uses -s.",
