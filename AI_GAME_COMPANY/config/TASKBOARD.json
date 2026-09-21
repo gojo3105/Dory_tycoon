@@ -1424,6 +1424,75 @@
       "agent_role": "release_engineer",
       "task_type": "build",
       "priority": 95
+    },
+    {
+      "id": "CODEX-DEVICEAUTO2",
+      "title": "휴대폰 자동 설치와 검증 근거 연결",
+      "owner": "codex",
+      "status": "in_progress",
+      "goal": "Add serial-scoped device install/launch, connection watcher integrated with the server job lock, APK/screenshot hash evidence and honest status. Preserve existing local changes.",
+      "files": [
+        "AI_GAME_COMPANY/company/orchestrator/device_runner.py",
+        "AI_GAME_COMPANY/company/orchestrator/device_watch.py",
+        "AI_GAME_COMPANY/company/orchestrator/main.py",
+        "AI_GAME_COMPANY/company/orchestrator/server.py",
+        "AI_GAME_COMPANY/company/orchestrator/dashboard.py",
+        "AI_GAME_COMPANY/company/orchestrator/executors.py",
+        "AI_GAME_COMPANY/tests/test_device_runner.py",
+        "AI_GAME_COMPANY/tests/test_device_watch.py",
+        "AI_GAME_COMPANY/tests/test_executors.py",
+        "AI_GAME_COMPANY/tests/test_dashboard.py",
+        "AI_GAME_COMPANY/tests/test_server.py",
+        "AI_GAME_COMPANY/tests/test_factory_workflow.py",
+        "AI_GAME_COMPANY/docs/DEVICE_WORKFLOW.md"
+      ],
+      "acceptance": [
+        "Only ready, explicitly selected or sole connected device is targeted; every device command uses -s.",
+        "Automatic connection mode can be enabled/stopped in the panel, executes once per connection/APK, and never overlaps an existing job.",
+        "Installation needs explicit Success; launch is resolved from installed APK; device reports bind APK and screenshot SHA256.",
+        "Failed, missing or stale device evidence cannot pass visual review; manual gameplay is NOT_VERIFIED.",
+        "Download targets match displayed APK hash. Stale compiler scans do not display an unqualified zero.",
+        "Unit and HTTP regression tests pass; actual device result is reported separately."
+      ],
+      "depends_on": [],
+      "notes": [
+        "2026-09-22: User authorized direct local edits and execution in this task. No commit/push."
+      ],
+      "changed_files": [],
+      "last_run": "",
+      "title_ko": "휴대폰 자동 설치와 검증 근거 연결",
+      "agent_role": "systems_engineer",
+      "priority": 95
+    },
+    {
+      "id": "CODEX-MOBILEUX2",
+      "title": "앱 전환·터치 취소·화면 대응 개선",
+      "owner": "codex",
+      "status": "in_progress",
+      "goal": "Improve generated portrait game lifecycle and input safety using existing art and GameSpec. No engine change, no UnityEditor runtime reference, no Update allocation, editor SetReferences/runtime Configure separation.",
+      "files": [
+        "Assets/GameFactory/Core/InputSystem.cs",
+        "Assets/GameFactory/UI/GameUIController.cs",
+        "Assets/GameFactory/UI/RunnerActionButton.cs",
+        "Assets/GameFactory/UI/SafeAreaFitter.cs",
+        "Assets/GameFactory/Editor/SceneGenerator.cs",
+        "Assets/GameFactory/Tests/PlayMode/FactoryRunnerPlayModeTests.cs"
+      ],
+      "acceptance": [
+        "Background/focus loss pauses an active run and requires an explicit resume.",
+        "Touch cancellation and disabled/exit controls release slide without firing a jump.",
+        "Safe area never divides by zero; portrait layout keeps reference width.",
+        "PlayMode regressions pass and a new APK exists; device visual quality remains NOT_VERIFIED until inspected."
+      ],
+      "depends_on": [],
+      "notes": [
+        "2026-09-22: User authorized direct local edits and execution in this task. No commit/push."
+      ],
+      "changed_files": [],
+      "last_run": "",
+      "title_ko": "앱 전환·터치 취소·화면 대응 개선",
+      "agent_role": "ui_ux_engineer",
+      "priority": 95
     }
   ]
 }
