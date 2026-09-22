@@ -1,0 +1,17 @@
+# Orchestrator run report
+
+Generated: 2026-09-22 07:16:34
+Command: device --game game01
+Outcome: FAILED
+Exit: 3
+Duration: 0초
+
+## Output (tail)
+
+=== DEVICE: game01 ===
+  adb: C:\Program Files\Unity\Hub\Editor\6000.5.9f1\Editor\Data\PlaybackEngines\AndroidPlayer\SDK\platform-tools\adb.exe
+  apk: C:\Dory_tycoon\Builds\game01\APK\Game01_FactoryRunner_v1.0.apk (28.8 MB)
+  패키지: com.gamefactory.game01
+
+REFUSED: 연결된 안드로이드 기기가 없습니다. USB 디버깅을 켠 기기를 연결하거나 에뮬레이터를 실행하세요.
+  USB 디버깅을 켠 기기를 연결하면 그대로 다시 실행하면 됩니다.
