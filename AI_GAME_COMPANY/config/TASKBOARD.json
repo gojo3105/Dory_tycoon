@@ -1457,9 +1457,25 @@
       ],
       "depends_on": [],
       "notes": [
-        "2026-09-22: User authorized direct local edits and execution in this task. No commit/push."
+        "2026-09-22: User authorized direct local edits and execution in this task. No commit/push.",
+        "2026-09-22: Python full suite 625 passed; final device regression suite 32 passed; dashboard 85 passed and Node controls PASS. Unity PlayMode 19 passed. New APK 28.77 MB SHA256 7880f997d3798935efe23013c8325f0ff6e8e0005ec860a742cf37f066734eeb recorded in Reports/build-status/latest.txt. Device NOT_VERIFIED: S25 FE seen by Windows WPD but adb lists none. UI/gameplay acceptance pending. Server tested on 8766; 8765 restart pending user action after automatic approval review rejected process stop. No commit/push performed by this agent."
       ],
-      "changed_files": [],
+      "changed_files": [
+        "AI_GAME_COMPANY/company/orchestrator/device_runner.py",
+        "AI_GAME_COMPANY/company/orchestrator/device_watch.py",
+        "AI_GAME_COMPANY/company/orchestrator/main.py",
+        "AI_GAME_COMPANY/company/orchestrator/server.py",
+        "AI_GAME_COMPANY/company/orchestrator/dashboard.py",
+        "AI_GAME_COMPANY/company/orchestrator/executors.py",
+        "AI_GAME_COMPANY/tests/test_device_runner.py",
+        "AI_GAME_COMPANY/tests/test_device_watch.py",
+        "AI_GAME_COMPANY/tests/test_executors.py",
+        "AI_GAME_COMPANY/tests/test_dashboard.py",
+        "AI_GAME_COMPANY/tests/test_server.py",
+        "AI_GAME_COMPANY/tests/test_factory_workflow.py",
+        "AI_GAME_COMPANY/docs/DEVICE_WORKFLOW.md",
+        "AI_GAME_COMPANY/tests/test_dashboard_controls.js"
+      ],
       "last_run": "",
       "title_ko": "휴대폰 자동 설치와 검증 근거 연결",
       "agent_role": "systems_engineer",
@@ -1487,9 +1503,17 @@
       ],
       "depends_on": [],
       "notes": [
-        "2026-09-22: User authorized direct local edits and execution in this task. No commit/push."
+        "2026-09-22: User authorized direct local edits and execution in this task. No commit/push.",
+        "2026-09-22: Python full suite 625 passed; final device regression suite 32 passed; dashboard 85 passed and Node controls PASS. Unity PlayMode 19 passed. New APK 28.77 MB SHA256 7880f997d3798935efe23013c8325f0ff6e8e0005ec860a742cf37f066734eeb recorded in Reports/build-status/latest.txt. Device NOT_VERIFIED: S25 FE seen by Windows WPD but adb lists none. UI/gameplay acceptance pending. Server tested on 8766; 8765 restart pending user action after automatic approval review rejected process stop. No commit/push performed by this agent."
       ],
-      "changed_files": [],
+      "changed_files": [
+        "Assets/GameFactory/Core/InputSystem.cs",
+        "Assets/GameFactory/UI/GameUIController.cs",
+        "Assets/GameFactory/UI/RunnerActionButton.cs",
+        "Assets/GameFactory/UI/SafeAreaFitter.cs",
+        "Assets/GameFactory/Editor/SceneGenerator.cs",
+        "Assets/GameFactory/Tests/PlayMode/FactoryRunnerPlayModeTests.cs"
+      ],
       "last_run": "",
       "title_ko": "앱 전환·터치 취소·화면 대응 개선",
       "agent_role": "ui_ux_engineer",
