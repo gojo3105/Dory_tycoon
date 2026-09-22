@@ -1427,7 +1427,7 @@
     },
     {
       "id": "CODEX-DEVICEAUTO2",
-      "title": "??? ?? ??? ?? ?? ??",
+      "title": "휴대폰 자동 설치와 실행 증거 강화",
       "owner": "codex",
       "status": "in_progress",
       "goal": "Add serial-scoped device install/launch, connection watcher integrated with the server job lock, APK/screenshot hash evidence and honest status. Preserve existing local changes.",
@@ -1459,7 +1459,8 @@
       "notes": [
         "2026-09-22: User authorized direct local edits and execution in this task. No commit/push.",
         "2026-09-22: Python full suite 625 passed; final device regression suite 32 passed; dashboard 85 passed and Node controls PASS. Unity PlayMode 19 passed. New APK 28.77 MB SHA256 7880f997d3798935efe23013c8325f0ff6e8e0005ec860a742cf37f066734eeb recorded in Reports/build-status/latest.txt. Device NOT_VERIFIED: S25 FE seen by Windows WPD but adb lists none. UI/gameplay acceptance pending. Server tested on 8766; 8765 restart pending user action after automatic approval review rejected process stop. No commit/push performed by this agent.",
-        "2026-09-23: Python ?? 640? ??. ?? ?? APK? 2026-09-22 21:11:28 ??, 28.77 MB, SHA256 3A2BD06E333DC627?? Reports/build-status/latest.txt? ??. ?? ??? ?? ??? ?? ? Unity ???/??? ????? ?? ?? ??? Unity ???? ??? ?????? ?? ???? ???? ??."
+        "2026-09-23: Python ?? 640? ??. ?? ?? APK? 2026-09-22 21:11:28 ??, 28.77 MB, SHA256 3A2BD06E333DC627?? Reports/build-status/latest.txt? ??. ?? ??? ?? ??? ?? ? Unity ???/??? ????? ?? ?? ??? Unity ???? ??? ?????? ?? ???? ???? ??.",
+        "2026-09-23: Remote control build produced a real APK at 07:48:20, 30,162,633 bytes, SHA256 47C75C126555C7F4703609CDC4F76D79E2376A724874BD71F6067E38CB17DBF3. PlayMode passed 19/19 and the refreshed error report is zero in all four categories. Automatic installation remains pending because adb currently reports the phone as unauthorized."
       ],
       "changed_files": [
         "AI_GAME_COMPANY/company/orchestrator/device_runner.py",
@@ -1478,13 +1479,13 @@
         "AI_GAME_COMPANY/tests/test_dashboard_controls.js"
       ],
       "last_run": "",
-      "title_ko": "??? ?? ??? ?? ?? ??",
+      "title_ko": "휴대폰 자동 설치와 실행 증거 강화",
       "agent_role": "systems_engineer",
       "priority": 95
     },
     {
       "id": "CODEX-MOBILEUX2",
-      "title": "? ????? ????? ?? ??",
+      "title": "앱 전환·터치 취소·화면 품질 개선",
       "owner": "codex",
       "status": "in_progress",
       "goal": "Improve generated portrait game lifecycle and input safety using existing art and GameSpec. No engine change, no UnityEditor runtime reference, no Update allocation, editor SetReferences/runtime Configure separation.",
@@ -1506,7 +1507,8 @@
       "notes": [
         "2026-09-22: User authorized direct local edits and execution in this task. No commit/push.",
         "2026-09-22: Python full suite 625 passed; final device regression suite 32 passed; dashboard 85 passed and Node controls PASS. Unity PlayMode 19 passed. New APK 28.77 MB SHA256 7880f997d3798935efe23013c8325f0ff6e8e0005ec860a742cf37f066734eeb recorded in Reports/build-status/latest.txt. Device NOT_VERIFIED: S25 FE seen by Windows WPD but adb lists none. UI/gameplay acceptance pending. Server tested on 8766; 8765 restart pending user action after automatic approval review rejected process stop. No commit/push performed by this agent.",
-        "2026-09-23: ???/?? ??, ?? ??, ?? ?? ??? ?? ??? ???. Python ?? 640? ??. ?? ? Unity PlayMode? APK ???? ???? ??? ?? ?? ??."
+        "2026-09-23: ???/?? ??, ?? ??, ?? ?? ??? ?? ??? ???. Python ?? 640? ??. ?? ? Unity PlayMode? APK ???? ???? ??? ?? ?? ??.",
+        "2026-09-23: The latest UI changes passed all 19 PlayMode tests and are included in the real 28.77 MB APK built at 07:48:20. Device visual acceptance is still pending."
       ],
       "changed_files": [
         "Assets/GameFactory/Core/InputSystem.cs",
@@ -1517,13 +1519,13 @@
         "Assets/GameFactory/Tests/PlayMode/FactoryRunnerPlayModeTests.cs"
       ],
       "last_run": "",
-      "title_ko": "? ????? ????? ?? ??",
+      "title_ko": "앱 전환·터치 취소·화면 품질 개선",
       "agent_role": "ui_ux_engineer",
       "priority": 95
     },
     {
       "id": "CODEX-USBCONTROL3",
-      "title": "Wi-Fi ?? ????? ??? ??",
+      "title": "Wi-Fi 없이 휴대폰에서 제어판 사용",
       "owner": "codex",
       "status": "in_progress",
       "goal": "Keep the control server loopback-only while exposing it to an explicitly USB-debug-authorized Android phone through adb reverse, with reconnect handling and a panel button that opens the phone browser.",
@@ -1564,15 +1566,15 @@
         "AI_GAME_COMPANY/docs/DEVICE_WORKFLOW.md"
       ],
       "last_run": "",
-      "title_ko": "Wi-Fi ?? ????? ??? ??",
+      "title_ko": "Wi-Fi 없이 휴대폰에서 제어판 사용",
       "agent_role": "systems_engineer",
       "priority": 98
     },
     {
       "id": "CODEX-REMOTE5G4",
-      "title": "5G?? ? ????? ?? ??",
+      "title": "5G에서 내 휴대폰으로 원격 작업",
       "owner": "codex",
-      "status": "in_progress",
+      "status": "review",
       "goal": "Expose the loopback-only Game Factory through private Tailscale Serve so the owner's Android phone can use the panel over 5G without Wi-Fi or USB, while refusing public Funnel access and foreign identities.",
       "files": [
         "AI_GAME_COMPANY/company/orchestrator/remote_access.py",
@@ -1593,7 +1595,8 @@
       "depends_on": [],
       "notes": [
         "2026-09-23: User clarified that neither Wi-Fi nor USB cable is available. Use private Tailscale Serve; never Tailscale Funnel. User login on both devices remains a human authentication step.",
-        "2026-09-23: Tailscale Serve ??/?? ??, ??? ?????? DNS ??, ?? Funnel ?? ??. Python ?? 640?? ???? ???? ?? ??. ?? Tailscale 1.102.4 MSI ??? ????? Windows ??? ?? ??? ??? ?? 5G ??? ?? ?? ??."
+        "2026-09-23: Tailscale Serve ??/?? ??, ??? ?????? DNS ??, ?? Funnel ?? ??. Python ?? 640?? ???? ???? ?? ??. ?? Tailscale 1.102.4 MSI ??? ????? Windows ??? ?? ??? ??? ?? 5G ??? ?? ?? ??.",
+        "2026-09-23: Private Tailscale Serve is active at https://desktop-a7iu1e9.tail022e98.ts.net/ and remains tailnet-only. The phone reached the page. Four damaged task titles were repaired; the live response is text/html; charset=utf-8 and contains no triple-question-mark corruption. The remote build control ran PlayMode 19/19 and generated APK SHA256 47C75C126555C7F4703609CDC4F76D79E2376A724874BD71F6067E38CB17DBF3. Python suite: 641 passed."
       ],
       "changed_files": [
         "AI_GAME_COMPANY/company/orchestrator/remote_access.py",
@@ -1605,7 +1608,7 @@
         "AI_GAME_COMPANY/docs/REMOTE_5G_WORKFLOW.md"
       ],
       "last_run": "",
-      "title_ko": "5G?? ? ????? ?? ??",
+      "title_ko": "5G에서 내 휴대폰으로 원격 작업",
       "agent_role": "systems_engineer",
       "priority": 99
     }
