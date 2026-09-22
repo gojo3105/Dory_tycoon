@@ -1427,7 +1427,7 @@
     },
     {
       "id": "CODEX-DEVICEAUTO2",
-      "title": "휴대폰 자동 설치와 검증 근거 연결",
+      "title": "??? ?? ??? ?? ?? ??",
       "owner": "codex",
       "status": "in_progress",
       "goal": "Add serial-scoped device install/launch, connection watcher integrated with the server job lock, APK/screenshot hash evidence and honest status. Preserve existing local changes.",
@@ -1458,7 +1458,8 @@
       "depends_on": [],
       "notes": [
         "2026-09-22: User authorized direct local edits and execution in this task. No commit/push.",
-        "2026-09-22: Python full suite 625 passed; final device regression suite 32 passed; dashboard 85 passed and Node controls PASS. Unity PlayMode 19 passed. New APK 28.77 MB SHA256 7880f997d3798935efe23013c8325f0ff6e8e0005ec860a742cf37f066734eeb recorded in Reports/build-status/latest.txt. Device NOT_VERIFIED: S25 FE seen by Windows WPD but adb lists none. UI/gameplay acceptance pending. Server tested on 8766; 8765 restart pending user action after automatic approval review rejected process stop. No commit/push performed by this agent."
+        "2026-09-22: Python full suite 625 passed; final device regression suite 32 passed; dashboard 85 passed and Node controls PASS. Unity PlayMode 19 passed. New APK 28.77 MB SHA256 7880f997d3798935efe23013c8325f0ff6e8e0005ec860a742cf37f066734eeb recorded in Reports/build-status/latest.txt. Device NOT_VERIFIED: S25 FE seen by Windows WPD but adb lists none. UI/gameplay acceptance pending. Server tested on 8766; 8765 restart pending user action after automatic approval review rejected process stop. No commit/push performed by this agent.",
+        "2026-09-23: Python ?? 640? ??. ?? ?? APK? 2026-09-22 21:11:28 ??, 28.77 MB, SHA256 3A2BD06E333DC627?? Reports/build-status/latest.txt? ??. ?? ??? ?? ??? ?? ? Unity ???/??? ????? ?? ?? ??? Unity ???? ??? ?????? ?? ???? ???? ??."
       ],
       "changed_files": [
         "AI_GAME_COMPANY/company/orchestrator/device_runner.py",
@@ -1477,13 +1478,13 @@
         "AI_GAME_COMPANY/tests/test_dashboard_controls.js"
       ],
       "last_run": "",
-      "title_ko": "휴대폰 자동 설치와 검증 근거 연결",
+      "title_ko": "??? ?? ??? ?? ?? ??",
       "agent_role": "systems_engineer",
       "priority": 95
     },
     {
       "id": "CODEX-MOBILEUX2",
-      "title": "앱 전환·터치 취소·화면 대응 개선",
+      "title": "? ????? ????? ?? ??",
       "owner": "codex",
       "status": "in_progress",
       "goal": "Improve generated portrait game lifecycle and input safety using existing art and GameSpec. No engine change, no UnityEditor runtime reference, no Update allocation, editor SetReferences/runtime Configure separation.",
@@ -1504,7 +1505,8 @@
       "depends_on": [],
       "notes": [
         "2026-09-22: User authorized direct local edits and execution in this task. No commit/push.",
-        "2026-09-22: Python full suite 625 passed; final device regression suite 32 passed; dashboard 85 passed and Node controls PASS. Unity PlayMode 19 passed. New APK 28.77 MB SHA256 7880f997d3798935efe23013c8325f0ff6e8e0005ec860a742cf37f066734eeb recorded in Reports/build-status/latest.txt. Device NOT_VERIFIED: S25 FE seen by Windows WPD but adb lists none. UI/gameplay acceptance pending. Server tested on 8766; 8765 restart pending user action after automatic approval review rejected process stop. No commit/push performed by this agent."
+        "2026-09-22: Python full suite 625 passed; final device regression suite 32 passed; dashboard 85 passed and Node controls PASS. Unity PlayMode 19 passed. New APK 28.77 MB SHA256 7880f997d3798935efe23013c8325f0ff6e8e0005ec860a742cf37f066734eeb recorded in Reports/build-status/latest.txt. Device NOT_VERIFIED: S25 FE seen by Windows WPD but adb lists none. UI/gameplay acceptance pending. Server tested on 8766; 8765 restart pending user action after automatic approval review rejected process stop. No commit/push performed by this agent.",
+        "2026-09-23: ???/?? ??, ?? ??, ?? ?? ??? ?? ??? ???. Python ?? 640? ??. ?? ? Unity PlayMode? APK ???? ???? ??? ?? ?? ??."
       ],
       "changed_files": [
         "Assets/GameFactory/Core/InputSystem.cs",
@@ -1515,13 +1517,13 @@
         "Assets/GameFactory/Tests/PlayMode/FactoryRunnerPlayModeTests.cs"
       ],
       "last_run": "",
-      "title_ko": "앱 전환·터치 취소·화면 대응 개선",
+      "title_ko": "? ????? ????? ?? ??",
       "agent_role": "ui_ux_engineer",
       "priority": 95
     },
     {
       "id": "CODEX-USBCONTROL3",
-      "title": "Wi-Fi 없이 휴대폰에서 제어판 사용",
+      "title": "Wi-Fi ?? ????? ??? ??",
       "owner": "codex",
       "status": "in_progress",
       "goal": "Keep the control server loopback-only while exposing it to an explicitly USB-debug-authorized Android phone through adb reverse, with reconnect handling and a panel button that opens the phone browser.",
@@ -1547,13 +1549,65 @@
         "CODEX-DEVICEAUTO2"
       ],
       "notes": [
-        "2026-09-22: User explicitly requires phone control where Wi-Fi cannot be used. Implement with adb reverse instead of widening the network bind. No commit/push."
+        "2026-09-22: User explicitly requires phone control where Wi-Fi cannot be used. Implement with adb reverse instead of widening the network bind. No commit/push.",
+        "2026-09-23: adb reverse? ??? ???? ?? ?? ? ?? ?? ??. ?? USB ??? ?? ?? ??? ?? ???."
       ],
-      "changed_files": [],
+      "changed_files": [
+        "AI_GAME_COMPANY/company/orchestrator/device_runner.py",
+        "AI_GAME_COMPANY/company/orchestrator/device_watch.py",
+        "AI_GAME_COMPANY/company/orchestrator/server.py",
+        "AI_GAME_COMPANY/company/orchestrator/dashboard.py",
+        "AI_GAME_COMPANY/tests/test_device_runner.py",
+        "AI_GAME_COMPANY/tests/test_device_watch.py",
+        "AI_GAME_COMPANY/tests/test_factory_workflow.py",
+        "AI_GAME_COMPANY/tests/test_dashboard_controls.js",
+        "AI_GAME_COMPANY/docs/DEVICE_WORKFLOW.md"
+      ],
       "last_run": "",
-      "title_ko": "Wi-Fi 없이 휴대폰에서 제어판 사용",
+      "title_ko": "Wi-Fi ?? ????? ??? ??",
       "agent_role": "systems_engineer",
       "priority": 98
+    },
+    {
+      "id": "CODEX-REMOTE5G4",
+      "title": "5G?? ? ????? ?? ??",
+      "owner": "codex",
+      "status": "in_progress",
+      "goal": "Expose the loopback-only Game Factory through private Tailscale Serve so the owner's Android phone can use the panel over 5G without Wi-Fi or USB, while refusing public Funnel access and foreign identities.",
+      "files": [
+        "AI_GAME_COMPANY/company/orchestrator/remote_access.py",
+        "AI_GAME_COMPANY/company/orchestrator/server.py",
+        "AI_GAME_COMPANY/company/orchestrator/dashboard.py",
+        "AI_GAME_COMPANY/tests/test_remote_access.py",
+        "AI_GAME_COMPANY/tests/test_factory_workflow.py",
+        "AI_GAME_COMPANY/tests/test_dashboard_controls.js",
+        "AI_GAME_COMPANY/docs/REMOTE_5G_WORKFLOW.md"
+      ],
+      "acceptance": [
+        "The Python control server remains bound only to 127.0.0.1; no LAN bind, router port forwarding, public Funnel or unauthenticated tunnel is used.",
+        "Tailscale Serve proxies HTTPS to 127.0.0.1:8765 and reports the exact private tailnet URL.",
+        "Remote Host headers are accepted only for the configured tailnet DNS name and requests must carry the owner's Tailscale-User-Login identity header.",
+        "The panel shows installed, login and Serve state and can configure private Serve through a fixed argv with no client-provided URL or command.",
+        "HTTP and unit regressions pass; a 5G phone signed into the same tailnet can load the panel and trigger a harmless status action."
+      ],
+      "depends_on": [],
+      "notes": [
+        "2026-09-23: User clarified that neither Wi-Fi nor USB cable is available. Use private Tailscale Serve; never Tailscale Funnel. User login on both devices remains a human authentication step.",
+        "2026-09-23: Tailscale Serve ??/?? ??, ??? ?????? DNS ??, ?? Funnel ?? ??. Python ?? 640?? ???? ???? ?? ??. ?? Tailscale 1.102.4 MSI ??? ????? Windows ??? ?? ??? ??? ?? 5G ??? ?? ?? ??."
+      ],
+      "changed_files": [
+        "AI_GAME_COMPANY/company/orchestrator/remote_access.py",
+        "AI_GAME_COMPANY/company/orchestrator/server.py",
+        "AI_GAME_COMPANY/company/orchestrator/dashboard.py",
+        "AI_GAME_COMPANY/tests/test_remote_access.py",
+        "AI_GAME_COMPANY/tests/test_factory_workflow.py",
+        "AI_GAME_COMPANY/tests/test_dashboard_controls.js",
+        "AI_GAME_COMPANY/docs/REMOTE_5G_WORKFLOW.md"
+      ],
+      "last_run": "",
+      "title_ko": "5G?? ? ????? ?? ??",
+      "agent_role": "systems_engineer",
+      "priority": 99
     }
   ]
 }
