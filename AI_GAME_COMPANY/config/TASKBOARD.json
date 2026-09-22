@@ -1518,6 +1518,42 @@
       "title_ko": "앱 전환·터치 취소·화면 대응 개선",
       "agent_role": "ui_ux_engineer",
       "priority": 95
+    },
+    {
+      "id": "CODEX-USBCONTROL3",
+      "title": "Wi-Fi 없이 휴대폰에서 제어판 사용",
+      "owner": "codex",
+      "status": "in_progress",
+      "goal": "Keep the control server loopback-only while exposing it to an explicitly USB-debug-authorized Android phone through adb reverse, with reconnect handling and a panel button that opens the phone browser.",
+      "files": [
+        "AI_GAME_COMPANY/company/orchestrator/device_runner.py",
+        "AI_GAME_COMPANY/company/orchestrator/device_watch.py",
+        "AI_GAME_COMPANY/company/orchestrator/server.py",
+        "AI_GAME_COMPANY/company/orchestrator/dashboard.py",
+        "AI_GAME_COMPANY/tests/test_device_runner.py",
+        "AI_GAME_COMPANY/tests/test_device_watch.py",
+        "AI_GAME_COMPANY/tests/test_factory_workflow.py",
+        "AI_GAME_COMPANY/tests/test_dashboard_controls.js",
+        "AI_GAME_COMPANY/docs/DEVICE_WORKFLOW.md"
+      ],
+      "acceptance": [
+        "The server remains bound to 127.0.0.1 and is not exposed to LAN or internet interfaces.",
+        "A sole or explicitly selected ready Android device receives adb reverse tcp:8765 to tcp:8765; every adb command is serial-scoped.",
+        "The panel can open its fixed loopback URL in the selected phone browser without accepting a client-provided command or URL.",
+        "Disconnect/reconnect restores the tunnel, unauthorized or multiple unselected devices are refused, and failures are visible in device status.",
+        "HTTP, watcher, command and browser-control regressions pass; the real phone can load and operate the panel over USB with Wi-Fi unavailable."
+      ],
+      "depends_on": [
+        "CODEX-DEVICEAUTO2"
+      ],
+      "notes": [
+        "2026-09-22: User explicitly requires phone control where Wi-Fi cannot be used. Implement with adb reverse instead of widening the network bind. No commit/push."
+      ],
+      "changed_files": [],
+      "last_run": "",
+      "title_ko": "Wi-Fi 없이 휴대폰에서 제어판 사용",
+      "agent_role": "systems_engineer",
+      "priority": 98
     }
   ]
 }
