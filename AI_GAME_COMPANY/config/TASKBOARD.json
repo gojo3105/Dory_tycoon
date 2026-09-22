@@ -1611,6 +1611,38 @@
       "title_ko": "5G에서 내 휴대폰으로 원격 작업",
       "agent_role": "systems_engineer",
       "priority": 99
+    },
+    {
+      "id": "CODEX-DEVICEUI5",
+      "title": "Stabilize device text rendering and repair clipped mobile UI",
+      "owner": "codex",
+      "status": "in_progress",
+      "goal": "Use real S25 FE screenshots to remove one-frame dynamic-font gaps and repair title, game-over and shop text layout without hardcoding GameSpec values or allocating in Update.",
+      "files": [
+        "Assets/GameFactory/UI/KoreanFontApplier.cs",
+        "Assets/GameFactory/UI/ShopController.cs",
+        "Assets/GameFactory/Editor/SceneGenerator.cs",
+        "Assets/GameFactory/Tests/PlayMode/FactoryRunnerPlayModeTests.cs"
+      ],
+      "acceptance": [
+        "Dynamic Korean, ASCII and numeric glyphs used by generated UI are requested before the first rendered frame at every configured text size.",
+        "The title subtitle and game-over stat captions are legible without outline or border overlap on the connected 1080x2340 device.",
+        "Long unavailable-store labels fit inside their buttons and Android Back closes the open shop.",
+        "PlayMode regressions pass, a new APK is recorded in Reports/build-status/latest.txt, and that exact APK installs and runs on the authorized phone.",
+        "Repeated jump and slide screenshots show stable labels; device log contains no app FATAL EXCEPTION or ANR for the verification session."
+      ],
+      "depends_on": [
+        "CODEX-MOBILEUX2"
+      ],
+      "notes": [
+        "2026-09-23: Real-device screenshots reproduced a one-frame loss of multiple dynamic-font labels. Game-over captions overlap their boxes, the title subtitle outline is too heavy, store-unavailable labels clip, and Android Back does not close the shop."
+      ],
+      "changed_files": [],
+      "last_run": "",
+      "title_ko": "기기 글꼴 표시 안정화와 모바일 UI 잘림 수정",
+      "agent_role": "ui_ux_engineer",
+      "task_type": "ui_ux",
+      "priority": 99
     }
   ]
 }
